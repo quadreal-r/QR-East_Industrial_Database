@@ -1056,6 +1056,28 @@
           "delta": 10
         }
       ]
+    },
+    {
+      "syncedAt": "2026-07-02T22:05:02.777Z",
+      "exportedAt": "2026-07-02T22:04:34.718Z",
+      "source": "settings-sync",
+      "summary": {
+        "buildingCount": 102,
+        "rtuCount": 1083,
+        "utilityCount": 257,
+        "polygonCount": 447,
+        "scheduleYearCount": 463,
+        "scheduleNoteCount": 348,
+        "pricingRowCount": 25,
+        "manifestPictureCount": 1563,
+        "picturesUploaded": 0,
+        "picturesAdded": 0,
+        "picturesRemoved": 0,
+        "picturesHidden": 0,
+        "buildVersionLabel": "v2026.07.02 (14)",
+        "clientBuildVersionLabel": "v2026.07.02 (12)"
+      },
+      "changes": []
     }
   ]
 }
