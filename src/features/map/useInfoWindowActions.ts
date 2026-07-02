@@ -6,7 +6,6 @@ import {
   getAppMarkerPosition,
   setAppMarkerCursor,
   setAppMarkerDraggable,
-  setAppMarkerPosition,
   setAppMarkerVisible,
   type AppMapMarker,
 } from '@/lib/appMapMarker'
@@ -66,7 +65,7 @@ export function useInfoWindowActions(
   activeInfoMarkerRef: MutableRefObject<AppMapMarker | null>,
   activeDetailInfoRef: MutableRefObject<ActiveDetailInfo | null>,
   activeRtuPicturesRef: MutableRefObject<RtuPicture[]>,
-  soloMoveRef: MutableRefObject<{ marker: AppMapMarker; label?: AppMapMarker } | null>,
+  soloMoveRef: MutableRefObject<{ marker: AppMapMarker } | null>,
   soloMoveListenerRef: MutableRefObject<google.maps.MapsEventListener | null>,
   callbacksRef: MutableRefObject<MapMarkersCallbacks>,
   polygonIndexRef: MutableRefObject<PolygonBuildingIndex>,
@@ -90,11 +89,11 @@ export function useInfoWindowActions(
   }, [soloMoveRef, soloMoveListenerRef])
 
   const startSoloMove = useCallback(
-    (marker: AppMapMarker, label?: AppMapMarker) => {
+    (marker: AppMapMarker) => {
       stopSoloMove()
       infoWindowRef.current?.close()
       activeInfoMarkerRef.current = null
-      soloMoveRef.current = { marker, label }
+      soloMoveRef.current = { marker }
       setAppMarkerDraggable(marker, true)
       setAppMarkerCursor(marker, 'grab')
       showToastSuccess('- Drag marker to reposition.')
@@ -105,7 +104,6 @@ export function useInfoWindowActions(
           const lng = pos.lng()
           const buildingEntry = buildingMarkersRef.current.find((e) => e.marker === marker)
           if (buildingEntry) {
-            setAppMarkerPosition(buildingEntry.label, lat, lng)
             callbacksRef.current.onBuildingMoved?.(buildingEntry.building, lat, lng)
           } else {
             const detailEntry = detailMarkersRef.current.find((e) => e.marker === marker)
@@ -293,7 +291,7 @@ export function useInfoWindowActions(
             const address = btn.getAttribute('data-iw-address') ?? ''
             const entry = buildingMarkersRef.current.find((m) => m.building.address === address)
             if (!entry) return
-            startSoloMove(entry.marker, entry.label)
+            startSoloMove(entry.marker)
             return
           }
           if (kind === 'detail') {

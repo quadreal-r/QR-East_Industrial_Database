@@ -2,19 +2,17 @@ import { useCallback } from 'react'
 import type { MutableRefObject } from 'react'
 import {
   getAppMarkerPosition,
-  setAppMarkerIcon,
   setAppMarkerVisible,
   setAppMarkerZIndex,
   setAppMarkerCursor,
 } from '@/lib/appMapMarker'
-import { getColor } from '@/lib/colors'
 import { isGroupDragActive } from '@/lib/mapGroupDragSession'
 import { fitBoundsPreserveRotation } from '@/lib/mapRotation'
-import { getMarkerIcon } from '@/lib/markerStyles'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { areAllLayersHidden, useLayerStore } from '@/stores/layerStore'
 import { buildingDragKey } from '@/lib/dragSelection'
 import {
+  syncBuildingMarkerAppearance,
   syncDetailMarkerAppearance,
   fitMapToBuildingMarkers,
   MAP_BUILDING_FIT_PADDING,
@@ -35,7 +33,6 @@ export function useMarkerVisibility(
 
     for (const entry of buildingMarkersRef.current) {
       setAppMarkerVisible(entry.marker, showBuildings)
-      setAppMarkerVisible(entry.label, showBuildings)
     }
   }, [buildingMarkersRef])
 
@@ -67,9 +64,8 @@ export function useMarkerVisibility(
   const refreshDragSelectionStyles = useCallback(() => {
     const selected = new Set(useSelectionStore.getState().dragSelectedKeys)
     for (const entry of buildingMarkersRef.current) {
-      const color = getColor(entry.building.park)
       const isSelected = selected.has(buildingDragKey(entry.building.address))
-      setAppMarkerIcon(entry.marker, getMarkerIcon(color, isSelected))
+      syncBuildingMarkerAppearance(entry, isSelected)
       setAppMarkerZIndex(entry.marker, isSelected ? 999 : 10)
       if (useSelectionStore.getState().dragMode) {
         setAppMarkerCursor(entry.marker, 'grab')
@@ -87,8 +83,7 @@ export function useMarkerVisibility(
 
   const resetBuildingIcons = useCallback(() => {
     for (const entry of buildingMarkersRef.current) {
-      const color = getColor(entry.building.park)
-      setAppMarkerIcon(entry.marker, getMarkerIcon(color, false))
+      syncBuildingMarkerAppearance(entry, false)
       setAppMarkerZIndex(entry.marker, 10)
     }
   }, [buildingMarkersRef])
@@ -98,8 +93,7 @@ export function useMarkerVisibility(
       resetBuildingIcons()
       const entry = buildingMarkersRef.current.find((m) => m.building.address === building.address)
       if (!entry) return
-      const color = getColor(building.park)
-      setAppMarkerIcon(entry.marker, getMarkerIcon(color, true))
+      syncBuildingMarkerAppearance(entry, true)
       setAppMarkerZIndex(entry.marker, 999)
     },
     [buildingMarkersRef, resetBuildingIcons],
@@ -129,7 +123,6 @@ export function useMarkerVisibility(
     if (!map) return
     for (const entry of buildingMarkersRef.current) {
       setAppMarkerVisible(entry.marker, true)
-      setAppMarkerVisible(entry.label, true)
     }
     fitMapToBuildingMarkers(map, buildingMarkersRef.current)
     refreshDetailVisibility()

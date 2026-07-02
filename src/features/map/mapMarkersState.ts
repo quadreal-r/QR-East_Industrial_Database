@@ -3,6 +3,7 @@
  */
 import {
   getAppMarkerPosition,
+  setBuildingMarkerContent,
   setDetailMarkerContent,
   setAppMarkerPosition,
   type AppMapMarker,
@@ -10,7 +11,8 @@ import {
 import { matchesUtility } from '@/lib/dragSelection'
 import { isLegacySuiteMarkerName } from '@/lib/legacySuiteMarkers'
 import { LAYER_COLORS } from '@/lib/constants'
-import { getDetailMarkerIcon } from '@/lib/markerStyles'
+import { getColor } from '@/lib/colors'
+import { getDetailMarkerIcon, getMarkerIcon } from '@/lib/markerStyles'
 import { registerRtuDropTarget, rtuDropTargetKey } from '@/features/map/rtuDropTargetHighlight'
 import { fitBoundsPreserveRotation } from '@/lib/mapRotation'
 import type { buildPolygonBuildingIndex } from '@/lib/polygonBuildings'
@@ -45,7 +47,6 @@ export interface MapMarkersCallbacks {
 export interface BuildingMarkerEntry {
   building: Building
   marker: AppMapMarker
-  label: AppMapMarker
 }
 
 export interface DetailMarkerEntry {
@@ -82,6 +83,22 @@ export function fitMapToBuildingMarkers(
   if (!bounds.isEmpty()) {
     fitBoundsPreserveRotation(map, bounds, MAP_BUILDING_FIT_PADDING)
   }
+}
+
+export function buildingLabelText(address: string): string {
+  return address.length > 24 ? `${address.slice(0, 22)}...` : address
+}
+
+export function syncBuildingMarkerAppearance(
+  entry: BuildingMarkerEntry,
+  isSelected = false,
+): void {
+  const color = getColor(entry.building.park)
+  const icon = getMarkerIcon(color, isSelected)
+  setBuildingMarkerContent(entry.marker, icon, {
+    text: buildingLabelText(entry.building.address),
+    className: 'bldg-marker-label',
+  })
 }
 
 export function detailLabelFor(entry: DetailMarkerEntry): google.maps.MarkerLabel | undefined {
@@ -251,7 +268,6 @@ export function syncMarkersFromPortfolio(
     const pos = getAppMarkerPosition(entry.marker)
     if (!pos || pos.lat() !== b.lat || pos.lng() !== b.lng) {
       setAppMarkerPosition(entry.marker, b.lat, b.lng)
-      setAppMarkerPosition(entry.label, b.lat, b.lng)
     }
   }
 

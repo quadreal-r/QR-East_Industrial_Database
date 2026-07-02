@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   sync-json-to-r2:
@@ -116,14 +116,15 @@ jobs:
         with:
           path: dist
 
-      - name: Commit version stamp
+      - name: Upload version stamp for post-deploy commit
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add version.build.json src/generated/buildVersion.ts
-          git diff --staged --quiet || git commit -m "chore: bump deploy version stamp [skip ci]"
-          git push
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-stamp
+          path: |
+            version.build.json
+            src/generated/buildVersion.ts
+          retention-days: 1
 
   deploy:
     if: github.ref == 'refs/heads/main' && (github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]'))
@@ -135,3 +136,23 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  commit-version:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Restore version stamp from build
+        uses: actions/download-artifact@v5
+        with:
+          name: version-stamp
+
+      - name: Commit version stamp
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.build.json src/generated/buildVersion.ts
+          git diff --staged --quiet || git commit -m "chore: bump deploy version stamp [skip ci]"
+          git push

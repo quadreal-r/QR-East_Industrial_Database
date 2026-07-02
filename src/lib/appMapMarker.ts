@@ -128,21 +128,34 @@ export interface BuildingMarkerLabel {
   className?: string
 }
 
-/** Building pin + address label in one marker (pin tip on the map coordinate). */
+/** Center the map coordinate on the pin circle (Advanced Marker translate-style anchor). */
+const PIN_CENTER_ANCHOR_LEFT = '-50%'
+const PIN_CENTER_ANCHOR_TOP = '-50%'
+
+/** Building pin + address label — lat/lng at circle center, label below (legacy behavior). */
 export function buildBuildingMarkerContent(
   icon: google.maps.Symbol,
   label: BuildingMarkerLabel,
   gap = 4,
 ): HTMLElement {
-  const root = document.createElement('div')
-  root.style.display = 'inline-flex'
-  root.style.flexDirection = 'column'
-  root.style.alignItems = 'center'
-  root.style.pointerEvents = 'auto'
-  root.style.lineHeight = '0'
-  root.style.cursor = 'pointer'
+  const pinSize = symbolPixelSize(icon.scale ?? 9)
 
-  root.appendChild(buildSymbolContent(icon))
+  const root = document.createElement('div')
+  root.style.position = 'relative'
+  root.style.width = `${pinSize}px`
+  root.style.height = `${pinSize}px`
+  root.style.pointerEvents = 'auto'
+  root.style.cursor = 'pointer'
+  root.style.lineHeight = '0'
+
+  const pinWrap = document.createElement('div')
+  pinWrap.style.width = '100%'
+  pinWrap.style.height = '100%'
+  pinWrap.style.display = 'flex'
+  pinWrap.style.alignItems = 'center'
+  pinWrap.style.justifyContent = 'center'
+  pinWrap.appendChild(buildSymbolContent(icon))
+  root.appendChild(pinWrap)
 
   const span = document.createElement('span')
   span.textContent = label.text
@@ -152,7 +165,12 @@ export function buildBuildingMarkerContent(
   span.style.fontFamily = label.fontFamily ?? 'Inter,sans-serif'
   span.style.whiteSpace = 'nowrap'
   span.style.lineHeight = '1.2'
+  span.style.position = 'absolute'
+  span.style.left = '50%'
+  span.style.top = '100%'
+  span.style.transform = 'translateX(-50%)'
   span.style.marginTop = `${gap}px`
+  span.style.pointerEvents = 'auto'
   if (label.className) span.className = label.className
   root.appendChild(span)
 
@@ -170,8 +188,8 @@ export function setBuildingMarkerContent(
   gap = 4,
 ): void {
   marker.content = buildBuildingMarkerContent(icon, label, gap)
-  marker.anchorLeft = '50%'
-  marker.anchorTop = `${buildingMarkerPinHeight(icon)}px`
+  marker.anchorLeft = PIN_CENTER_ANCHOR_LEFT
+  marker.anchorTop = PIN_CENTER_ANCHOR_TOP
   marker.gmpClickable = true
 }
 
@@ -185,10 +203,13 @@ export interface DetailMarkerContentOptions {
 /** RTU / utility marker DOM — label above pin, optional picture-count badge centered on pin. */
 export function buildDetailMarkerContent(options: DetailMarkerContentOptions): HTMLElement {
   const labelOffset = options.labelOffsetY ?? -7
+  const pinSize = symbolPixelSize((options.icon.scale as number | undefined) ?? 5)
 
   const root = document.createElement('div')
   root.style.position = 'relative'
-  root.style.display = 'inline-flex'
+  root.style.width = `${pinSize}px`
+  root.style.height = `${pinSize}px`
+  root.style.display = 'flex'
   root.style.alignItems = 'center'
   root.style.justifyContent = 'center'
   root.style.pointerEvents = 'auto'
@@ -237,6 +258,8 @@ export function setDetailMarkerContent(
   options: DetailMarkerContentOptions,
 ): void {
   marker.content = buildDetailMarkerContent(options)
+  marker.anchorLeft = PIN_CENTER_ANCHOR_LEFT
+  marker.anchorTop = PIN_CENTER_ANCHOR_TOP
   marker.gmpClickable = true
 }
 

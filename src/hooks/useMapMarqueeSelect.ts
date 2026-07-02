@@ -17,7 +17,7 @@ export function useMapMarqueeSelect(
   useEffect(() => {
     if (!map || !dragMode) return
 
-    map.setOptions({ draggable: false, draggableCursor: 'crosshair' })
+    map.setOptions({ draggable: false, draggableCursor: 'default', draggingCursor: 'grabbing' })
 
     const container = map.getDiv()
     container.style.userSelect = 'none'
@@ -107,7 +107,7 @@ export function useMapMarqueeSelect(
     window.addEventListener('mouseup', onMouseUp)
 
     return () => {
-      map.setOptions({ draggable: true, draggableCursor: null })
+      map.setOptions({ draggable: true, draggableCursor: null, draggingCursor: null })
       container.style.userSelect = ''
       container.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('mousemove', onMouseMove)
