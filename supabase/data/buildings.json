@@ -2117,6 +2117,12 @@
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-01\r\nModel: TGA090S2BM1J\r\nSerial: 5607L18805\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2007\r\nHeating Capacity: 180,000 BTU's\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\nHeating Capacity 180,000 BTU's\r\n-updated by Marcus Ganhao August 14, 2023",
         "lat": 43.7895969,
         "lng": -79.5281034
+      },
+      {
+        "name": "RTU-07",
+        "desc": "Building: 55 Interchange Way\nSystem: Roof Top Units\nDescription: RTU-07\nSuite: SUITE 2\nModel: TGA060S2DH1J\nSerial: 5607H02064\nMake: LENNOX\nDate Installed: Nov 04, 2007\nHeating Capacity 150,000 BTU's\nCooling Capacity: 60,000 BTU (5 Ton)",
+        "lat": 43.78985315739929,
+        "lng": -79.52655682341049
       }
     ]
   },
