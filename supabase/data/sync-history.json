@@ -1027,6 +1027,35 @@
           "delta": -1
         }
       ]
+    },
+    {
+      "syncedAt": "2026-07-02T22:03:24.966Z",
+      "exportedAt": "2026-07-02T22:02:50.002Z",
+      "source": "settings-sync",
+      "summary": {
+        "buildingCount": 102,
+        "rtuCount": 1083,
+        "utilityCount": 257,
+        "polygonCount": 447,
+        "scheduleYearCount": 463,
+        "scheduleNoteCount": 348,
+        "pricingRowCount": 25,
+        "manifestPictureCount": 1563,
+        "picturesUploaded": 0,
+        "picturesAdded": 0,
+        "picturesRemoved": 0,
+        "picturesHidden": 0,
+        "buildVersionLabel": "v2026.07.02 (14)",
+        "clientBuildVersionLabel": "v2026.07.02 (12)"
+      },
+      "changes": [
+        {
+          "label": "RTU markers",
+          "before": 1073,
+          "after": 1083,
+          "delta": 10
+        }
+      ]
     }
   ]
 }

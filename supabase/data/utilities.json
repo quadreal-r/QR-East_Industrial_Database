@@ -3,8 +3,8 @@
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "6200 Kenway Dr.",
-    "lat": 43.63584416482781,
-    "lng": -79.67583025769228
+    "lat": 43.6358442,
+    "lng": -79.6758303
   },
   {
     "type": "Sprinkler Rooms",
@@ -192,36 +192,36 @@
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "6300 Kenway",
-    "lat": 43.635517428987285,
-    "lng": -79.67833888758585
+    "lat": 43.6355174,
+    "lng": -79.6783389
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "6150 Kennedy (West) B",
-    "lat": 43.637790453457235,
-    "lng": -79.67293899608242
+    "lat": 43.6377905,
+    "lng": -79.672939
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "6150 Kennedy (East) A",
-    "lat": 43.637771053457236,
-    "lng": -79.67264159608243
+    "lat": 43.6377711,
+    "lng": -79.6726416
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "6175 Kenway Dr",
-    "lat": 43.63646738376035,
-    "lng": -79.67551397752472
+    "lat": 43.6364674,
+    "lng": -79.675514
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "6160 Kenway",
-    "lat": 43.63582398581072,
-    "lng": -79.6742128251716
+    "lat": 43.635824,
+    "lng": -79.6742128
   },
   {
     "type": "Sprinkler Rooms",
@@ -409,15 +409,15 @@
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "1555 Bonhill Rd",
-    "lat": 43.662880148884554,
-    "lng": -79.65565523962815
+    "lat": 43.6628801,
+    "lng": -79.6556552
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
     "desc": "6325 Dixie Rd",
-    "lat": 43.6626178658186,
-    "lng": -79.65603943242493
+    "lat": 43.6626179,
+    "lng": -79.6560394
   },
   {
     "type": "Sprinkler Rooms",
@@ -429,14 +429,14 @@
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
-    "desc": "Interior Access\r\r\n6820 Creditview Rd",
+    "desc": "Interior Access\r\n\r\n6820 Creditview Rd",
     "lat": 43.6132792,
     "lng": -79.7353355
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
-    "desc": "Interior Access\r\r\n6980 Creditview Rd",
+    "desc": "Interior Access\r\n\r\n6980 Creditview Rd",
     "lat": 43.6123605,
     "lng": -79.7424253
   },
@@ -450,35 +450,35 @@
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
-    "desc": "Interior Access\r\r\n441 Courtneypark Dr E",
+    "desc": "Interior Access\r\n\r\n441 Courtneypark Dr E",
     "lat": 43.6465621,
     "lng": -79.6859965
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
-    "desc": "Interior Access\r\r\n326 Superior Blvd",
+    "desc": "Interior Access\r\n\r\n326 Superior Blvd",
     "lat": 43.6479704,
     "lng": -79.6909146
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
-    "desc": "Interior Access\r\r\n320 Superior Blvd",
+    "desc": "Interior Access\r\n\r\n320 Superior Blvd",
     "lat": 43.647323,
     "lng": -79.6919033
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
-    "desc": "Interior Access\r\r\n6100 Kenway Dr",
-    "lat": 43.63687499711279,
-    "lng": -79.67206218175774
+    "desc": "Interior Access\r\n\r\n6100 Kenway Dr",
+    "lat": 43.636875,
+    "lng": -79.6720622
   },
   {
     "type": "Sprinkler Rooms",
     "name": "Sprinkler Room",
-    "desc": "Interior Access\r\r\n6270 Kenway Dr",
+    "desc": "Interior Access\r\n\r\n6270 Kenway Dr",
     "lat": 43.6347137,
     "lng": -79.6767882
   },
@@ -534,7 +534,7 @@
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "7030 Royal Bank Dr\r\r\n(interior access?)",
+    "desc": "7030 Royal Bank Dr\r\n\r\n(interior access?)",
     "lat": 43.6086232,
     "lng": -79.7491216
   },
@@ -584,8 +584,8 @@
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6175 Kenway Dr",
-    "lat": 43.636505983760344,
-    "lng": -79.67554367752471
+    "lat": 43.636506,
+    "lng": -79.6755437
   },
   {
     "type": "Electrical Rooms",
@@ -598,8 +598,8 @@
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6300 Kenway Dr",
-    "lat": 43.63550022898729,
-    "lng": -79.67831338758586
+    "lat": 43.6355002,
+    "lng": -79.6783134
   },
   {
     "type": "Electrical Rooms",
@@ -612,36 +612,36 @@
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6150 Kennedy Rd(West)B",
-    "lat": 43.637821553457236,
-    "lng": -79.67297839608243
+    "lat": 43.6378216,
+    "lng": -79.6729784
   },
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6150 Kennedy Rd(East) A",
-    "lat": 43.63778575345724,
-    "lng": -79.67266269608243
+    "lat": 43.6377858,
+    "lng": -79.6726627
   },
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6200 Kenway Dr",
-    "lat": 43.63582136482781,
-    "lng": -79.67584665769228
+    "lat": 43.6358214,
+    "lng": -79.6758467
   },
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6160 Kenway Dr",
-    "lat": 43.63661018581072,
-    "lng": -79.67303012517159
+    "lat": 43.6366102,
+    "lng": -79.6730301
   },
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6100 Kenway Dr",
-    "lat": 43.63730659711279,
-    "lng": -79.67122168175774
+    "lat": 43.6373066,
+    "lng": -79.6712217
   },
   {
     "type": "Electrical Rooms",
@@ -695,7 +695,7 @@
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "Interior Access\r\r\n6980 Creditview Rd",
+    "desc": "Interior Access\r\n\r\n6980 Creditview Rd",
     "lat": 43.6126229,
     "lng": -79.7429736
   },
@@ -723,7 +723,7 @@
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "Interior Access\r\r\n6820 Creditview Rd",
+    "desc": "Interior Access\r\n\r\n6820 Creditview Rd",
     "lat": 43.6131796,
     "lng": -79.7352906
   },
@@ -737,21 +737,21 @@
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "Interior Access\r\r\n441 Courtneypark Dr E",
+    "desc": "Interior Access\r\n\r\n441 Courtneypark Dr E",
     "lat": 43.6465891,
     "lng": -79.6859646
   },
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "Interior Access\r\r\n326 Superior Blvd",
+    "desc": "Interior Access\r\n\r\n326 Superior Blvd",
     "lat": 43.6476037,
     "lng": -79.6913268
   },
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "Interior Access\r\r\n320 Superior Blvd",
+    "desc": "Interior Access\r\n\r\n320 Superior Blvd",
     "lat": 43.6474825,
     "lng": -79.6917282
   },
@@ -1004,8 +1004,8 @@
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "6325 Dixie Rd",
-    "lat": 43.66231116581861,
-    "lng": -79.65560453242493
+    "lat": 43.6623112,
+    "lng": -79.6556045
   },
   {
     "type": "Electrical Rooms",
@@ -1018,13 +1018,13 @@
     "type": "Electrical Rooms",
     "name": "Electrical Room",
     "desc": "1555 Bonhill Rd",
-    "lat": 43.66254844888455,
-    "lng": -79.65523243962815
+    "lat": 43.6625484,
+    "lng": -79.6552324
   },
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "1550 Courtneypark Dr E\r\r\nElec. R Interior Access",
+    "desc": "1550 Courtneypark Dr E\r\n\r\nElec. R Interior Access",
     "lat": 43.6645916,
     "lng": -79.6560855
   },
@@ -1087,7 +1087,7 @@
   {
     "type": "Electrical Rooms",
     "name": "Electrical Room",
-    "desc": "1633-1655 Meyerside Rd\r\r\n1500 Bonhill Rd\r\r\n1577 Meyerside Dr",
+    "desc": "1633-1655 Meyerside Rd\r\n\r\n1500 Bonhill Rd\r\n\r\n1577 Meyerside Dr",
     "lat": 43.6640964,
     "lng": -79.6507616
   },
@@ -1683,8 +1683,8 @@
     "type": "Fire Hydrants",
     "name": "6150 Kennedy A&B(Aprox. Location)",
     "desc": "6150 Kennedy Road (East & West)",
-    "lat": 43.63776145345724,
-    "lng": -79.67274009608242
+    "lat": 43.6377615,
+    "lng": -79.6727401
   },
   {
     "type": "Fire Hydrants",

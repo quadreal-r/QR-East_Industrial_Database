@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "exportedAt": "2026-07-02T17:40:30.081Z",
-  "syncedAt": "2026-07-02T17:40:54.792Z",
+  "exportedAt": "2026-07-02T22:02:50.002Z",
+  "syncedAt": "2026-07-02T22:03:24.966Z",
   "source": "settings-sync",
   "summary": {
     "buildingCount": 102,
-    "rtuCount": 1073,
+    "rtuCount": 1083,
     "utilityCount": 257,
     "polygonCount": 447,
     "scheduleYearCount": 463,
@@ -16,7 +16,7 @@
     "picturesAdded": 0,
     "picturesRemoved": 0,
     "picturesHidden": 0,
-    "buildVersionLabel": "v2026.07.02 (13)",
-    "clientBuildVersionLabel": "v2026.07.02 (13)"
+    "buildVersionLabel": "v2026.07.02 (14)",
+    "clientBuildVersionLabel": "v2026.07.02 (12)"
   }
 }

@@ -765,6 +765,12 @@
         "desc": "Building: 1495 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-06 Hybrid\r\nModel: LDT036H5EB1P\r\nSerial: 5625A02961\r\nMake: LENNOX\r\nDate Installed: Mar 19, 2025\r\nHeating Capacity: 60,000 BTU's\r\n(2 ton)\r\n$30,618 Replaced by Springbank in 2024\r\n(dual-fuel hybrid heat pump)",
         "lat": 43.6616514,
         "lng": -79.654432
+      },
+      {
+        "name": "RTU-02A",
+        "desc": "Building: 1495 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-02A\r\nModel: KGA036S4DM3Y\r\nSerial: 5615808152\r\nMake: Lennox\r\nDate Installed: Nov 09, 2015\r\nHeating Capacity: 80,000 BTU\r\nCooling Capacity: (3 Ton)\r\nHeating capacity 80,000 BTU's; (3 Ton)\r\nwas missing from WB1",
+        "lat": 43.6618756,
+        "lng": -79.6543222
       }
     ]
   },
@@ -1118,6 +1124,36 @@
         "desc": "Building: 1715 Meyerside Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-07\r\nModel: KGA060S4DH3J\r\nSerial: 5612H00779\r\nMake: LENNOX\r\nDate Installed: Nov 24, 2012\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 150,000 BTU's",
         "lat": 43.6658849,
         "lng": -79.6496574
+      },
+      {
+        "name": "RTU-01",
+        "desc": "Building: 1715 Meyerside Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-01\r\nModel: KGA060S4DH3J\r\nSerial: 5613K02498\r\nMake: Lennox\r\nDate Installed: Nov 24, 2013\r\nHeating Capacity: 150,000 BTU\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 150,000 BTU's; Cooling Capacity: 60,000 BTU (5 Ton)\r\nwas missing from WB1",
+        "lat": 43.6654813,
+        "lng": -79.6495231
+      },
+      {
+        "name": "RTU-02",
+        "desc": "Building: 1715 Meyerside Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-02\r\nModel: ZH090N15N5AAA5A\r\nSerial: N1A0548892\r\nMake: York\r\nDate Installed: Nov 24, 2010\r\nHeating Capacity: 180,000 BTU\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\nHeating Capacity 180,000 BTU's; Cooling Capacity: 90,000 BTU (7.5 Ton)\r\nwas missing from WB1",
+        "lat": 43.6654624,
+        "lng": -79.6494871
+      },
+      {
+        "name": "RTU-03",
+        "desc": "Building: 1715 Meyerside Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-03\r\nModel: ZF048N10N2AAA2A\r\nSerial: N1H4075908\r\nMake: York\r\nDate Installed: Nov 24, 2014\r\nHeating Capacity: 125,000 BTU\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's; Cooling Capacity: 48,000 BTU (4 Ton)\r\nwas missing from WB1",
+        "lat": 43.6654317,
+        "lng": -79.6495009
+      },
+      {
+        "name": "RTU-04",
+        "desc": "Building: 1715 Meyerside Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-04\r\nModel: D2NP030N05606A\r\nSerial: N0A8587761\r\nMake: York\r\nDate Installed: Nov 24, 2008\r\nHeating Capacity: 70,000 BTU\r\nCooling Capacity: 30,000 BTU (2.5 Ton)\r\nHeating Capacity 70,000 BTU's; Cooling Capacity: 30,000 BTU (2.5 Ton)\r\nwas missing from WB1",
+        "lat": 43.6654317,
+        "lng": -79.6495453
+      },
+      {
+        "name": "RTU-05",
+        "desc": "Building: 1715 Meyerside Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-05\r\nModel: KGA036S4DM2Y\r\nSerial: 5614E05332\r\nMake: Lennox\r\nDate Installed: Nov 24, 2014\r\nHeating Capacity: 80,000 BTU\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 80,000 BTU's; Cooling Capacity: 36,000 BTU (3 Ton)\r\nwas missing from WB1",
+        "lat": 43.6654624,
+        "lng": -79.6495591
       }
     ]
   },
@@ -1655,8 +1691,8 @@
     "park": "Dixie Business Park (x 34)",
     "address": "1555 Bonhill Road",
     "bu": "65202",
-    "lat": 43.66261554888455,
-    "lng": -79.65511553962816,
+    "lat": 43.6626155,
+    "lng": -79.6551155,
     "sqft": "36,259",
     "cluster": "Dixie 4 (x 4)",
     "manager": "Evelyn Lu",
@@ -1665,62 +1701,62 @@
       {
         "name": "RTU-01",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-01\r\nModel: 48TCEA05A2A1A0B0A0\r\nSerial: 2511G40309\r\nMake: CARRIER\r\nDate Installed: Nov 18, 2011\r\nHeating Capacity: 115,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 115,000 BTU's",
-        "lat": 43.662373648884554,
-        "lng": -79.65459203962816
+        "lat": 43.6623736,
+        "lng": -79.654592
       },
       {
         "name": "RTU-02",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-02\r\nModel: 48TCEA04A2A5A0B0A0\r\nSerial: 1211G20101\r\nMake: CARRIER\r\nDate Installed: Nov 18, 2011\r\nHeating Capacity: 115,000 BTU's]\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 115,000 BTU's]",
-        "lat": 43.66244464888455,
-        "lng": -79.65468013962816
+        "lat": 43.6624446,
+        "lng": -79.6546801
       },
       {
         "name": "RTU-03",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-03\r\nModel: 48TCEA04A2A5A0B0A0\r\nSerial: 2812C50775\r\nMake: CARRIER\r\nDate Installed: Nov 18, 2012\r\nHeating Capacity: 115,000 BTU's\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 115,000 BTU's",
-        "lat": 43.66248234888455,
-        "lng": -79.65472643962815
+        "lat": 43.6624823,
+        "lng": -79.6547264
       },
       {
         "name": "RTU-04",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-04\r\nModel: 48FCEA05A2A1A0B0A0\r\nSerial: 3222C08769\r\nMake: CARRIER\r\nDate Installed: Dec 22, 2022\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66255214888455,
-        "lng": -79.65481193962815
+        "lat": 43.6625521,
+        "lng": -79.6548119
       },
       {
         "name": "RTU-05",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-05\r\nModel: 48TCEA05A2A1A0B0A0\r\nSerial: 2511G40307\r\nMake: CARRIER\r\nDate Installed: Nov 18, 2011\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66261484888455,
-        "lng": -79.65489113962815
+        "lat": 43.6626148,
+        "lng": -79.6548911
       },
       {
         "name": "RTU-06",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-06\r\nModel: 48FCEA04A2A3A0A0A0\r\nSerial: 0722C06908\r\nMake: CARRIER\r\nDate Installed: Dec 22, 2022\r\nHeating Capacity: 90,000 BTU's\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 90,000 BTU's",
-        "lat": 43.66263904888455,
-        "lng": -79.65501033962815
+        "lat": 43.662639,
+        "lng": -79.6550103
       },
       {
         "name": "RTU-07",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-07\r\nModel: KGA048S4BH3J\r\nSerial: 5615C07966\r\nMake: LENNOX\r\nDate Installed: Nov 18, 2015\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66270054888455,
-        "lng": -79.65508313962815
+        "lat": 43.6627005,
+        "lng": -79.6550831
       },
       {
         "name": "RTU-08",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-08\r\nModel: ZJ048N10N5AAA1C\r\nSerial: N0L9240746\r\nMake: YORK\r\nDate Installed: Nov 18, 2009\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.662889248884554,
-        "lng": -79.65533063962815
+        "lat": 43.6628892,
+        "lng": -79.6553306
       },
       {
         "name": "RTU-09",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-09\r\nModel: ZJ048N10N2AAA1C\r\nSerial: N0L9248137\r\nMake: YORK\r\nDate Installed: Nov 18, 2009\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66293664888455,
-        "lng": -79.65539743962815
+        "lat": 43.6629366,
+        "lng": -79.6553974
       },
       {
         "name": "RTU-10",
         "desc": "Building: 1555 Bonhill Road\r\nSystem: Roof Top Units\r\nDescription: RTU-10\r\nModel: ZF060N10N5AAA1A\r\nSerial: N1M0462099\r\nMake: YORK\r\nDate Installed: Nov 18, 2010\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66300954888455,
-        "lng": -79.65545083962816
+        "lat": 43.6630095,
+        "lng": -79.6554508
       }
     ]
   },
@@ -1771,8 +1807,8 @@
     "park": "Dixie Business Park (x 34)",
     "address": "6325 Dixie Road",
     "bu": "65204",
-    "lat": 43.6621714658186,
-    "lng": -79.65577053242494,
+    "lat": 43.6621715,
+    "lng": -79.6557705,
     "sqft": "36,234",
     "cluster": "Dixie 4 (x 4)",
     "manager": "Evelyn Lu",
@@ -1781,92 +1817,98 @@
       {
         "name": "RTU-16",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-16\r\nModel: GBC060WEMB07C\r\nSerial: 21222915PA\r\nMake: TRANE\r\nDate Installed: Jun 21, 2021\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.662010065818606,
-        "lng": -79.65526363242493
+        "lat": 43.6620101,
+        "lng": -79.6552636
       },
       {
         "name": "RTU-15",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-15\r\nModel: GBC060AWEMB07C\r\nSerial: 21191256PA\r\nMake: TRANE\r\nDate Installed: Sep 01, 2021\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66183256581861,
-        "lng": -79.65533903242493
+        "lat": 43.6618326,
+        "lng": -79.655339
       },
       {
         "name": "RTU-14",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-14\r\nModel: 48A06A2A1A0B0A0\r\nSerial: 5122C07672\r\nMake: CARRIER\r\nDate Installed: Feb 16, 2022\r\nHeating Capacity: 110,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 110,000 BTU's",
-        "lat": 43.66189586581861,
-        "lng": -79.65542073242493
+        "lat": 43.6618959,
+        "lng": -79.6554207
       },
       {
         "name": "RTU-13",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-13\r\nModel: KGA036S4DM2Y\r\nSerial: 5613D04688\r\nMake: LENNOX\r\nDate Installed: Apr 01, 2013\r\nHeating Capacity: 105,000 BTU's\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 105,000 BTU's",
-        "lat": 43.661882365818606,
-        "lng": -79.65546923242493
+        "lat": 43.6618824,
+        "lng": -79.6554692
       },
       {
         "name": "RTU-12",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-12\r\nModel: TGA060S2DH1J\r\nSerial: 5608A04193\r\nMake: LENNOX\r\nDate Installed: Nov 19, 2008\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66196086581861,
-        "lng": -79.65551983242493
+        "lat": 43.6619609,
+        "lng": -79.6555198
       },
       {
         "name": "RTU-11",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-11\r\nModel: 48VL-C2406030\r\nSerial: 1619C28660\r\nMake: CARRIER\r\nDate Installed: Apr 01, 2019\r\nHeating Capacity: 60,000 BTU's\r\nCooling Capacity: 24,000 BTU (2 Ton)\r\nHeating Capacity 60,000 BTU's",
-        "lat": 43.66201206581861,
-        "lng": -79.65556513242494
+        "lat": 43.6620121,
+        "lng": -79.6555651
       },
       {
         "name": "RTU-10",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-10\r\nModel: 48TCEA04A2A5A0B0A0\r\nSerial: 0711G50098\r\nMake: CARRIER\r\nDate Installed: Jan 01, 2011\r\nHeating Capacity: 115,000 BTU's\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 115,000 BTU's",
-        "lat": 43.661985665818605,
-        "lng": -79.65561093242493
+        "lat": 43.6619857,
+        "lng": -79.6556109
       },
       {
         "name": "RTU-09",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-09\r\nModel: 48TCEA05A2A5A0B0A0\r\nSerial: 2611C52558\r\nMake: CARRIER\r\nDate Installed: Nov 19, 2011\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.662046965818604,
-        "lng": -79.65568393242494
+        "lat": 43.662047,
+        "lng": -79.6556839
       },
       {
         "name": "RTU-08",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-08\r\nModel: KGA036S4DM2Y\r\nSerial: 5613C06847\r\nMake: LENNOX\r\nDate Installed: Mar 01, 2013\r\nHeating Capacity: 100,000 BTU's\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 100,000 BTU's",
-        "lat": 43.6621429658186,
-        "lng": -79.65571153242493
+        "lat": 43.662143,
+        "lng": -79.6557115
       },
       {
         "name": "RTU-07",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-07\r\nModel: D3NZ030N05606A\r\nSerial: N0L9302671\r\nMake: YORK\r\nDate Installed: Nov 19, 2009\r\nHeating Capacity: 80,000 BTU's\r\nCooling Capacity: 30,000 BTU (2.5 Ton)\r\nHeating Capacity 80,000 BTU's",
-        "lat": 43.662205065818604,
-        "lng": -79.65577913242494
+        "lat": 43.6622051,
+        "lng": -79.6557791
       },
       {
         "name": "RTU-06",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-06\r\nModel: ZJ036N08N2AAA1C\r\nSerial: N1A0559519\r\nMake: YORK\r\nDate Installed: Nov 19, 2010\r\nHeating Capacity: 100,000 BTU's\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\nHeating Capacity 100,000 BTU's",
-        "lat": 43.6621604658186,
-        "lng": -79.65581283242493
+        "lat": 43.6621605,
+        "lng": -79.6558128
       },
       {
         "name": "RTU-05",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-05\r\nModel: 48A05A2A1A0B0A0\r\nSerial: 5122C07310\r\nMake: CARRIER\r\nDate Installed: Dec 01, 2022\r\nHeating Capacity: 110,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 110,000 BTU's",
-        "lat": 43.662230765818606,
-        "lng": -79.65590453242494
+        "lat": 43.6622308,
+        "lng": -79.6559045
       },
       {
         "name": "RTU-04",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-04\r\nModel: LGT092H5EH2J\r\nSerial: 5626A04620\r\nMake: LENNOX\r\nDate Installed: May 19, 2026\r\nHeating Capacity: 240,000 BTU's\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\nHeating Capacity 240,000 BTU's",
-        "lat": 43.66232326581861,
-        "lng": -79.65593613242494
+        "lat": 43.6623233,
+        "lng": -79.6559361
       },
       {
         "name": "RTU-03",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-03\r\nModel: ZF060H12B5A1ABA1A1A\r\nSerial: N1N6283308\r\nMake: YORK\r\nDate Installed: Dec 01, 2016\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.66238836581861,
-        "lng": -79.65601773242493
+        "lat": 43.6623884,
+        "lng": -79.6560177
       },
       {
         "name": "RTU-01",
         "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-01\r\nModel: 48FCEA06A2A1A0A0A0\r\nSerial: 3219C89955\r\nMake: CARRIER\r\nDate Installed: Aug 19, 2019\r\nHeating Capacity: 125,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 125,000 BTU's",
-        "lat": 43.6625016658186,
-        "lng": -79.65616503242494
+        "lat": 43.6625017,
+        "lng": -79.656165
+      },
+      {
+        "name": "RTU-02 (05)",
+        "desc": "Building: 6325 Dixie Road\r\nSystem: Roof Top Units\r\nDescription: RTU-02 (05)\r\nModel: GCS16-048-120-6J\r\nSerial: 5605J11619\r\nMake: LENNOX\r\nDate Installed: Nov 19, 2005\r\nHeating Capacity: 125,000 BTU\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 125,000 BTU's; Cooling Capacity: 48,000 BTU (4 Ton)\r\nwas missing from WB1",
+        "lat": 43.6621909,
+        "lng": -79.6557437
       }
     ]
   },
@@ -2061,38 +2103,38 @@
       {
         "name": "RTU-05",
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-05\r\nModel: TGA060S2DH1J\r\nSerial: 5607G10941\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2007\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 150,000 BTU's",
-        "lat": 43.7898344,
-        "lng": -79.5267343
+        "lat": 43.78983818793024,
+        "lng": -79.52672980232217
       },
       {
         "name": "RTU-12",
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-12\r\nModel: KGA060S4BH3J\r\nSerial: 5612B06562\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2012\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 150,000 BTU's",
-        "lat": 43.7897505,
-        "lng": -79.5269126
+        "lat": 43.78974184186033,
+        "lng": -79.52690810232163
       },
       {
         "name": "RTU-11",
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-11\r\nModel: KGA048S4BH2J\r\nSerial: 5613L02587\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2013\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 150,000 BTU's",
-        "lat": 43.7897401,
-        "lng": -79.52696
+        "lat": 43.78973198299269,
+        "lng": -79.52695625193448
       },
       {
         "name": "RTU-10",
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-10\r\nModel: KGA060S4BH3J\r\nSerial: 5614B02206\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2014\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 150,000 BTU's",
-        "lat": 43.7897265,
-        "lng": -79.5270507
+        "lat": 43.789714595052914,
+        "lng": -79.52704245425618
       },
       {
         "name": "RTU-09",
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-09\r\nModel: KGA048S4BH2J\r\nSerial: 5613L02588\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2013\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nHeating Capacity 150,000 BTU's",
-        "lat": 43.7897,
-        "lng": -79.5271503
+        "lat": 43.78969134185294,
+        "lng": -79.52714880077298
       },
       {
         "name": "RTU-08",
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-08\r\nModel: KGA072S4BH2J\r\nSerial: 5612F01930\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2012\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 72,000 BTU (6 Ton)\r\nHeating Capacity 150,000 BTU's",
-        "lat": 43.7896661,
-        "lng": -79.5274749
+        "lat": 43.78966609999964,
+        "lng": -79.52746890309396
       },
       {
         "name": "RTU-04",
@@ -2117,6 +2159,18 @@
         "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-01\r\nModel: TGA090S2BM1J\r\nSerial: 5607L18805\r\nMake: LENNOX\r\nDate Installed: Nov 04, 2007\r\nHeating Capacity: 180,000 BTU's\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\nHeating Capacity 180,000 BTU's\r\n-updated by Marcus Ganhao August 14, 2023",
         "lat": 43.7895969,
         "lng": -79.5281034
+      },
+      {
+        "name": "RTU-06",
+        "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-06\r\nModel: TGA090S2BM1J\r\nSerial: 5607J11589\r\nMake: Lennox\r\nDate Installed: Nov 04, 2007\r\nHeating Capacity: 125,000 BTU\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\nHeating Capacity 125,000 BTU's; Cooling Capacity: 90,000 BTU (7.5 Ton); -updated by Marcus Ganhao August 14, 2023\r\nwas missing from WB1",
+        "lat": 43.78982947690436,
+        "lng": -79.52666212576626
+      },
+      {
+        "name": "RTU-07",
+        "desc": "Building: 55 Interchange Way\r\nSystem: Roof Top Units\r\nDescription: RTU-07\r\nModel: TGA060S2DH1J\r\nSerial: 5607H02064\r\nMake: Lennox\r\nDate Installed: Nov 04, 2007\r\nHeating Capacity: 125,000 BTU\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 125,000 BTU's; Cooling Capacity: 60,000 BTU (5 Ton); -updated by Marcus Ganhao August 14, 2023\r\nwas missing from WB1",
+        "lat": 43.78985259999999,
+        "lng": -79.5265466853623
       }
     ]
   },
@@ -3437,8 +3491,8 @@
     "park": "Meadowvale North Business Park (x 24)",
     "address": "6100 Kenway Drive",
     "bu": "50400",
-    "lat": 43.63679739711279,
-    "lng": -79.67112378175774,
+    "lat": 43.6367974,
+    "lng": -79.6711238,
     "sqft": "121,773",
     "cluster": "Kenway Business Park (x 7)",
     "manager": "Maia Krasowski",
@@ -3447,32 +3501,32 @@
       {
         "name": "RTU- 1",
         "desc": "Building: 6100 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 1\r\nModel: ZF036N08N5AAA1A\r\nSerial: N1K1313488\r\nMake: YORK\r\nDate Installed: Sep 10, 2013\r\nHeating Capacity: BTU'S:80,000\r\nCooling Capacity: 36,000 BTU (3 Ton)",
-        "lat": 43.637134697112785,
-        "lng": -79.67177248175774
+        "lat": 43.6371347,
+        "lng": -79.6717725
       },
       {
         "name": "RTU- 4",
         "desc": "Building: 6100 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 4\r\nModel: ZF060N10N5AAA1A\r\nSerial: N1K1316436\r\nMake: YORK\r\nDate Installed: Nov 08, 2011\r\nHeating Capacity: BTU'S:100,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.63717759711279,
-        "lng": -79.67168468175774
+        "lat": 43.6371776,
+        "lng": -79.6716847
       },
       {
         "name": "RTU- 2",
         "desc": "Building: 6100 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 2\r\nModel: KGA092S4BH2J\r\nSerial: 5613C06554\r\nMake: LENNOX\r\nDate Installed: Oct 07, 2013\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\nApprox. BTU'S:240,000",
-        "lat": 43.63723659711279,
-        "lng": -79.67160088175774
+        "lat": 43.6372366,
+        "lng": -79.6716009
       },
       {
         "name": "RTU- 5",
         "desc": "Building: 6100 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 5\r\nModel: ZF048N10N5AAA1A\r\nSerial: N1K1313557\r\nMake: YORK\r\nDate Installed: Nov 15, 2011\r\nHeating Capacity: BTU'S:100,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.637276997112785,
-        "lng": -79.67152888175774
+        "lat": 43.637277,
+        "lng": -79.6715289
       },
       {
         "name": "RTU- 3",
         "desc": "Building: 6100 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 3\r\nModel: ZE036H10B1A1AAA1A2\r\nSerial: N1H9196812\r\nMake: YORK\r\nDate Installed: Nov 04, 2019\r\nHeating Capacity: BTU'S:100,000\r\nCooling Capacity: 36,000 BTU (3 Ton)",
-        "lat": 43.637324397112785,
-        "lng": -79.67145388175774
+        "lat": 43.6373244,
+        "lng": -79.6714539
       }
     ]
   },
@@ -3480,8 +3534,8 @@
     "park": "Meadowvale North Business Park (x 24)",
     "address": "6150 Kennedy Road",
     "bu": "50402",
-    "lat": 43.63805945345724,
-    "lng": -79.67259269608242,
+    "lat": 43.6380595,
+    "lng": -79.6725927,
     "sqft": "92,354",
     "cluster": "Kenway Business Park (x 7)",
     "manager": "Maia Krasowski",
@@ -3490,110 +3544,110 @@
       {
         "name": "RTU- 01",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 01\r\nModel: KGA060S4DH3J\r\nSerial: 5613J07216\r\nMake: LENNOX\r\nDate Installed: Oct 22, 2013\r\nHeating Capacity: BTU'S:150,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.63830955345724,
-        "lng": -79.67255889608242
+        "lat": 43.6383096,
+        "lng": -79.6725589
       },
       {
         "name": "RTU- 02 Hybrid",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 02 Hybrid\r\nModel: LDT048H4EX1J✓\r\nSerial: 5624L03723✓\r\nMake: LENNOX\r\nDate Installed: Dec 20, 2024\r\nHeating Capacity: BTU'S:150,000\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\n$33,473 Replaced by Springbank in 2024",
-        "lat": 43.638152153457234,
-        "lng": -79.67249339608243
+        "lat": 43.6381522,
+        "lng": -79.6724934
       },
       {
         "name": "RTU- 03",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 03\r\nModel: ZE048H12B5C1AAA1A2\r\nSerial: N2L1549231\r\nMake: YORK\r\nDate Installed: Oct 07, 2021\r\nHeating Capacity: 125,000 BTU/h\r\nHeating 125,000 BTU/h\r\nCooling 48,000 BTU/h (4 Ton)",
-        "lat": 43.638142553457236,
-        "lng": -79.67243689608243
+        "lat": 43.6381426,
+        "lng": -79.6724369
       },
       {
         "name": "RTU- 04",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 04\r\nModel: ZE060H12B5C1AAA1A2\r\nSerial: N2L1615810\r\nMake: YORK\r\nDate Installed: Oct 07, 2021\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.637941953457236,
-        "lng": -79.67220199608242
+        "lat": 43.637942,
+        "lng": -79.672202
       },
       {
         "name": "RTU- 05",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 05\r\nModel: ZGA060S4BH1J\r\nSerial: 5614K03342\r\nMake: LENNOX\r\nDate Installed: Oct 08, 2014\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.637950953457235,
-        "lng": -79.67225359608243
+        "lat": 43.637951,
+        "lng": -79.6722536
       },
       {
         "name": "RTU- 06",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 06\r\nModel: ZGA060S4BH1J\r\nSerial: 5614K03343\r\nMake: LENNOX\r\nDate Installed: Oct 07, 2014\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.637990553457236,
-        "lng": -79.67229539608242
+        "lat": 43.6379906,
+        "lng": -79.6722954
       },
       {
         "name": "RTU- 07",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 07\r\nModel: ZGA036S4BM1J\r\nSerial: 5613E10338\r\nMake: LENNOX\r\nDate Installed: Oct 08, 2013\r\nHeating Capacity: BTU'S:108,000\r\nCooling Capacity: 36,000 BTU (3 Ton)",
-        "lat": 43.63793535345724,
-        "lng": -79.67234549608243
+        "lat": 43.6379354,
+        "lng": -79.6723455
       },
       {
         "name": "RTU- 08",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 08\r\nModel: 48FCEA04A2A5A0B0A0\r\nSerial: 3422C08580\r\nMake: CARRIER\r\nDate Installed: Aug 21, 2022\r\nHeating Capacity: BTU'S:110,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.63759375345724,
-        "lng": -79.67274819608242
+        "lat": 43.6375938,
+        "lng": -79.6727482
       },
       {
         "name": "RTU- 09 Hybrid",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 09 Hybrid\r\nModel: LDT036H4EQ1Y✓\r\nSerial: 5624M00571✓\r\nMake: LENNOX\r\nDate Installed: Dec 20, 2024\r\nHeating Capacity: BTU'S:108,000\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\n$31,606 Replaced by Springbank in 2024\r\n(dual-fuel hybrid heat pump)",
-        "lat": 43.63754015345724,
-        "lng": -79.67282409608242
+        "lat": 43.6375402,
+        "lng": -79.6728241
       },
       {
         "name": "RTU- 10",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 10\r\nModel: 48FCEA04A2A5A0B0A0\r\nSerial: 1322C07805\r\nMake: CARRIER\r\nDate Installed: Apr 01, 2022\r\nHeating Capacity: BTU'S:110,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.637448153457235,
-        "lng": -79.67292719608243
+        "lat": 43.6374482,
+        "lng": -79.6729272
       },
       {
         "name": "RTU- 11",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 11\r\nModel: 48FCEA06A2A1A0B0A0\r\nSerial: 5022C08798\r\nMake: CARRIER\r\nDate Installed: Nov 21, 2022\r\nHeating Capacity: BTU'S:110,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.63740145345724,
-        "lng": -79.67298649608243
+        "lat": 43.6374015,
+        "lng": -79.6729865
       },
       {
         "name": "RTU- 12",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 12\r\nModel: 48FCEA05A2A1A0B0A0\r\nSerial: 3822C06823\r\nMake: CARRIER\r\nDate Installed: Nov 21, 2022\r\nHeating Capacity: BTU'S:110,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.63731585345724,
-        "lng": -79.67313559608243
+        "lat": 43.6373159,
+        "lng": -79.6731356
       },
       {
         "name": "RTU- 13",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 13\r\nModel: 48FCEA06A2A1A0B0A0\r\nSerial: 5122C07669\r\nMake: CARRIER\r\nDate Installed: Nov 21, 2022\r\nHeating Capacity: BTU'S:110,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.63726175345724,
-        "lng": -79.67328899608242
+        "lat": 43.6372618,
+        "lng": -79.673289
       },
       {
         "name": "RTU- 14",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 14\r\nModel: 48FCEA05A2A5A0B0A0\r\nSerial: 3822C08419\r\nMake: CARRIER\r\nDate Installed: Nov 21, 2022\r\nHeating Capacity: BTU'S:110,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.63722215345724,
-        "lng": -79.67340719608242
+        "lat": 43.6372222,
+        "lng": -79.6734072
       },
       {
         "name": "RTU- 15",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 15\r\nModel: KGA036S4BM2J\r\nSerial: 5614B09142\r\nMake: LENNOX\r\nDate Installed: Oct 14, 2014\r\nHeating Capacity: BTU'S:105,000\r\nCooling Capacity: 36,000 BTU (3 Ton)",
-        "lat": 43.637150853457236,
-        "lng": -79.67356659608242
+        "lat": 43.6371509,
+        "lng": -79.6735666
       },
       {
         "name": "RTU- 16",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 16\r\nModel: 48FCEA04A2A5A0B0A0\r\nSerial: 3222C05866\r\nMake: CARRIER\r\nDate Installed: Jan 01, 2022\r\nHeating Capacity: BTU'S:110,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.63711165345724,
-        "lng": -79.67379259608242
+        "lat": 43.6371117,
+        "lng": -79.6737926
       },
       {
         "name": "RTU- 17 Hybrid",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 17 Hybrid\r\nModel: LDT036H4EQ1Y✓\r\nSerial: 5624M00570✓\r\nMake: LENNOX\r\nDate Installed: Dec 20, 2024\r\nHeating Capacity: BTU'S:108,000\r\nCooling Capacity: 36,000 BTU (3 Ton)\r\n$31,606 Replaced by Springbank in 2024\r\n(dual-fuel hybrid heat pump)",
-        "lat": 43.637064453457235,
-        "lng": -79.67384119608242
+        "lat": 43.6370645,
+        "lng": -79.6738412
       },
       {
         "name": "RTU- 18",
         "desc": "Building: 6150 Kennedy Road\r\nSystem: Roof Top Units\r\nDescription: RTU- 18\r\nModel: ZF048N10N5AAA2A\r\nSerial: N1L2244493\r\nMake: YORK\r\nDate Installed: Nov 21, 2022\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.637038953457235,
-        "lng": -79.67390219608242
+        "lat": 43.637039,
+        "lng": -79.6739022
       }
     ]
   },
@@ -3601,8 +3655,8 @@
     "park": "Meadowvale North Business Park (x 24)",
     "address": "6160 Kenway Drive",
     "bu": "50403",
-    "lat": 43.63591408581072,
-    "lng": -79.67371572517159,
+    "lat": 43.6359141,
+    "lng": -79.6737157,
     "sqft": "141,039",
     "cluster": "Kenway Business Park (x 7)",
     "manager": "Maia Krasowski",
@@ -3611,92 +3665,92 @@
       {
         "name": "RTU- 14",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 14\r\nModel: ZF090N18Z5B1BAA1A2\r\nSerial: N1A9490720\r\nMake: YORK\r\nDate Installed: Sep 02, 2019\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.635469985810715,
-        "lng": -79.67383882517159
+        "lat": 43.63547,
+        "lng": -79.6738388
       },
       {
         "name": "RTU- 15",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 15\r\nModel: ZE060H12B5A1ABA1A1\r\nSerial: N1C9732238\r\nMake: YORK\r\nDate Installed: Sep 02, 2019\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.63553488581072,
-        "lng": -79.67362762517159
+        "lat": 43.6355349,
+        "lng": -79.6736276
       },
       {
         "name": "RTU- 01",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 01\r\nModel: KGC092S4MM1J\r\nSerial: 5623D01039\r\nMake: LENNOX\r\nDate Installed: Sep 13, 2023\r\nHeating Capacity: . BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.636103585810716,
-        "lng": -79.67429472517159
+        "lat": 43.6361036,
+        "lng": -79.6742947
       },
       {
         "name": "RTU- 13",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 13\r\nModel: DM090N15N5AAA4A\r\nSerial: NOG6706580\r\nMake: YORK\r\nDate Installed: Oct 17, 2006\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.635908285810714,
-        "lng": -79.6741812251716
+        "lat": 43.6359083,
+        "lng": -79.6741812
       },
       {
         "name": "RTU- 02",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 02\r\nModel: PCG4A300752X2B\r\nSerial: W1A9509994\r\nMake: YORK\r\nDate Installed: Sep 08, 2019\r\nHeating Capacity: BTU'S:70,000\r\nCooling Capacity: 30,000 BTU (2.5 Ton)",
-        "lat": 43.63618048581072,
-        "lng": -79.67428132517159
+        "lat": 43.6361805,
+        "lng": -79.6742813
       },
       {
         "name": "RTU- 03",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 03\r\nModel: KGB120S4BH2J\r\nSerial: 5619G02146\r\nMake: LENNOX\r\nDate Installed: Sep 02, 2019\r\nHeating Capacity: BTU'S:250,000\r\nCooling Capacity: 120,000 BTU (10 Ton)",
-        "lat": 43.63618158581072,
-        "lng": -79.67419492517159
+        "lat": 43.6361816,
+        "lng": -79.6741949
       },
       {
         "name": "RTU- 04",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 04\r\nModel: DM090N15N5AAA4A\r\nSerial: NOG6687942\r\nMake: YORK\r\nDate Installed: Oct 17, 2006\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\nType-NA\r\nDescription-ROOFTOP UNIT NOG6687942\r\nBelt-1-A49\r\nFilter Media-4-16X25X2 MEDIA\r\nHE Filter-\r\nManufacture Date-2006",
-        "lat": 43.63620488581072,
-        "lng": -79.67401302517159
+        "lat": 43.6362049,
+        "lng": -79.674013
       },
       {
         "name": "RTU- 12",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 12\r\nModel: DM090C00N5AAA4A\r\nSerial: NOF6583764\r\nMake: YORK\r\nDate Installed: Oct 10, 2006\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\n(Cooling Only)",
-        "lat": 43.636003185810715,
-        "lng": -79.67388812517159
+        "lat": 43.6360032,
+        "lng": -79.6738881
       },
       {
         "name": "RTU- 05",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 05\r\nModel: KGC092S4MM1J\r\nSerial: 5623D01043\r\nMake: LENNOX\r\nDate Installed: Sep 13, 2023\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.63630618581072,
-        "lng": -79.6736957251716
+        "lat": 43.6363062,
+        "lng": -79.6736957
       },
       {
         "name": "RTU- 11",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 11\r\nModel: KCC092S4MN1J\r\nSerial: 5623J09731\r\nMake: LENNOX\r\nDate Installed: Oct 24, 2023\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\n(Cooling Only)",
-        "lat": 43.63610998581072,
-        "lng": -79.67357002517159
+        "lat": 43.63611,
+        "lng": -79.67357
       },
       {
         "name": "RTU- 06",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 06\r\nModel: KGC092S4MM1J\r\nSerial: 5623D01049\r\nMake: LENNOX\r\nDate Installed: Sep 13, 2023\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.636408685810714,
-        "lng": -79.67337962517159
+        "lat": 43.6364087,
+        "lng": -79.6733796
       },
       {
         "name": "RTU- 09",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 09\r\nModel: DM090C00N5AAA4A\r\nSerial: NOF6583766\r\nMake: YORK\r\nDate Installed: Oct 24, 2006\r\nCooling Capacity: 90,000 BTU (7.5 Ton)\r\n(cooling only)",
-        "lat": 43.636208685810715,
-        "lng": -79.6732694251716
+        "lat": 43.6362087,
+        "lng": -79.6732694
       },
       {
         "name": "RTU- 10",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 10\r\nModel: KCB048S4DN2J\r\nSerial: 5623H07335\r\nMake: LENNOX\r\nDate Installed: Sep 13, 2023\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 48,000 BTU (4 Ton)",
-        "lat": 43.63605098581072,
-        "lng": -79.67319172517159
+        "lat": 43.636051,
+        "lng": -79.6731917
       },
       {
         "name": "RTU- 07",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 07\r\nModel: DM090N15N5AAA4A\r\nSerial: NOG6687938\r\nMake: YORK\r\nDate Installed: Oct 10, 2006\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.63654108581072,
-        "lng": -79.67297032517159
+        "lat": 43.6365411,
+        "lng": -79.6729703
       },
       {
         "name": "RTU- 08",
         "desc": "Building: 6160 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 08\r\nModel: DM090N15N5AAA4A\r\nSerial: NOG6687943\r\nMake: YORK\r\nDate Installed: Oct 17, 2006\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.636341885810715,
-        "lng": -79.67284662517159
+        "lat": 43.6363419,
+        "lng": -79.6728466
       }
     ]
   },
@@ -3714,62 +3768,62 @@
       {
         "name": "RTU-08 Hybrid",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-08 Hybrid\r\nModel: LDT036H5EQ1P✓\r\nSerial: 5626C03162✓\r\nMake: LENNOX\r\nDate Installed: Mar 27, 2026\r\nHeating Capacity: . BTU'S:70,000\r\nCooling Capacity: 30,000 BTU (3 Ton)",
-        "lat": 43.637039883760345,
-        "lng": -79.67463967752472
+        "lat": 43.6370399,
+        "lng": -79.6746397
       },
       {
         "name": "RTU- 01",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 01\r\nModel: ZE060H12B5A1ABA1A1\r\nSerial: N1H9203020\r\nMake: YORK\r\nDate Installed: Sep 02, 2019\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.63671868376035,
-        "lng": -79.67495377752472
+        "lat": 43.6367187,
+        "lng": -79.6749538
       },
       {
         "name": "RTU- 02",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 02\r\nModel: TGA060S2DH1J\r\nSerial: 5607H22453\r\nMake: LENNOX\r\nDate Installed: Oct 16, 2007\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nApprox. BTU'S:125,000",
-        "lat": 43.63677948376035,
-        "lng": -79.67496687752471
+        "lat": 43.6367795,
+        "lng": -79.6749669
       },
       {
         "name": "RTU- 03",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 03\r\nModel: KGA092H4BH1J\r\nSerial: 5613D01897\r\nMake: LENNOX\r\nDate Installed: Oct 08, 2013\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 90,000 BTU (7.5 Ton)",
-        "lat": 43.63679138376035,
-        "lng": -79.67501157752471
+        "lat": 43.6367914,
+        "lng": -79.6750116
       },
       {
         "name": "RTU- 04",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 04\r\nModel: 48FCEM08A3A1A6B0A0\r\nSerial: 3223P67447\r\nMake: CARRIER\r\nDate Installed: Aug 25, 2023\r\nHeating Capacity: BTU'S:180,000\r\nCooling Capacity: 86,000 BTU (7.5 Ton)",
-        "lat": 43.63687008376035,
-        "lng": -79.67496817752472
+        "lat": 43.6368701,
+        "lng": -79.6749682
       },
       {
         "name": "RTU- 05",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 05\r\nModel: ZGA060S4BH1J\r\nSerial: 5613F02514\r\nMake: LENNOX\r\nDate Installed: Sep 17, 2013\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.636884783760344,
-        "lng": -79.67492097752472
+        "lat": 43.6368848,
+        "lng": -79.674921
       },
       {
         "name": "RTU- 06",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 06\r\nModel: ZGA060S4BH1J\r\nSerial: 5613G09330\r\nMake: LENNOX\r\nDate Installed: Sep 10, 2013\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.63691968376035,
-        "lng": -79.67482017752472
+        "lat": 43.6369197,
+        "lng": -79.6748202
       },
       {
         "name": "RTU- 07",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 07\r\nModel: KGB036S4DM3J\r\nSerial: 5623H01618\r\nMake: LENNOX\r\nDate Installed: Oct 13, 2023\r\nHeating Capacity: BTU'S:80,000\r\nCooling Capacity: 36,000 BTU (3 Ton)",
-        "lat": 43.63695868376035,
-        "lng": -79.67470727752472
+        "lat": 43.6369587,
+        "lng": -79.6747073
       },
       {
         "name": "RTU- 09",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 09\r\nModel: ZGA060S4BH1J\r\nSerial: 5613F10028\r\nMake: LENNOX\r\nDate Installed: Sep 10, 2013\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.63691138376035,
-        "lng": -79.67469847752471
+        "lat": 43.6369114,
+        "lng": -79.6746985
       },
       {
         "name": "RTU- 10",
         "desc": "Building: 6175 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 10\r\nModel: ZE060H12B5A1ABA1A1\r\nSerial: N1D9801042\r\nMake: YORK\r\nDate Installed: Sep 02, 2019\r\nHeating Capacity: BTU'S:125,000\r\nCooling Capacity: 60,000 BTU (5 Ton)",
-        "lat": 43.636872683760345,
-        "lng": -79.67470947752471
+        "lat": 43.6368727,
+        "lng": -79.6747095
       }
     ]
   },
@@ -3777,8 +3831,8 @@
     "park": "Meadowvale North Business Park (x 24)",
     "address": "6200 Kenway Drive",
     "bu": "50405",
-    "lat": 43.635621564827815,
-    "lng": -79.67536005769229,
+    "lat": 43.6356216,
+    "lng": -79.6753601,
     "sqft": "78,183",
     "cluster": "Kenway Business Park (x 7)",
     "manager": "Maia Krasowski",
@@ -3787,50 +3841,50 @@
       {
         "name": "RTU- 05",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 05\r\nModel: ZF102N15P5BAA6A\r\nSerial: N1F3856726\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: BTU'S:200,000\r\nCooling Capacity: 102,000 BTU (8.5 Ton)",
-        "lat": 43.63533616482781,
-        "lng": -79.67536305769228
+        "lat": 43.6353362,
+        "lng": -79.6753631
       },
       {
         "name": "RTU- 04",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 04\r\nModel: Z33AN55A5IAABJ0003A\r\nSerial: N1F3830910\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: . BTU'S:426,000\r\nCooling Capacity: 360,000 BTU (30 Ton)",
-        "lat": 43.63551646482781,
-        "lng": -79.67545585769228
+        "lat": 43.6355165,
+        "lng": -79.6754559
       },
       {
         "name": "RTU- 03",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 03\r\nModel: Z33AN55A5IAABJ0003A\r\nSerial: N1F3836443\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: BTU'S:426,000\r\nCooling Capacity: 360,000 BTU (30 Ton)",
-        "lat": 43.63552836482781,
-        "lng": -79.67538475769229
+        "lat": 43.6355284,
+        "lng": -79.6753848
       },
       {
         "name": "RTU- 02",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 02\r\nModel: Z33AN55A5IAABJ0003A\r\nSerial: N1F3830909\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: BTU'S:426,000\r\nCooling Capacity: 360,000 BTU (30 Ton)",
-        "lat": 43.63556286482781,
-        "lng": -79.67530865769228
+        "lat": 43.6355629,
+        "lng": -79.6753087
       },
       {
         "name": "RTU- 01",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 01\r\nModel: Z33AN55A5IAABJ0001A\r\nSerial: N1F3775584\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: . BTU'S:426,000\r\nCooling Capacity: 360,000 BTU (30 Ton)",
-        "lat": 43.63558826482781,
-        "lng": -79.67524295769228
+        "lat": 43.6355883,
+        "lng": -79.675243
       },
       {
         "name": "RTU- 08",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 08\r\nModel: ZF180N24S5BAA1B\r\nSerial: N1F3849714\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: BTU'S: 300,000\r\nCooling Capacity: 180,000 BTU (15 Ton)",
-        "lat": 43.63569106482781,
-        "lng": -79.67563435769229
+        "lat": 43.6356911,
+        "lng": -79.6756344
       },
       {
         "name": "RTU- 07",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 07\r\nModel: Z34AN35C6IBABI0001A\r\nSerial: N1F3836441\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: . BTU'S: 630,000\r\nCooling Capacity: 480,000 BTU (40 ton)",
-        "lat": 43.635698064827814,
-        "lng": -79.67557135769228
+        "lat": 43.6356981,
+        "lng": -79.6755714
       },
       {
         "name": "RTU- 06",
         "desc": "Building: 6200 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 06\r\nModel: Z34AN35C6IBABI0001A\r\nSerial: N1F3836444\r\nMake: YORK\r\nDate Installed: Dec 10, 2013\r\nHeating Capacity: BTU'S: 267,000\r\nCooling Capacity: 480,000 BTU (40 Ton)",
-        "lat": 43.63571976482781,
-        "lng": -79.67549405769228
+        "lat": 43.6357198,
+        "lng": -79.6754941
       }
     ]
   },
@@ -3881,8 +3935,8 @@
     "park": "Meadowvale North Business Park (x 24)",
     "address": "6300 Kenway Drive",
     "bu": "50407",
-    "lat": 43.63512572898729,
-    "lng": -79.67863308758585,
+    "lat": 43.6351257,
+    "lng": -79.6786331,
     "sqft": "61,355",
     "cluster": "Kenway Business Park (x 7)",
     "manager": "Maia Krasowski",
@@ -3891,14 +3945,14 @@
       {
         "name": "RTU- 1",
         "desc": "Building: 6300 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 1\r\nModel: KGA092S4BH1J\r\nSerial: 5611G01940\r\nMake: LENNOX\r\nDate Installed: Nov 22, 2011\r\nHeating Capacity: . BTU'S:240,000\r\nCooling Capacity: 92,000 BTU (7.5 Ton)",
-        "lat": 43.63523672898729,
-        "lng": -79.67817478758586
+        "lat": 43.6352367,
+        "lng": -79.6781748
       },
       {
         "name": "RTU- 2",
         "desc": "Building: 6300 Kenway Drive\r\nSystem: Roof Top Units\r\nDescription: RTU- 2\r\nModel: KGA092S4BH1J\r\nSerial: 5611G01941\r\nMake: LENNOX\r\nDate Installed: Nov 15, 2011\r\nHeating Capacity: BTU'S:240,000\r\nCooling Capacity: 92,000 BTU (7.5 Ton)",
-        "lat": 43.63518452898729,
-        "lng": -79.67824898758586
+        "lat": 43.6351845,
+        "lng": -79.678249
       }
     ]
   },
@@ -4798,7 +4852,7 @@
       },
       {
         "name": "RTU-24 Hybrid",
-        "desc": "Building: 6990 Creditview Road\r\nSystem: Roof Top Units\r\nDescription: RTU-24  Hybrid\r\nModel: LDT036H5EQ1J✓\r\nSerial: 5625M01784✓\r\nMake: LENNOX\r\nDate Installed: Nov 01, 2025\r\nHeating Capacity: BTU 90,000\r\nCooling Capacity: 36,000 BTU (3 TON)\r\nHeating Capacity BTU 90,000\r\n- Cooling Capacity: 36,000 BTU (3 TON)\r\n- THIS UNIT SERVES UNIT 3\r\n- FILTER SIZE 16X25X1 (1)",
+        "desc": "Building: 6990 Creditview Road\r\nSystem: Roof Top Units\r\nDescription: RTU-24 Hybrid\r\nModel: LDT036H5EQ1J✓\r\nSerial: 5625M01784✓\r\nMake: LENNOX\r\nDate Installed: Nov 01, 2025\r\nHeating Capacity: BTU 90,000\r\nCooling Capacity: 36,000 BTU (3 TON)\r\nHeating Capacity BTU 90,000\r\n- Cooling Capacity: 36,000 BTU (3 TON)\r\n- THIS UNIT SERVES UNIT 3\r\n- FILTER SIZE 16X25X1 (1)",
         "lat": 43.6129488,
         "lng": -79.7452021
       },
@@ -4810,7 +4864,7 @@
       },
       {
         "name": "RTU-26 Hybrid",
-        "desc": "Building: 6990 Creditview Road\r\nSystem: Roof Top Units\r\nDescription: RTU-26  Hybrid\r\nModel: LDT060H5EX1J✓\r\nSerial: 5625H05772✓\r\nMake: LENNOX\r\nDate Installed: Aug 01, 2025\r\nHeating Capacity: BTU 120,000\r\nCooling Capacity: 60,000 BTU (5 TON)\r\nHeating Capacity BTU 120,000\r\n- Cooling Capacity: 60,000 BTU (5 TON)\r\n- THIS UNIT SERVES UNIT 3\r\n- FILTER SIZE 20X25X1 (1)",
+        "desc": "Building: 6990 Creditview Road\r\nSystem: Roof Top Units\r\nDescription: RTU-26 Hybrid\r\nModel: LDT060H5EX1J✓\r\nSerial: 5625H05772✓\r\nMake: LENNOX\r\nDate Installed: Aug 01, 2025\r\nHeating Capacity: BTU 120,000\r\nCooling Capacity: 60,000 BTU (5 TON)\r\nHeating Capacity BTU 120,000\r\n- Cooling Capacity: 60,000 BTU (5 TON)\r\n- THIS UNIT SERVES UNIT 3\r\n- FILTER SIZE 20X25X1 (1)",
         "lat": 43.6130803,
         "lng": -79.7450617
       }
@@ -5478,7 +5532,7 @@
       },
       {
         "name": "RTU-04",
-        "desc": "Building: 2320 Bristol Circle\nSystem: Roof Top Units\nDescription: RT04\nSuite: SUITE 2\nModel: ZJ048D1ON2ABA1C\nSerial: N0H8228787\nMake: York\nDate Installed: Oct 6, 2008\nHeating Capacity :125,000 BTU\nCooling Capacity: 48,000 BTU (4 Ton)",
+        "desc": "Building: 2320 Bristol Circle\r\nSystem: Roof Top Units\r\nDescription: RTU-04\r\nModel: ZJ048D1ON2ABA1C\r\nSerial: N0H8228787\r\nMake: York\r\nDate Installed: Oct 6, 2008\r\nHeating Capacity: 125,000 BTU\r\nCooling Capacity: 48,000 BTU (4 Ton)",
         "lat": 43.5163824,
         "lng": -79.6765468
       },
@@ -5808,6 +5862,12 @@
         "desc": "Building: 3105 Unity Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-35\r\nModel: KGB06054BZ1P\r\nSerial: 5615E05051\r\nMake: LENNOX\r\nDate Installed: Oct 27, 2015\r\nHeating Capacity: 150,000 BTU's\r\nCooling Capacity: 60,000 BTU (5 Ton)\r\nHeating Capacity 150,000 BTU's\r\nR410A",
         "lat": 43.5378043,
         "lng": -79.708222
+      },
+      {
+        "name": "RTU-30",
+        "desc": "Building: 3105 Unity Drive\r\nSystem: Roof Top Units\r\nDescription: RTU-30\r\nModel: KGB048S4BHJ\r\nSerial: 5623A06395\r\nMake: LENNOX\r\nDate Installed: Jan 01, 2023\r\nHeating Capacity: 150,000 BTU\r\nCooling Capacity: 48,000 BTU (4 Ton)\r\nMissing Lamicoid; Cooling Capacity: 48,000 BTU (4 Ton); Heating Capacity: 150,000 BTU/H\r\nwas missing from WB1",
+        "lat": 43.538683,
+        "lng": -79.7084965
       }
     ]
   },
