@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -69,7 +69,17 @@ jobs:
       - name: SPA fallback for GitHub Pages
         run: cp dist/index.html dist/404.html
 
-      - uses: actions/upload-pages-artifact@v4
+      # Re-runs (or upload retries) can leave a stale github-pages artifact on this
+      # workflow run, which makes deploy-pages fail with "Found 2 artifact(s)".
+      - name: Delete stale Pages artifact (if any)
+        if: github.ref == 'refs/heads/main'
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: github-pages
+          failOnError: false
+
+      - id: pages-artifact
+        uses: actions/upload-pages-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           path: dist
@@ -93,7 +103,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   commit-version:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
