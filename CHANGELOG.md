@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] - 2026-07-02
+
+### Added
+
+- Confirm-password field and a show/hide password toggle when creating accounts in Settings → Manage users
+- Settings **Open Supabase dashboard** link for admins (opens the project dashboard in a new tab)
+
+### Changed
+
+- RTU info-window rows now wrap long values vertically instead of overflowing horizontally
+- Export database RTUs sheet no longer duplicates Heating/Cooling Capacity (columns J/K) inside the Notes column (N)
+- Renamed the `auth_admins` migration to match the applied remote version
+
 ## [1.2.0] - 2026-07-02
 
 ### Added

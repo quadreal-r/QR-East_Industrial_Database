@@ -33,7 +33,7 @@ Remote history already includes `20260621172809_initial_schema`. Pending local m
 | File | Purpose |
 |------|---------|
 | `20260622120000_seed_legacy_data.sql` | Portfolio seed (buildings, RTUs, etc.) |
-| `20260702100000_auth_admins.sql` | Admin user list + `is_app_admin()` for Settings user management |
+| `20260703024457_auth_admins.sql` | Admin user list + `is_app_admin()` for Settings user management |
 | `20260703000000_schedule_pricing_media.sql` | Schedule columns, pricing, picture/document metadata |
 
 ```powershell
@@ -70,7 +70,7 @@ Create editor accounts in Supabase Auth (email/password), or use **Settings → 
 
 ## Admin user management
 
-1. Apply migration `20260702100000_auth_admins.sql` (`npm run db:push`).
+1. Apply migration `20260703024457_auth_admins.sql` (`npm run db:push`).
 2. Promote your account (SQL editor or `psql`):
 
    ```sql

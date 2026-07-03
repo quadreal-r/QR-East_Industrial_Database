@@ -271,10 +271,10 @@ export function buildBuildingInfoHtml(
   badges += buildingStatusBadges(building, tenantPolygons)
 
   const stats = [
-    `<div class="iw-row"><strong>BU #</strong>${escapeHtml(building.bu || '—')}</div>`,
-    `<div class="iw-row"><strong>Portfolio</strong>${escapeHtml(building.cluster || building.park || '—')}</div>`,
-    `<div class="iw-row"><strong>Manager</strong>${escapeHtml(managerLabel)}</div>`,
-    `<div class="iw-row"><strong>Sq Ft</strong>${escapeHtml(building.sqft || '—')}</div>`,
+    `<div class="iw-row"><strong>BU #</strong><span class="iw-val">${escapeHtml(building.bu || '—')}</span></div>`,
+    `<div class="iw-row"><strong>Portfolio</strong><span class="iw-val">${escapeHtml(building.cluster || building.park || '—')}</span></div>`,
+    `<div class="iw-row"><strong>Manager</strong><span class="iw-val">${escapeHtml(managerLabel)}</span></div>`,
+    `<div class="iw-row"><strong>Sq Ft</strong><span class="iw-val">${escapeHtml(building.sqft || '—')}</span></div>`,
   ].join('')
 
   let rtuHtml = ''
@@ -349,7 +349,7 @@ export function buildDetailInfoHtml(
     .map((line) => {
       const idx = line.indexOf(':')
       if (idx > 0) {
-        return `<div class="iw-row"><strong>${escapeHtml(line.slice(0, idx).trim())}</strong>${escapeHtml(line.slice(idx + 1).trim())}</div>`
+        return `<div class="iw-row"><strong>${escapeHtml(line.slice(0, idx).trim())}</strong><span class="iw-val">${escapeHtml(line.slice(idx + 1).trim())}</span></div>`
       }
       return `<div class="iw-row">${escapeHtml(line)}</div>`
     })
@@ -408,7 +408,7 @@ export function buildPolygonInfoHtml(
   const esc = (t: string) => escapeHtml(t)
   const buildingAddress = options?.assignedBuildingAddress ?? null
   const assignedLine = buildingAddress
-    ? `<div class="iw-row"><strong>Building</strong>${esc(buildingAddress)}</div>`
+    ? `<div class="iw-row"><strong>Building</strong><span class="iw-val">${esc(buildingAddress)}</span></div>`
     : ''
 
   return `<div class="iw"><div class="iw-head"><div class="iw-name">${esc(polygon.name || 'Polygon')}</div></div><div class="iw-body">${assignedLine}${

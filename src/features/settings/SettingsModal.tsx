@@ -18,6 +18,7 @@ import {
   type ManagerSlot,
 } from '@/lib/managerNames'
 import { showToastError, showToastSuccess } from '@/lib/toast'
+import { supabaseDashboardUrl as SUPABASE_DASHBOARD_URL } from '@/lib/supabaseClient'
 import { useAuth } from '@/hooks/useAuth'
 import { useIsAppAdmin } from '@/hooks/useIsAppAdmin'
 import { useSelectionStore } from '@/stores/selectionStore'
@@ -218,12 +219,22 @@ function SettingsForm({
             <div className={styles.tools}>
               <p className={styles.authStatus}>Signed in as {user?.email}</p>
               {isAppAdmin ? (
-                <SettingsToolButton
-                  tooltip="Add or remove Supabase sign-in accounts for map editors."
-                  onClick={() => setUserAdminOpen(true)}
-                >
-                  Manage users
-                </SettingsToolButton>
+                <>
+                  <SettingsToolButton
+                    tooltip="Add or remove Supabase sign-in accounts for map editors."
+                    onClick={() => setUserAdminOpen(true)}
+                  >
+                    Manage users
+                  </SettingsToolButton>
+                  <SettingsToolButton
+                    tooltip="Open the Supabase dashboard (database, auth, and logs) in a new tab."
+                    onClick={() =>
+                      window.open(SUPABASE_DASHBOARD_URL, '_blank', 'noopener,noreferrer')
+                    }
+                  >
+                    Open Supabase dashboard ↗
+                  </SettingsToolButton>
+                </>
               ) : null}
               <Button type="button" variant="ghost" onClick={() => void signOut()}>
                 Sign out

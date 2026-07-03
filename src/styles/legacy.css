@@ -231,10 +231,11 @@ gmp-advanced-marker[gmp-clickable="false"] {
 .iw-name{font-weight:500;font-size:11px;font-family:Inter,sans-serif;color:#f0f4ff;margin-bottom:5px}
 .iw-badges{display:flex;flex-wrap:wrap;gap:4px}
 .iw-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:3px;font-family:'DM Mono',monospace}
-.iw-body{overflow-y:auto;flex:1;min-height:0;padding:10px 14px;max-height:360px}
+.iw-body{overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;padding:10px 14px;max-height:360px}
 .iw-foot{flex-shrink:0;padding:8px 14px 12px;border-top:1px solid #2a3040;background:#141820}
-.iw-row{font-size:12px;color:#b0c4d8;margin-bottom:4px;display:flex;gap:6px;line-height:1.5}
+.iw-row{font-size:12px;color:#b0c4d8;margin-bottom:4px;display:flex;gap:6px;line-height:1.5;min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .iw-row strong{color:#dde8f5;min-width:80px;flex-shrink:0;font-weight:600}
+.iw-val{flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .iw-section{margin-top:10px;padding-top:10px;border-top:1px solid #2a3040}
 .iw-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6a7a90;margin-bottom:6px}
 .iw-tenant{font-size:11px;color:#8aa0b8;padding:4px 0;border-bottom:1px solid #1e2530;display:flex;gap:6px;align-items:baseline}

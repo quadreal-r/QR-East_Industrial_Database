@@ -40,6 +40,7 @@ scripts/move-nogps-pictures.py
 scripts/patch-lamacoid-assignment.py
 scripts/patch-rtu-photo-renamer.py
 scripts/configure-r2-json-cors.mjs
+scripts/clean-rtu-note-duplicates.mjs
 # Local RTU picture lists
 nogps-list.txt
 nogps-not-on-cdn.txt

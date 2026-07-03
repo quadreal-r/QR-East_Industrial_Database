@@ -219,6 +219,40 @@
   opacity: 0.9;
 }
 
+.pwLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.pwToggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent, #7db8ff);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.pwToggle:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.pwToggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pwMismatch {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: #f87171;
+}
+
 .githubSync {
   display: flex;
   flex-direction: column;

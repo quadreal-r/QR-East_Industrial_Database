@@ -185,10 +185,23 @@ export function buildRtuImportDescription(
   return [...parts, ...extras].join('\r\n')
 }
 
-function rtuNotesForExport(description: string): string {
-  const supplemental = uniqueNoteLines(splitNoteLines(description.replace(/\r\n/g, ' | '))).filter(
-    (line) => !isStructuredRtuNoteLine(line),
-  )
+/** Free-text fragment that merely restates the Heating/Cooling Capacity columns (J/K). */
+const CAPACITY_RESTATEMENT_RE = /^(?:heating|cooling)\s+(?:capacity|data)\b/i
+
+/** Drop `;`-separated fragments that duplicate the Heating/Cooling Capacity columns. */
+export function stripCapacityRestatement(line: string): string {
+  return line
+    .split(';')
+    .map((fragment) => fragment.trim())
+    .filter((fragment) => fragment && !CAPACITY_RESTATEMENT_RE.test(fragment))
+    .join('; ')
+}
+
+export function rtuNotesForExport(description: string): string {
+  const supplemental = uniqueNoteLines(splitNoteLines(description.replace(/\r\n/g, ' | ')))
+    .filter((line) => !isStructuredRtuNoteLine(line))
+    .map(stripCapacityRestatement)
+    .filter(Boolean)
   return supplemental.join(' | ')
 }
 

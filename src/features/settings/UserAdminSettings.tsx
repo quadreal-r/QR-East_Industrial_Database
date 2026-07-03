@@ -30,6 +30,8 @@ export function UserAdminSettings({ open, onClose }: UserAdminSettingsProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const usersQuery = useQuery({
     queryKey: ['appUsers'],
@@ -51,6 +53,8 @@ export function UserAdminSettings({ open, onClose }: UserAdminSettingsProps) {
       setName('')
       setEmail('')
       setPassword('')
+      setConfirmPassword('')
+      setShowPassword(false)
       setSelectedUserId(created.id)
       await queryClient.invalidateQueries({ queryKey: ['appUsers'] })
     },
@@ -80,6 +84,14 @@ export function UserAdminSettings({ open, onClose }: UserAdminSettingsProps) {
     event.preventDefault()
     if (!name.trim() || !email.trim() || !password) {
       showToastError('Name, email, and password are required.')
+      return
+    }
+    if (password.length < 6) {
+      showToastError('Password must be at least 6 characters.')
+      return
+    }
+    if (password !== confirmPassword) {
+      showToastError('Passwords do not match.')
       return
     }
     createMutation.mutate({ name, email, password })
@@ -136,18 +148,45 @@ export function UserAdminSettings({ open, onClose }: UserAdminSettingsProps) {
             disabled={busy}
           />
 
-          <label className={styles.mgrFieldLabel} htmlFor="user-admin-password" style={{ marginTop: 8 }}>
-            Password
-          </label>
+          <div className={styles.pwLabelRow}>
+            <label className={styles.mgrFieldLabel} htmlFor="user-admin-password">
+              Password
+            </label>
+            <button
+              type="button"
+              className={styles.pwToggle}
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-pressed={showPassword}
+              disabled={busy}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
           <input
             id="user-admin-password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             className={styles.mgrInput}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
             disabled={busy}
           />
+
+          <label className={styles.mgrFieldLabel} htmlFor="user-admin-confirm-password" style={{ marginTop: 8 }}>
+            Confirm password
+          </label>
+          <input
+            id="user-admin-confirm-password"
+            type={showPassword ? 'text' : 'password'}
+            className={styles.mgrInput}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            disabled={busy}
+          />
+          {confirmPassword && confirmPassword !== password ? (
+            <p className={styles.pwMismatch}>Passwords do not match.</p>
+          ) : null}
 
           <button type="submit" className={styles.mgrApplyBtn} disabled={busy}>
             Add user
