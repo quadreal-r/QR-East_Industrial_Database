@@ -17,6 +17,7 @@ import {
 } from '@/lib/polygonBuildings'
 import { loadRtuPictureManifest, rtuPictureKey } from '@/lib/rtuPictures'
 import { buildRtuPictureExportBundle } from '@/lib/rtuPictureExport'
+import { injectFreezePanes } from '@/lib/xlsxFreeze'
 import type { RcbComputeResult } from '@/lib/costEstimator'
 import {
   rcbBuildScheduledExport,
@@ -207,7 +208,6 @@ export function rtuNotesForExport(description: string): string {
 
 interface BuildSheetOptions {
   numFmtMap?: Record<number, string>
-  freezeHeader?: boolean
   /** Autofilter through this many columns (defaults to full width). */
   autofilterCols?: number
 }
@@ -218,19 +218,9 @@ function buildSheet(
   colWidths: readonly number[],
   options: BuildSheetOptions = {},
 ): XLSX.WorkSheet {
-  const { numFmtMap = {}, freezeHeader = false, autofilterCols } = options
+  const { numFmtMap = {}, autofilterCols } = options
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
   ws['!cols'] = colWidths.map((w) => ({ wch: w }))
-
-  if (freezeHeader) {
-    ws['!freeze'] = {
-      xSplit: 0,
-      ySplit: 1,
-      topLeftCell: 'A2',
-      activePane: 'bottomLeft',
-      state: 'frozen',
-    }
-  }
 
   const ref = ws['!ref']
   if (ref) {
@@ -443,7 +433,6 @@ export async function exportPortfolioExcel(
       COL_WIDTHS.rtus,
       {
         numFmtMap: { 11: FMT_COORD, 12: FMT_COORD },
-        freezeHeader: true,
         autofilterCols: 18,
       },
     ),
@@ -454,13 +443,6 @@ export async function exportPortfolioExcel(
     (() => {
       const ws = XLSX.utils.aoa_to_sheet(rtuPictureSheetRows)
       ws['!cols'] = COL_WIDTHS.rtuPictures.map((wch) => ({ wch }))
-      ws['!freeze'] = {
-        xSplit: 0,
-        ySplit: 7,
-        topLeftCell: 'A8',
-        activePane: 'bottomLeft',
-        state: 'frozen',
-      }
       const lastRow = rtuPictureSheetRows.length
       ws['!autofilter'] = { ref: `A7:J${lastRow}` }
       return ws
@@ -500,7 +482,35 @@ export async function exportPortfolioExcel(
     'Utilities',
   )
 
-  XLSX.writeFile(wb, filename)
+  // SheetJS can't emit frozen panes, so write to a buffer, inject them, then download.
+  const raw = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const frozen = injectFreezePanes(new Uint8Array(raw), {
+    Buildings: 1,
+    RTUs: 1,
+    'RTU Pictures': 7,
+    'Tenant Polygons': 1,
+    Utilities: 1,
+  })
+  downloadXlsx(frozen, filename)
+}
+
+function downloadXlsx(bytes: Uint8Array, filename: string): void {
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.rel = 'noopener noreferrer'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function sheetToObjects(ws: XLSX.WorkSheet): Record<string, unknown>[] {
@@ -784,5 +794,6 @@ export function exportRcbExcel(
   XLSX.writeFile(
     wb,
     `RTU_Replacement_Estimate_${safe}_${scheduled.defaultYear}${scheduleTag}_${today}.xlsx`,
+    { compression: true },
   )
 }

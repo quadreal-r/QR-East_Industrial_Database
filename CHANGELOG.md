@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.1] - 2026-07-03
+
+### Fixed
+
+- Database export is now zip-compressed, shrinking the file roughly 7x (~1.9 MB to ~0.27 MB) with identical content
+- Frozen header panes now actually apply in the export (SheetJS ignored the previous setting): top row on Buildings/RTUs/Tenant Polygons/Utilities and row 7 on RTU Pictures
+
 ## [1.3.0] - 2026-07-02
 
 ### Added
