@@ -327,10 +327,9 @@ export function buildBuildingInfoHtml(
     tenantHtml = `<div class="iw-section"><div class="iw-section-title">Tenant Polygons (${tenantPolygons.length})</div>${items}</div>`
   }
 
-  const moveBtn = moveButton({ 'iw-kind': 'building', 'iw-address': building.address })
   const plainText = buildBuildingInfoPlainText(building, tenantPolygons, managerRenames)
 
-  return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(building.address)}</div><div class="iw-badges">${badges}</div>${closeButton()}</div><div class="iw-body">${stats}${rtuHtml}${tenantHtml}</div>${actionFooter(`${copyButton()}${moveBtn}`)}</div>`
+  return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(building.address)}</div><div class="iw-badges">${badges}</div>${closeButton()}</div><div class="iw-body">${stats}${rtuHtml}${tenantHtml}</div>${actionFooter(copyButton())}</div>`
 }
 
 export function buildDetailInfoHtml(
@@ -404,13 +403,9 @@ export function buildPolygonInfoHtml(
   polygon: Polygon,
   options?: {
     assignedBuildingAddress?: string | null
-    isEditing?: boolean
-    actionKey?: string
   },
 ): string {
   const esc = (t: string) => escapeHtml(t)
-  const actionKey = options?.actionKey ?? esc(`${polygon.name}\0${polygon.description ?? ''}`)
-  const isEditing = options?.isEditing ?? false
   const buildingAddress = options?.assignedBuildingAddress ?? null
   const assignedLine = buildingAddress
     ? `<div class="iw-row"><strong>Building</strong>${esc(buildingAddress)}</div>`
@@ -420,11 +415,7 @@ export function buildPolygonInfoHtml(
     polygon.description
       ? `<div class="iw-row" style="white-space:pre-wrap">${esc(polygon.description)}</div>`
       : ''
-  }</div><div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap" data-poly-actions="${actionKey}">
-        <button data-poly-action="edit" style="font-size:11px;padding:4px 10px;background:#2563eb;color:#fff;border:none;border-radius:4px;cursor:pointer">${isEditing ? '✏ Edit Off' : '✏ Edit Points'}</button>
-        <button data-poly-action="move" style="font-size:11px;padding:4px 10px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer">↔ Move</button>
-        <button data-poly-action="delete" style="font-size:11px;padding:4px 10px;background:#ef4444;color:#fff;border:none;border-radius:4px;cursor:pointer">🗑 Delete</button>
-      </div></div>`
+  }</div></div>`
 }
 
 export function buildDetailEditHtml(

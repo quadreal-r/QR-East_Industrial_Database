@@ -250,7 +250,6 @@ export function useMapMarkers({
   const { stopSoloMove, openBuildingInfo, openDetailInfo, attachInfoWindowActions } =
     useInfoWindowActions(
       map,
-      buildingMarkersRef,
       detailMarkersRef,
       infoWindowRef,
       activeInfoMarkerRef,

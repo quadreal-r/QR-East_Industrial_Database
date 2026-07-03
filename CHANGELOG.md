@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.0] - 2026-07-02
+
+### Added
+
+- Settings **Edit Polygons** tool to edit vertex points, show on map, or delete tenant polygons
+- Settings **Manage users** for Supabase admins to add or delete editor accounts (name, email, password)
+- Right-drag to pan the map while Edit Multiple Positions is active
+- Supabase `auth_admins` migration and `admin-users` Edge Function for secure user management
+
+### Changed
+
+- Polygon info popup is read-only; edit/move/delete actions moved to Settings
+- Building address popup no longer offers Move (use Edit Multiple Positions instead)
+
+### Removed
+
+- Clear all local RTU pictures button from Settings
+
 ## [1.1.0] - 2026-07-02
 
 ### Added

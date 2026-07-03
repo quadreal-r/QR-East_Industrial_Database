@@ -35,12 +35,23 @@ export function useMapMarqueeSelect(
 
     let session: { startX: number; startY: number } | null = null
     let marqueeActive = false
+    let panSession: { lastX: number; lastY: number } | null = null
 
     const hideBox = (): void => {
       box.style.display = 'none'
     }
 
+    const onContextMenu = (e: MouseEvent): void => {
+      e.preventDefault()
+    }
+
     const onMouseDown = (e: MouseEvent): void => {
+      if (e.button === 2) {
+        panSession = { lastX: e.clientX, lastY: e.clientY }
+        container.style.cursor = 'grabbing'
+        e.preventDefault()
+        return
+      }
       if (e.button !== 0) return
       const target = e.target as HTMLElement
       if (
@@ -55,6 +66,18 @@ export function useMapMarqueeSelect(
     }
 
     const onMouseMove = (e: MouseEvent): void => {
+      if (panSession) {
+        const dx = e.clientX - panSession.lastX
+        const dy = e.clientY - panSession.lastY
+        panSession.lastX = e.clientX
+        panSession.lastY = e.clientY
+        if (dx !== 0 || dy !== 0) {
+          map.panBy(-dx, -dy)
+        }
+        e.preventDefault()
+        return
+      }
+
       if (!session) return
       const dx = e.clientX - session.startX
       const dy = e.clientY - session.startY
@@ -75,6 +98,12 @@ export function useMapMarqueeSelect(
     }
 
     const onMouseUp = (e: MouseEvent): void => {
+      if (e.button === 2 && panSession) {
+        panSession = null
+        container.style.cursor = 'default'
+        return
+      }
+
       if (!session) return
       const start = session
       session = null
@@ -103,13 +132,16 @@ export function useMapMarqueeSelect(
     }
 
     container.addEventListener('mousedown', onMouseDown)
+    container.addEventListener('contextmenu', onContextMenu)
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
 
     return () => {
       map.setOptions({ draggable: true, draggableCursor: null, draggingCursor: null })
       container.style.userSelect = ''
+      container.style.cursor = ''
       container.removeEventListener('mousedown', onMouseDown)
+      container.removeEventListener('contextmenu', onContextMenu)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
       box.remove()

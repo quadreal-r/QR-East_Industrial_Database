@@ -478,7 +478,7 @@ export function MapPanel({
         {dragMode ? (
           <div className={styles.dragNotice} role="status">
             <span className={styles.dragNoticeText}>
-              Edit positions — drag a box to select · click to toggle · Ctrl/Shift+click or drag to add ·{' '}
+              Edit positions — drag a box to select · right-drag to pan · click to toggle · Ctrl/Shift+click or drag to add ·{' '}
               <span className={styles.dragNoticeMuted}>click empty map to clear</span>
             </span>
             <button

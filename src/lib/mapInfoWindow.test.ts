@@ -81,10 +81,11 @@ describe('mapInfoWindow', () => {
     expect(html).not.toContain('yr RTU</span>')
     expect(html).toContain('VACANT</span>')
   })
-  it('includes Copy and Move in building popup', () => {
+  it('includes Copy without Move in building popup', () => {
     const html = buildBuildingInfoHtml(building, tenantPolygons)
     expect(html).toContain('data-iw-action="copy-all"')
-    expect(html).toContain('data-iw-action="move"')
+    expect(html).not.toContain('data-iw-action="move"')
+    expect(html).not.toContain('↔ Move')
     expect(html).toContain('class="iw-copy-source"')
     expect(html).not.toContain('Open in Google Maps')
     expect(html).not.toContain('<strong>GPS</strong>')

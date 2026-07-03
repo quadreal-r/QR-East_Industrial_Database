@@ -33,6 +33,7 @@ Remote history already includes `20260621172809_initial_schema`. Pending local m
 | File | Purpose |
 |------|---------|
 | `20260622120000_seed_legacy_data.sql` | Portfolio seed (buildings, RTUs, etc.) |
+| `20260702100000_auth_admins.sql` | Admin user list + `is_app_admin()` for Settings user management |
 | `20260703000000_schedule_pricing_media.sql` | Schedule columns, pricing, picture/document metadata |
 
 ```powershell
@@ -65,7 +66,24 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Use this for schedule, pri
 - **Anonymous:** `SELECT` on all tables
 - **Authenticated:** full read/write
 
-Create editor accounts in Supabase Auth (email/password).
+Create editor accounts in Supabase Auth (email/password), or use **Settings → Manage users** after you are listed as an admin.
+
+## Admin user management
+
+1. Apply migration `20260702100000_auth_admins.sql` (`npm run db:push`).
+2. Promote your account (SQL editor or `psql`):
+
+   ```sql
+   INSERT INTO auth_admins (email) VALUES ('you@example.com');
+   ```
+
+3. Deploy the Edge Function (uses the project service role; never expose that key in the browser):
+
+   ```powershell
+   npx supabase functions deploy admin-users --project-ref wyiymdtlncperqpwriuk
+   ```
+
+Signed-in admins see **Settings → Manage users** to add (name, email, password) or delete editor accounts.
 
 ## Regenerate TypeScript types
 

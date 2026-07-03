@@ -2,6 +2,8 @@ import { useState, useCallback, useMemo } from 'react'
 import { ImportExportButtons } from '@/features/import-export/ImportExportButtons'
 import { RtuPictureGpsAssign } from '@/features/settings/RtuPictureGpsAssign'
 import { RtuPricingSettings } from '@/features/settings/RtuPricingSettings'
+import { PolygonEditorSettings } from '@/features/settings/PolygonEditorSettings'
+import { UserAdminSettings } from '@/features/settings/UserAdminSettings'
 import { RtuEditorSettings } from '@/features/settings/RtuEditorSettings'
 import { SettingsSectionLabel } from '@/features/settings/SettingsSectionLabel'
 import { SettingsToolButton } from '@/features/settings/SettingsToolButton'
@@ -15,11 +17,9 @@ import {
   managerSlotsFromPortfolio,
   type ManagerSlot,
 } from '@/lib/managerNames'
-import { clearLocalRtuPictureStorage } from '@/lib/rtuPictures'
-import { confirm } from '@/stores/confirmStore'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { useAuth } from '@/hooks/useAuth'
-import { usePendingRtuPictureStore } from '@/stores/pendingRtuPictureStore'
+import { useIsAppAdmin } from '@/hooks/useIsAppAdmin'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { PortfolioData } from '@/types/domain'
@@ -156,6 +156,7 @@ function SettingsForm({
   const applyTheme = useSettingsStore((s) => s.applyTheme)
   const saveSettings = useSettingsStore((s) => s.saveSettings)
   const { signOut, user } = useAuth()
+  const { data: isAppAdmin = false } = useIsAppAdmin()
 
   const dragMode = useSelectionStore((s) => s.dragMode)
   const dragSelectedCount = useSelectionStore((s) => s.dragSelectedKeys.length)
@@ -165,6 +166,8 @@ function SettingsForm({
   const [uploadBusy, setUploadBusy] = useState(false)
   const [pricingOpen, setPricingOpen] = useState(false)
   const [rtuEditorOpen, setRtuEditorOpen] = useState(false)
+  const [polygonEditorOpen, setPolygonEditorOpen] = useState(false)
+  const [userAdminOpen, setUserAdminOpen] = useState(false)
 
   const managerEditorKey = useMemo(() => {
     if (!open) return 'closed'
@@ -199,32 +202,6 @@ function SettingsForm({
     handleClose()
   }
 
-  const handleClearAllLocalPictures = () => {
-    void (async () => {
-      if (
-        !(await confirm(
-          'Remove every RTU photo stored in this browser (IndexedDB)? Cloudflare R2 files are not changed.',
-        ))
-      ) {
-        return
-      }
-      setUploadBusy(true)
-      try {
-        usePendingRtuPictureStore.getState().clear()
-        const removed = await clearLocalRtuPictureStorage()
-        showToastSuccess(
-          removed > 0
-            ? `✓ Cleared ${removed} local RTU photo(s) from this browser.`
-            : '✓ No local RTU photos on this browser.',
-        )
-      } catch (error) {
-        showToastError(error instanceof Error ? error.message : 'Could not clear local pictures')
-      } finally {
-        setUploadBusy(false)
-      }
-    })()
-  }
-
   return (
     <Modal
       open={open}
@@ -240,6 +217,14 @@ function SettingsForm({
           {isAuthenticated ? (
             <div className={styles.tools}>
               <p className={styles.authStatus}>Signed in as {user?.email}</p>
+              {isAppAdmin ? (
+                <SettingsToolButton
+                  tooltip="Add or remove Supabase sign-in accounts for map editors."
+                  onClick={() => setUserAdminOpen(true)}
+                >
+                  Manage users
+                </SettingsToolButton>
+              ) : null}
               <Button type="button" variant="ghost" onClick={() => void signOut()}>
                 Sign out
               </Button>
@@ -344,6 +329,12 @@ function SettingsForm({
             >
               Add polygon
             </SettingsToolButton>
+            <SettingsToolButton
+              tooltip="Edit vertex points, show a polygon on the map, or delete tenant polygons."
+              onClick={() => setPolygonEditorOpen(true)}
+            >
+              Edit Polygons
+            </SettingsToolButton>
             <ImportExportButtons
               portfolio={portfolio}
               buildings={portfolio.buildings}
@@ -352,13 +343,6 @@ function SettingsForm({
               isAuthenticated={isAuthenticated}
             />
             <RtuPictureGpsAssign onBusyChange={setUploadBusy} />
-            <SettingsToolButton
-              tooltip="Remove all RTU photos cached in this browser (IndexedDB)."
-              onClick={handleClearAllLocalPictures}
-              disabled={uploadBusy}
-            >
-              Clear all local RTU pictures
-            </SettingsToolButton>
           </div>
         </section>
 
@@ -383,6 +367,13 @@ function SettingsForm({
         portfolio={portfolio}
         onPortfolioPatch={onPortfolioPatch}
       />
+      <PolygonEditorSettings
+        open={polygonEditorOpen}
+        onClose={() => setPolygonEditorOpen(false)}
+        portfolio={portfolio}
+        onPortfolioPatch={onPortfolioPatch}
+      />
+      <UserAdminSettings open={userAdminOpen} onClose={() => setUserAdminOpen(false)} />
     </Modal>
   )
 }

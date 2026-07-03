@@ -50,7 +50,6 @@ import {
   markMarkerDragJustEnded,
   syncDetailMarkerPositions,
   type ActiveDetailInfo,
-  type BuildingMarkerEntry,
   type DetailMarkerEntry,
   type MapMarkersCallbacks,
   type PolygonBuildingIndex,
@@ -59,7 +58,6 @@ import type { Building, LayerKey, Rtu } from '@/types/domain'
 
 export function useInfoWindowActions(
   map: google.maps.Map | null,
-  buildingMarkersRef: MutableRefObject<BuildingMarkerEntry[]>,
   detailMarkersRef: MutableRefObject<DetailMarkerEntry[]>,
   infoWindowRef: MutableRefObject<google.maps.InfoWindow | null>,
   activeInfoMarkerRef: MutableRefObject<AppMapMarker | null>,
@@ -102,21 +100,16 @@ export function useInfoWindowActions(
         if (pos) {
           const lat = pos.lat()
           const lng = pos.lng()
-          const buildingEntry = buildingMarkersRef.current.find((e) => e.marker === marker)
-          if (buildingEntry) {
-            callbacksRef.current.onBuildingMoved?.(buildingEntry.building, lat, lng)
-          } else {
-            const detailEntry = detailMarkersRef.current.find((e) => e.marker === marker)
-            if (detailEntry) {
-              syncDetailMarkerPositions(detailEntry, lat, lng)
-              callbacksRef.current.onDetailMoved?.(
-                detailEntry.type,
-                detailEntry.data,
-                lat,
-                lng,
-                detailEntry.building,
-              )
-            }
+          const detailEntry = detailMarkersRef.current.find((e) => e.marker === marker)
+          if (detailEntry) {
+            syncDetailMarkerPositions(detailEntry, lat, lng)
+            callbacksRef.current.onDetailMoved?.(
+              detailEntry.type,
+              detailEntry.data,
+              lat,
+              lng,
+              detailEntry.building,
+            )
           }
         }
         stopSoloMove()
@@ -127,7 +120,6 @@ export function useInfoWindowActions(
     [
       infoWindowRef,
       activeInfoMarkerRef,
-      buildingMarkersRef,
       detailMarkersRef,
       callbacksRef,
       soloMoveRef,
@@ -287,26 +279,18 @@ export function useInfoWindowActions(
         (e) => {
           const btn = e.currentTarget as HTMLElement
           const kind = btn.getAttribute('data-iw-kind')
-          if (kind === 'building') {
-            const address = btn.getAttribute('data-iw-address') ?? ''
-            const entry = buildingMarkersRef.current.find((m) => m.building.address === address)
-            if (!entry) return
-            startSoloMove(entry.marker)
-            return
-          }
-          if (kind === 'detail') {
-            const layerKey = btn.getAttribute('data-iw-layer') as LayerKey
-            const name = btn.getAttribute('data-iw-name') ?? ''
-            const buildingAddr = btn.getAttribute('data-iw-building') ?? ''
-            const entry = detailMarkersRef.current.find(
-              (dm) =>
-                dm.type === layerKey &&
-                dm.data.name === name &&
-                (buildingAddr ? dm.building?.address === buildingAddr : !dm.building),
-            )
-            if (!entry) return
-            startSoloMove(entry.marker)
-          }
+          if (kind !== 'detail') return
+          const layerKey = btn.getAttribute('data-iw-layer') as LayerKey
+          const name = btn.getAttribute('data-iw-name') ?? ''
+          const buildingAddr = btn.getAttribute('data-iw-building') ?? ''
+          const entry = detailMarkersRef.current.find(
+            (dm) =>
+              dm.type === layerKey &&
+              dm.data.name === name &&
+              (buildingAddr ? dm.building?.address === buildingAddr : !dm.building),
+          )
+          if (!entry) return
+          startSoloMove(entry.marker)
         },
         { signal },
       )
@@ -715,7 +699,6 @@ export function useInfoWindowActions(
     activeInfoMarkerRef,
     activeDetailInfoRef,
     activeRtuPicturesRef,
-    buildingMarkersRef,
     detailMarkersRef,
     callbacksRef,
     startSoloMove,

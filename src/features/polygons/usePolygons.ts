@@ -79,7 +79,6 @@ export function usePolygons({
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
   const infoPolyRef = useRef<google.maps.Polygon | null>(null)
   const editingRef = useRef<{ poly: google.maps.Polygon; data: Polygon } | null>(null)
-  const movingRef = useRef<{ poly: google.maps.Polygon; data: Polygon } | null>(null)
   const editDblListenerRef = useRef<google.maps.MapsEventListener | null>(null)
   const resolveGroupKeys = useCallback((anchorKey: string) => {
     const selected = useSelectionStore.getState().dragSelectedKeys
@@ -160,16 +159,6 @@ export function usePolygons({
     }
   }, [])
 
-  const setEditButtonLabel = useCallback((data: Polygon, isEditing: boolean) => {
-    const esc = (t: string) => t.replace(/</g, '&lt;').replace(/"/g, '&quot;')
-    const editBtn = document.querySelector(
-      `[data-poly-actions="${esc(polygonKey(data))}"] [data-poly-action="edit"]`,
-    )
-    if (editBtn) {
-      editBtn.textContent = isEditing ? '✏ Edit Off' : '✏ Edit Points'
-    }
-  }, [])
-
   const stopEdit = useCallback(
     (options?: { silent?: boolean }) => {
       const entry = editingRef.current
@@ -178,39 +167,27 @@ export function usePolygons({
       syncPaths(entry.poly, entry.data)
       clearEditListeners()
       editingRef.current = null
-      setEditButtonLabel(entry.data, false)
       if (!options?.silent) {
         showToastSuccess('✓ Edit saved — save to HTML to keep changes.')
       }
     },
-    [clearEditListeners, setEditButtonLabel, syncPaths],
+    [clearEditListeners, syncPaths],
   )
-
-  const stopMove = useCallback(() => {
-    const entry = movingRef.current
-    if (!entry) return
-    entry.poly.setDraggable(false)
-    entry.poly.setOptions({ fillOpacity: 0.02 })
-    syncPaths(entry.poly, entry.data)
-    movingRef.current = null
-  }, [syncPaths])
 
   const startEdit = useCallback(
     (poly: google.maps.Polygon, data: Polygon) => {
       if (editingRef.current?.poly === poly) return
       if (editingRef.current) stopEdit({ silent: true })
-      if (movingRef.current) stopMove()
       editingRef.current = { poly, data }
       poly.setEditable(true)
-      setEditButtonLabel(data, true)
-      showToastSuccess('Edit mode — drag vertices. Click Edit Off when done.')
+      showToastSuccess('Edit mode — drag vertices. Double-click the polygon when done.')
 
       editDblListenerRef.current = poly.addListener('dblclick', (e: google.maps.MapMouseEvent) => {
         e.stop()
         stopEdit()
       })
     },
-    [setEditButtonLabel, stopEdit, stopMove],
+    [stopEdit],
   )
 
   const openPopup = useCallback(
@@ -233,14 +210,9 @@ export function usePolygons({
         position = new google.maps.LatLng(lats / data.paths.length, lngs / data.paths.length)
       }
 
-      const esc = (t: string) => t.replace(/</g, '&lt;').replace(/"/g, '&quot;')
-      const actionKey = esc(polygonKey(data))
-      const isEditing = editingRef.current?.poly === poly
       const assigned = buildingForPolygon(buildings, data)
       const content = buildPolygonInfoHtml(data, {
         assignedBuildingAddress: assigned?.address ?? null,
-        isEditing,
-        actionKey,
       })
 
       infoWindowRef.current = new google.maps.InfoWindow({
@@ -252,36 +224,8 @@ export function usePolygons({
       infoWindowRef.current.open({ map, shouldFocus: false })
       ensureInfoWindowVisible(map, infoWindowRef.current)
       afterMapViewChange(map)
-
-      google.maps.event.addListenerOnce(infoWindowRef.current, 'domready', () => {
-        const root = document.querySelector(`[data-poly-actions="${actionKey}"]`)
-        if (!root) return
-        root.querySelector('[data-poly-action="delete"]')?.addEventListener('click', () => {
-          if (editingRef.current?.poly === poly) stopEdit({ silent: true })
-          poly.setMap(null)
-          renderedRef.current = renderedRef.current.filter((r) => r.gmPoly !== poly)
-          infoWindowRef.current?.close()
-          callbacksRef.current.onPolygonDeleted?.(data)
-          showToastSuccess('✓ Polygon deleted — save to HTML to keep changes.')
-        })
-        root.querySelector('[data-poly-action="edit"]')?.addEventListener('click', () => {
-          if (editingRef.current?.poly === poly) {
-            stopEdit()
-            return
-          }
-          startEdit(poly, data)
-        })
-        root.querySelector('[data-poly-action="move"]')?.addEventListener('click', () => {
-          infoWindowRef.current?.close()
-          stopEdit({ silent: true })
-          movingRef.current = { poly, data }
-          poly.setDraggable(true)
-          poly.setOptions({ fillOpacity: 0.15 })
-          showToastSuccess('Move mode — drag polygon, dbl-click to finish.')
-        })
-      })
     },
-    [map, startEdit, stopEdit, buildings],
+    [map, stopEdit, buildings],
   )
 
   const openPopupRef = useRef(openPopup)
@@ -328,9 +272,23 @@ export function usePolygons({
       openPopupRef.current(entry.gmPoly, entry.data)
     }
 
+    const onEditPolygon = (e: Event) => {
+      const detail = (e as CustomEvent<{ name: string; description: string }>).detail
+      const key = polygonKey({ name: detail.name, description: detail.description, color: '', paths: [] })
+      const entry = renderedRef.current.find((r) => polygonKey(r.data) === key)
+      if (!entry) return
+      closeAllMapPopups()
+      panToPolygon(map, entry.data)
+      startEdit(entry.gmPoly, entry.data)
+    }
+
     window.addEventListener('map:openPolygon', onOpenPolygon)
-    return () => window.removeEventListener('map:openPolygon', onOpenPolygon)
-  }, [map])
+    window.addEventListener('map:editPolygon', onEditPolygon)
+    return () => {
+      window.removeEventListener('map:openPolygon', onOpenPolygon)
+      window.removeEventListener('map:editPolygon', onEditPolygon)
+    }
+  }, [map, startEdit])
 
   useEffect(() => {
     if (!map) return
@@ -383,7 +341,6 @@ export function usePolygons({
       })
 
       gmPoly.addListener('dragstart', () => {
-        if (movingRef.current?.poly === gmPoly) return
         if (!useSelectionStore.getState().dragMode) return
         const start = polygonCentroid(p)
         beginDragSession(key, start.lat, start.lng)
@@ -393,7 +350,6 @@ export function usePolygons({
       })
 
       gmPoly.addListener('drag', () => {
-        if (movingRef.current?.poly === gmPoly) return
         if (!isGroupDragActive()) return
         const path = gmPoly.getPath()
         let latSum = 0
@@ -410,10 +366,6 @@ export function usePolygons({
 
       gmPoly.addListener('dragend', () => {
         setNativeDragPolygonKey(null)
-        if (movingRef.current?.poly === gmPoly) {
-          stopMove()
-          return
-        }
         if (isGroupDragActive()) {
           commitGroupDrag()
           return
@@ -448,17 +400,15 @@ export function usePolygons({
       renderedRef.current = []
       infoWindowRef.current?.close()
       editingRef.current = null
-      movingRef.current = null
       clearEditListeners()
     }
-  }, [map, polygons, polygonsLayerVisible, refreshPolygonSelectionStyles, beginDragSession, commitGroupDrag, stopMove, stopEdit, syncPaths, clearEditListeners])
+  }, [map, polygons, polygonsLayerVisible, refreshPolygonSelectionStyles, beginDragSession, commitGroupDrag, stopEdit, syncPaths, clearEditListeners])
 
   useEffect(() => {
     for (const entry of renderedRef.current) {
       const key = polygonKey(entry.data)
       const selected = useSelectionStore.getState().isDragSelected(key)
-      const popupMoving = movingRef.current?.poly === entry.gmPoly
-      entry.gmPoly.setDraggable((dragMode && selected) || popupMoving)
+      entry.gmPoly.setDraggable(dragMode && selected)
     }
   }, [dragMode, dragSelectedKeys])
 
