@@ -38,7 +38,7 @@ Open http://localhost:5173/ after `npm run dev`.
 | `VITE_RTU_PICTURES_BASE_URL` | Cloudflare R2 public URL for RTU pictures |
 | `VITE_RTU_DOCUMENTS_BASE_URL` | Cloudflare R2 public URL for RTU documents |
 
-Set the same `VITE_*` values as **GitHub repository secrets** for CI deploys.
+Set the same `VITE_*` values as **GitHub Actions secrets** for CI deploys — either under **Settings → Secrets and variables → Actions** (repository secrets) or under **Settings → Environments → github-pages** (environment secrets; the deploy workflow reads from the `github-pages` environment).
 
 **R2 upload secrets** (GitHub Actions + local upload scripts only — not bundled into the app):
 

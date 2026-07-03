@@ -20,6 +20,14 @@ jobs:
   build:
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    environment: github-pages
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+      VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
+      VITE_RTU_PICTURES_BASE_URL: ${{ secrets.VITE_RTU_PICTURES_BASE_URL }}
+      VITE_RTU_DOCUMENTS_BASE_URL: ${{ secrets.VITE_RTU_DOCUMENTS_BASE_URL }}
     steps:
       - uses: actions/checkout@v5
 
@@ -41,13 +49,6 @@ jobs:
       - run: npm run test
 
       - run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
-          VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
-          VITE_RTU_PICTURES_BASE_URL: ${{ secrets.VITE_RTU_PICTURES_BASE_URL }}
-          VITE_RTU_DOCUMENTS_BASE_URL: ${{ secrets.VITE_RTU_DOCUMENTS_BASE_URL }}
 
       - name: Sync RTU pictures to Cloudflare R2
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
