@@ -69,13 +69,13 @@ jobs:
       # workflow run, which makes deploy-pages fail with "Found 2 artifact(s)".
       - name: Delete stale Pages artifact (if any)
         if: github.ref == 'refs/heads/main'
-        uses: geekyeggo/delete-artifact@v5
+        uses: geekyeggo/delete-artifact@v6
         with:
           name: github-pages
           failOnError: false
 
       - id: pages-artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main'
         with:
           path: dist
