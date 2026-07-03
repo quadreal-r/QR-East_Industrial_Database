@@ -7,8 +7,9 @@ export interface VersionStampProps {
 }
 
 export function VersionStamp({ placement = 'topbar' }: VersionStampProps) {
-  const label =
-    BUILD_VERSION.build === 0 ? `v${BUILD_VERSION.date} (dev)` : BUILD_VERSION_LABEL
+  const label = import.meta.env.DEV
+    ? `v${BUILD_VERSION.semver} (dev)`
+    : BUILD_VERSION_LABEL
 
   return (
     <div

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-/** Read vYYYY.MM.DD (n) label from generated buildVersion.ts or version.build.json. */
+/** Read vx.y.z label from generated buildVersion.ts or version.build.json. */
 export function readBuildVersionLabel(root) {
   const generatedPath = join(root, 'src', 'generated', 'buildVersion.ts')
   if (existsSync(generatedPath)) {
@@ -12,7 +12,10 @@ export function readBuildVersionLabel(root) {
   const jsonPath = join(root, 'version.build.json')
   if (existsSync(jsonPath)) {
     try {
-      const { date, build } = JSON.parse(readFileSync(jsonPath, 'utf8'))
+      const data = JSON.parse(readFileSync(jsonPath, 'utf8'))
+      if (data.semver) return `v${data.semver}`
+      // Legacy date/build format
+      const { date, build } = data
       if (date && build != null) return `v${date} (${build})`
     } catch {
       /* ignore */

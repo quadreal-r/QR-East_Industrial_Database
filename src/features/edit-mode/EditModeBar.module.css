@@ -1,0 +1,125 @@
+.bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: min(560px, calc(100% - 24px));
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  font: 500 12px/1.45 Inter, sans-serif;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  z-index: 110;
+  pointer-events: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.content {
+  min-width: 0;
+  flex: 1;
+}
+
+.heading {
+  font: 700 13px/1.3 Inter, sans-serif;
+  margin: 0 0 6px;
+}
+
+.summary {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.groupList {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: #e2e8f0;
+}
+
+.groupList li {
+  margin: 2px 0;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.save,
+.discard {
+  border-radius: 5px;
+  font: 600 11px/1 Inter, sans-serif;
+  padding: 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.save {
+  border: 1px solid rgba(34, 197, 94, 0.8);
+  background: rgba(34, 197, 94, 0.92);
+  color: #052e16;
+}
+
+.save:hover:not(:disabled) {
+  background: rgba(74, 222, 128, 0.95);
+}
+
+.save:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.discard {
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
+.discard:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.22);
+}
+
+.discard:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.progressTrack {
+  margin-top: 10px;
+  height: 4px;
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+  transform-origin: left center;
+}
+
+.progressFillSaving {
+  width: 35%;
+  animation: saveProgress 1.1s ease-in-out infinite;
+}
+
+.progressFillSuccess {
+  width: 100%;
+  transition: width 0.25s ease;
+}
+
+@keyframes saveProgress {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(320%);
+  }
+}

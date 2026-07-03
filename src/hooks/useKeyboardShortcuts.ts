@@ -3,10 +3,10 @@ import { showToastSuccess } from '@/lib/toast'
 import { useSelectionStore } from '@/stores/selectionStore'
 
 export interface UseKeyboardShortcutsOptions {
-  onSaved?: () => void
+  onSave?: () => void
 }
 
-export function useKeyboardShortcuts({ onSaved }: UseKeyboardShortcutsOptions = {}) {
+export function useKeyboardShortcuts({ onSave }: UseKeyboardShortcutsOptions = {}) {
   const runDragUndo = useSelectionStore((s) => s.runDragUndo)
 
   useEffect(() => {
@@ -24,9 +24,9 @@ export function useKeyboardShortcuts({ onSaved }: UseKeyboardShortcutsOptions = 
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        if (e.repeat) return
         e.preventDefault()
-        onSaved?.()
-        showToastSuccess('✓ Changes save automatically when signed in')
+        onSave?.()
         return
       }
 
@@ -52,5 +52,5 @@ export function useKeyboardShortcuts({ onSaved }: UseKeyboardShortcutsOptions = 
 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onSaved, runDragUndo])
+  }, [onSave, runDragUndo])
 }

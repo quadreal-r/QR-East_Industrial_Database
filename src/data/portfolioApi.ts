@@ -9,6 +9,7 @@ import type {
   UtilityType,
 } from '@/types/domain'
 import { normalizePortfolioData } from '@/types/domain'
+import { computePortfolioChanges } from '@/features/edit-mode/diffPortfolio'
 import { supabase } from '@/lib/supabaseClient'
 
 type BuildingRow = Tables<'buildings'>
@@ -134,6 +135,28 @@ export async function upsertBuilding(building: Building): Promise<Building> {
   }
 
   return { ...building, id: buildingId }
+}
+
+async function updateBuildingOnly(building: Building): Promise<void> {
+  if (building.id == null) {
+    throw new Error('Cannot update building without id')
+  }
+
+  const payload = {
+    park: building.park,
+    address: building.address,
+    bu: building.bu || null,
+    lat: building.lat,
+    lng: building.lng,
+    sqft: building.sqft || null,
+    cluster: building.cluster || null,
+    manager: building.manager || null,
+    notes: building.notes ?? null,
+    sold: building.sold ?? false,
+  }
+
+  const { error } = await supabase.from('buildings').update(payload).eq('id', building.id)
+  if (error) throw error
 }
 
 export async function upsertRtu(rtu: Rtu & { building_id: number }): Promise<Rtu> {
@@ -281,6 +304,53 @@ export async function savePortfolio(portfolio: PortfolioData): Promise<Portfolio
     }
   }
   for (const polygon of normalized.polygons) {
+    await upsertPolygon(polygon)
+  }
+
+  return fetchPortfolio()
+}
+
+/** Apply only pending portfolio edits (staged map/notes changes). */
+export async function savePortfolioChanges(
+  baseline: PortfolioData,
+  pending: PortfolioData,
+): Promise<PortfolioData> {
+  const normalizedPending = normalizePortfolioData(pending)
+  const changes = computePortfolioChanges(baseline, normalizedPending)
+
+  for (const id of changes.buildingIdsToDelete) {
+    await supabase.from('buildings').delete().eq('id', id)
+  }
+
+  for (const building of changes.buildingsToInsert) {
+    await upsertBuilding(building)
+  }
+
+  for (const building of changes.buildingsToUpdate) {
+    await updateBuildingOnly(building)
+  }
+
+  for (const id of changes.rtuIdsToDelete) {
+    await deleteRtu(id)
+  }
+
+  for (const rtu of changes.rtusToUpsert) {
+    await upsertRtu(rtu)
+  }
+
+  for (const id of changes.utilityIdsToDelete) {
+    await deleteUtility(id)
+  }
+
+  for (const utility of changes.utilitiesToUpsert) {
+    await upsertUtility(utility)
+  }
+
+  for (const id of changes.polygonIdsToDelete) {
+    await deletePolygon(id)
+  }
+
+  for (const polygon of changes.polygonsToUpsert) {
     await upsertPolygon(polygon)
   }
 

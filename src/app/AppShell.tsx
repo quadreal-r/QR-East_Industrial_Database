@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { VersionStamp } from '@/components/VersionStamp/VersionStamp'
 import { CostBanner } from '@/features/cost-estimator/CostBanner'
+import { EditModeBar, type SaveState } from '@/features/edit-mode/EditModeBar'
+import type { EditSummary } from '@/features/edit-mode/diffPortfolio'
+import { diffPortfolio } from '@/features/edit-mode/diffPortfolio'
 import { MapPanel } from '@/features/map/MapPanel'
 import { RtuPictureViewer } from '@/features/rtu-pictures/RtuPictureViewer'
 import { SettingsModal } from '@/features/settings/SettingsModal'
@@ -11,9 +14,15 @@ import { useAuth } from '@/hooks/useAuth'
 import { useFilteredBuildings } from '@/hooks/useFilteredBuildings'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useRtuPictureViewerHistory } from '@/hooks/useRtuPictureViewerHistory'
-import { usePortfolioData, useSavePortfolio, type PortfolioData } from '@/hooks/usePortfolioData'
+import {
+  PORTFOLIO_QUERY_KEY,
+  usePortfolioData,
+  useSavePendingPortfolio,
+  type PortfolioData,
+} from '@/hooks/usePortfolioData'
 import { clearRtuPictureManifestCache } from '@/lib/rtuPictures'
 import { showToastError, showToastSuccess } from '@/lib/toast'
+import { confirm } from '@/stores/confirmStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
@@ -23,14 +32,40 @@ import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import styles from './AppShell.module.css'
 
 const EMPTY_PORTFOLIO: PortfolioData = { buildings: [], utilities: [], polygons: [] }
+const SAVE_SUCCESS_DISPLAY_MS = 1000
 
 export function AppShell() {
   const queryClient = useQueryClient()
-  const { data, isLoading, isError } = usePortfolioData()
-  const savePortfolio = useSavePortfolio()
-  const { isAuthenticated } = useAuth()
   const [portfolioOverride, setPortfolioOverride] = useState<PortfolioData | null>(null)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [displaySummary, setDisplaySummary] = useState<EditSummary | null>(null)
+  const suppressStagingRef = useRef(false)
+  const saveInFlightRef = useRef(false)
+  const saveDismissTimerRef = useRef<number | null>(null)
+  const { data, isLoading, isError } = usePortfolioData()
+  const savePendingPortfolioMutation = useSavePendingPortfolio()
+  const { isAuthenticated } = useAuth()
   const [loginOpen, setLoginOpen] = useState(false)
+
+  const persistPortfolioChange = useCallback(
+    async (baselineSnapshot: PortfolioData, next: PortfolioData) => {
+      if (!isAuthenticated) {
+        setLoginOpen(true)
+        throw new Error('Sign in to save portfolio changes.')
+      }
+      const saved = await savePendingPortfolioMutation.mutateAsync({
+        baseline: baselineSnapshot,
+        pending: next,
+      })
+      setPortfolioOverride(null)
+      queryClient.setQueryData(PORTFOLIO_QUERY_KEY, saved)
+      usePortfolioStore.getState().setPortfolio(saved, { markSaved: true })
+      clearRtuPictureManifestCache()
+      showToastSuccess('✓ Saved to Supabase')
+      return saved
+    },
+    [isAuthenticated, queryClient, savePendingPortfolioMutation],
+  )
 
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const loadRtuPricing = useRtuPricingStore((s) => s.load)
@@ -48,52 +83,94 @@ export function AppShell() {
   const setRtuPictureViewerIndex = useUiStore((s) => s.setRtuPictureViewerIndex)
   const updateRtuPictureViewerPictures = useUiStore((s) => s.updateRtuPictureViewerPictures)
 
-  const markSaved = usePortfolioStore((s) => s.markSaved)
-
   useEffect(() => {
     void loadSettings()
     void loadRtuPricing()
     void loadRtuSchedule()
   }, [loadSettings, loadRtuPricing, loadRtuSchedule])
 
-  const portfolio = portfolioOverride ?? data ?? EMPTY_PORTFOLIO
+  useEffect(() => {
+    return () => {
+      if (saveDismissTimerRef.current != null) {
+        window.clearTimeout(saveDismissTimerRef.current)
+      }
+    }
+  }, [])
+
+  const clearSaveDismissTimer = useCallback(() => {
+    if (saveDismissTimerRef.current != null) {
+      window.clearTimeout(saveDismissTimerRef.current)
+      saveDismissTimerRef.current = null
+    }
+  }, [])
+
+  const finishSaveFlow = useCallback(() => {
+    clearSaveDismissTimer()
+    suppressStagingRef.current = false
+    saveInFlightRef.current = false
+    setDisplaySummary(null)
+    setSaveState('idle')
+  }, [clearSaveDismissTimer])
+
+  const baseline = data ?? EMPTY_PORTFOLIO
+  const portfolio = portfolioOverride ?? baseline
+
+  const editSummary = useMemo(
+    () => (portfolioOverride ? diffPortfolio(baseline, portfolioOverride) : null),
+    [baseline, portfolioOverride],
+  )
 
   const { filteredBuildings, listBuildings, costScopeBuildings } = useFilteredBuildings(
     portfolio.buildings,
     portfolio.polygons,
   )
 
-  useKeyboardShortcuts({ onSaved: markSaved })
+  const stagePortfolioChange = useCallback((next: PortfolioData) => {
+    if (suppressStagingRef.current) return
+    setPortfolioOverride(next)
+    usePortfolioStore.getState().patchPortfolio(next)
+  }, [])
+
+  const handleSave = useCallback(async () => {
+    if (!portfolioOverride || saveInFlightRef.current) return
+
+    const pending = portfolioOverride
+    const baselineSnapshot = baseline
+    if (editSummary) {
+      setDisplaySummary(editSummary)
+    }
+
+    clearSaveDismissTimer()
+    saveInFlightRef.current = true
+    suppressStagingRef.current = true
+    setSaveState('saving')
+
+    try {
+      await persistPortfolioChange(baselineSnapshot, pending)
+      setSaveState('success')
+      saveDismissTimerRef.current = window.setTimeout(() => {
+        finishSaveFlow()
+      }, SAVE_SUCCESS_DISPLAY_MS)
+    } catch (error) {
+      finishSaveFlow()
+      showToastError(error instanceof Error ? error.message : 'Could not save portfolio')
+    }
+  }, [clearSaveDismissTimer, editSummary, finishSaveFlow, persistPortfolioChange, portfolioOverride, baseline])
+
+  const handleDiscard = useCallback(async () => {
+    if (!portfolioOverride || saveInFlightRef.current) return
+    if (!(await confirm('Discard all pending changes?'))) return
+    setPortfolioOverride(null)
+    finishSaveFlow()
+    usePortfolioStore.getState().markSaved()
+    showToastSuccess('Pending changes discarded')
+  }, [finishSaveFlow, portfolioOverride])
+
+  const barSummary = editSummary ?? displaySummary
+  const showEditBar = saveState !== 'idle' || portfolioOverride != null
+
+  useKeyboardShortcuts({ onSave: handleSave })
   useRtuPictureViewerHistory()
-
-  const persistPortfolioChange = useCallback(
-    async (next: PortfolioData) => {
-      if (!isAuthenticated) {
-        setLoginOpen(true)
-        throw new Error('Sign in to save portfolio changes.')
-      }
-      const saved = await savePortfolio.mutateAsync(next)
-      setPortfolioOverride(null)
-      queryClient.setQueryData(['portfolio'], saved)
-      usePortfolioStore.getState().patchPortfolio(saved)
-      clearRtuPictureManifestCache()
-      showToastSuccess('✓ Saved to Supabase')
-      return saved
-    },
-    [isAuthenticated, queryClient, savePortfolio],
-  )
-
-  const handlePortfolioChange = useCallback(
-    (next: PortfolioData) => {
-      setPortfolioOverride(next)
-      queryClient.setQueryData(['portfolio'], next)
-      usePortfolioStore.getState().patchPortfolio(next)
-      void persistPortfolioChange(next).catch((error) => {
-        showToastError(error instanceof Error ? error.message : 'Could not save portfolio')
-      })
-    },
-    [persistPortfolioChange, queryClient],
-  )
 
   const handleAddMarkerClose = useCallback(() => {
     closeAddMarker('addMarker')
@@ -128,27 +205,37 @@ export function AppShell() {
         listBuildings={listBuildings}
         filteredBuildings={filteredBuildings}
         portfolio={portfolio}
-        onNotesChange={handlePortfolioChange}
+        onNotesChange={stagePortfolioChange}
       />
       <div className={styles.mainColumn}>
         <MapPanel
           portfolio={portfolio}
           mapBuildings={filteredBuildings}
-          onPortfolioImport={handlePortfolioChange}
-          onPortfolioPatch={handlePortfolioChange}
+          onPortfolioImport={stagePortfolioChange}
+          onPortfolioPatch={stagePortfolioChange}
           polygonDrawOpen={polygonDrawOpen}
           onPolygonDrawClose={handlePolygonDrawClose}
           addMarkerOpen={addMarkerOpen}
           onAddMarkerClose={handleAddMarkerClose}
         />
         <CostBanner buildings={costScopeBuildings} />
+        {showEditBar && barSummary ? (
+          <EditModeBar
+            summary={barSummary}
+            onSave={() => {
+              void handleSave()
+            }}
+            onDiscard={handleDiscard}
+            saveState={saveState}
+          />
+        ) : null}
       </div>
       <SettingsModal
         open={settingsOpen}
         onClose={closeSettings}
         portfolio={portfolio}
-        onImport={handlePortfolioChange}
-        onPortfolioPatch={handlePortfolioChange}
+        onImport={stagePortfolioChange}
+        onPortfolioPatch={stagePortfolioChange}
         onOpenPolygonDraw={() => {
           closeSettings()
           openPolygonDraw('polygonDraw')
@@ -157,9 +244,8 @@ export function AppShell() {
           closeSettings()
           openAddMarker('addMarker')
         }}
-        onSaved={markSaved}
-        onSignIn={() => setLoginOpen(true)}
         isAuthenticated={isAuthenticated}
+        onSignIn={() => setLoginOpen(true)}
       />
       {rtuPictureViewer ? (
         <RtuPictureViewer

@@ -1,7 +1,7 @@
 {
   "name": "building-map-explorer",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,6 +25,7 @@
     "db:push:dry-run": "node scripts/supabase-db-push.mjs --dry-run",
     "db:migration-list": "supabase migration list --linked",
     "version:bump": "node scripts/bump-version.mjs",
+    "version:bump:semver": "node scripts/bump-semver.mjs",
     "upload-rtu-pictures-r2": "node scripts/upload-rtu-pictures-r2.mjs",
     "upload-rtu-documents-r2": "node scripts/upload-rtu-documents-r2.mjs",
     "sync-rtu-pictures-r2": "node scripts/sync-rtu-pictures-r2.mjs",

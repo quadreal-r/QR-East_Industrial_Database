@@ -38,10 +38,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Bump version stamp
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        run: node scripts/bump-version.mjs
-
       - run: npm run typecheck
 
       - run: npm run lint
@@ -84,16 +80,6 @@ jobs:
         with:
           path: dist
 
-      - name: Upload version stamp for post-deploy commit
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        uses: actions/upload-artifact@v4
-        with:
-          name: version-stamp
-          path: |
-            version.build.json
-            src/generated/buildVersion.ts
-          retention-days: 1
-
   deploy:
     if: github.ref == 'refs/heads/main' && (github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]'))
     needs: build
@@ -104,23 +90,3 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
-
-  commit-version:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: [build, deploy]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Restore version stamp from build
-        uses: actions/download-artifact@v5
-        with:
-          name: version-stamp
-
-      - name: Commit version stamp
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add version.build.json src/generated/buildVersion.ts
-          git diff --staged --quiet || git commit -m "chore: bump deploy version stamp [skip ci]"
-          git push
