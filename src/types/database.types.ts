@@ -47,6 +47,7 @@ export type Database = {
           manager: string | null
           notes: string | null
           park: string
+          sold: boolean
           sqft: string | null
           updated_at: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           manager?: string | null
           notes?: string | null
           park: string
+          sold?: boolean
           sqft?: string | null
           updated_at?: string
         }
@@ -75,6 +77,7 @@ export type Database = {
           manager?: string | null
           notes?: string | null
           park?: string
+          sold?: boolean
           sqft?: string | null
           updated_at?: string
         }
@@ -125,6 +128,8 @@ export type Database = {
           make: string | null
           model: string | null
           name: string
+          replacement_note: string | null
+          replacement_year: number | null
           serial: string | null
           suite: string | null
           updated_at: string
@@ -143,6 +148,8 @@ export type Database = {
           make?: string | null
           model?: string | null
           name: string
+          replacement_note?: string | null
+          replacement_year?: number | null
           serial?: string | null
           suite?: string | null
           updated_at?: string
@@ -161,6 +168,8 @@ export type Database = {
           make?: string | null
           model?: string | null
           name?: string
+          replacement_note?: string | null
+          replacement_year?: number | null
           serial?: string | null
           suite?: string | null
           updated_at?: string
@@ -174,6 +183,157 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      rtu_documents: {
+        Row: {
+          building_address: string
+          created_at: string
+          doc_type: string | null
+          file_name: string
+          id: number
+          position: number
+          rtu_id: number | null
+          rtu_name: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          building_address: string
+          created_at?: string
+          doc_type?: string | null
+          file_name: string
+          id?: number
+          position?: number
+          rtu_id?: number | null
+          rtu_name: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          building_address?: string
+          created_at?: string
+          doc_type?: string | null
+          file_name?: string
+          id?: number
+          position?: number
+          rtu_id?: number | null
+          rtu_name?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'rtu_documents_rtu_id_fkey'
+            columns: ['rtu_id']
+            isOneToOne: false
+            referencedRelation: 'rtus'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      rtu_pictures: {
+        Row: {
+          building_address: string
+          created_at: string
+          file_name: string
+          hidden: boolean
+          id: number
+          position: number
+          rtu_id: number | null
+          rtu_name: string
+          updated_at: string
+        }
+        Insert: {
+          building_address: string
+          created_at?: string
+          file_name: string
+          hidden?: boolean
+          id?: number
+          position?: number
+          rtu_id?: number | null
+          rtu_name: string
+          updated_at?: string
+        }
+        Update: {
+          building_address?: string
+          created_at?: string
+          file_name?: string
+          hidden?: boolean
+          id?: number
+          position?: number
+          rtu_id?: number | null
+          rtu_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'rtu_pictures_rtu_id_fkey'
+            columns: ['rtu_id']
+            isOneToOne: false
+            referencedRelation: 'rtus'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      rtu_pricing: {
+        Row: {
+          consulting: number
+          created_at: string
+          electrical: number
+          id: number
+          install: number
+          label: string
+          miscellaneous: number
+          model: string
+          notes: string
+          position: number
+          service_balancing: number
+          structural: number
+          supervisory_mult: number
+          supply_hyb: number
+          supply_std: number
+          tonnage_key: number
+          updated_at: string
+        }
+        Insert: {
+          consulting?: number
+          created_at?: string
+          electrical?: number
+          id?: number
+          install?: number
+          label: string
+          miscellaneous?: number
+          model?: string
+          notes?: string
+          position?: number
+          service_balancing?: number
+          structural?: number
+          supervisory_mult?: number
+          supply_hyb?: number
+          supply_std?: number
+          tonnage_key: number
+          updated_at?: string
+        }
+        Update: {
+          consulting?: number
+          created_at?: string
+          electrical?: number
+          id?: number
+          install?: number
+          label?: string
+          miscellaneous?: number
+          model?: string
+          notes?: string
+          position?: number
+          service_balancing?: number
+          structural?: number
+          supervisory_mult?: number
+          supply_hyb?: number
+          supply_std?: number
+          tonnage_key?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       tenants: {
         Row: {

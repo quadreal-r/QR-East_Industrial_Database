@@ -24,7 +24,6 @@ import {
 import { enableMapDigitalZoom } from '@/lib/mapDigitalZoom'
 import { confirm } from '@/stores/confirmStore'
 import { showToastError, showToastSuccess } from '@/lib/toast'
-import { invalidateUnsyncedChanges } from '@/lib/unsyncedChangesEvents'
 import {
   applyRtuTextChangeInPortfolio,
   migrateRtuAssociatedData,
@@ -189,11 +188,10 @@ export function MapPanel({
           }
         }
         onPortfolioPatch(next)
-        invalidateUnsyncedChanges()
         showToastSuccess(
           rename
-            ? `✓ RTU renamed to ${rename.newName} — sync to update Cloudflare.`
-            : '✓ RTU text updated — sync to update Cloudflare.',
+            ? `✓ RTU renamed to ${rename.newName}`
+            : '✓ RTU text updated',
         )
       } catch (error) {
         showToastError(error instanceof Error ? error.message : 'Could not update RTU')

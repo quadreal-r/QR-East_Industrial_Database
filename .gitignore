@@ -14,6 +14,7 @@ coverage
 .DS_Store
 *.log
 supabase/.temp
+supabase/.branches
 supabase/.seed-chunks
 supabase/seed-chunk*.sql
 supabase/seed-part*.sql

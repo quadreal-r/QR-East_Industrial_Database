@@ -22,7 +22,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private handleResetStorage = (): void => {
-    localStorage.removeItem(STORAGE_KEYS.portfolio)
     localStorage.removeItem(STORAGE_KEYS.settings)
     window.location.reload()
   }

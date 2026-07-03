@@ -1,52 +1,46 @@
 ---
-description: Push local code to GitHub and deploy a new build to GitHub Pages + Cloudflare R2
+description: Push local code to GitHub and deploy a new build to GitHub Pages
 alwaysApply: false
 ---
 
 # Push new build (building-map-explorer)
 
-When the user asks to push, deploy, publish, or sync code to the live site:
+When the user asks to push, deploy, publish, or go live:
 
 ## Remember
 
-- **Live site builds from GitHub `main` source code**, not uncommitted local files. Settings sync updates map data only unless you also push code.
-- **UI / app changes** (removed buttons, new features): run `npm run push-live` from the project folder, then Settings → Sync if needed.
-- **Never commit** `.env.local` or `deploy-bundle.json`.
+- **Live site builds from GitHub `main` source code**, not uncommitted local files.
+- **Map data** lives in Supabase — edits while signed in take effect immediately (no JSON sync step).
+- **Never commit** `.env.local` or files containing secrets.
 
-## Full live update (app UI + map data)
+## Standard push
 
-1. `npm run push-live` — tests, commits app code, pushes to `main`, triggers **Manual deploy (commit, push & Pages)** on GitHub Actions (R2 JSON + build + Pages). Uses `[skip ci]` on the commit so deploy does not run twice.
-2. Settings → **Sync to Cloudflare & GitHub** — portfolio JSON, pictures, sync-meta (triggers **sync-deploy** + Pages rebuild)
-3. Hard-refresh live site after Actions finish (~5–10 min)
-4. **Download sync status report** (Settings) to see pictures added/removed, build version, and history
-
-## Standard code push (app UI + repo JSON)
-
-1. `git pull origin main` (Settings sync may have committed on remote)
+1. `git pull origin main`
 2. `npm run lint && npm run typecheck && npm run test`
 3. `git status` — review changes; stage only intended files
 4. `git commit -m "…"` with a clear message
-5. `git push origin main` → triggers `.github/workflows/deploy.yml` (R2 JSON upload + build + GitHub Pages)
+5. `git push origin main` → triggers `.github/workflows/deploy.yml` (test + build + GitHub Pages)
 
-## Map data + pictures (no code deploy needed)
+Or use:
 
-Settings → **Sync to Cloudflare & GitHub** (runs `sync-deploy.yml`). User should hard-refresh after ~2 minutes.
+```powershell
+npm run push-live
+```
 
 ## After push to main
 
 - Watch: https://github.com/quadreal-r/building-map-explorer/actions
 - Live: https://quadreal-r.github.io/building-map-explorer/
 - Hard-refresh when deploy finishes (~5–10 min)
-- `npm run push-live` triggers **Manual deploy** automatically; use `--push-only` to skip that and rely on the push hook instead
 
-## Documents / R2 extras (when changed)
+## R2 media (when picture/document binaries changed)
 
 ```powershell
-npm run upload-rtu-documents-r2 -- --from-folder "…" --all-files --skip-existing
-npm run upload-json-to-r2
+npm run upload-rtu-pictures-r2 -- --from-folder "C:/path/to/pictures"
+npm run upload-rtu-documents-r2 -- --from-folder "C:/path/to/docs" --skip-existing
 ```
 
-Requires `VITE_RTU_DOCUMENTS_BASE_URL` in GitHub secrets for document links online.
+Picture/document **metadata** is in Supabase — update via the app while signed in, or run `npm run migrate-json-to-supabase` for bulk legacy import.
 
 ## User shortcut phrase
 

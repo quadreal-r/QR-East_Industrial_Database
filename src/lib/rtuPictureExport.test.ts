@@ -42,7 +42,7 @@ describe('buildRtuPictureExportBundle', () => {
     })
 
     expect(bundle.picturesBaseUrl).toBe('https://cdn.example.com/rtu/')
-    expect(bundle.manifestUrl).toBe('/building-map-explorer/database/rtu-pictures/manifest.json')
+    expect(bundle.manifestUrl).toBe('supabase:rtu_pictures')
     expect(bundle.rows).toHaveLength(2)
     expect(bundle.rows[0]).toMatchObject({
       buildingAddress: '100 Leek Crescent',

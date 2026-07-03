@@ -2,34 +2,29 @@ import { describe, expect, it, beforeEach, vi } from 'vitest'
 import {
   hideRtuManifestPicture,
   isRtuManifestPictureHidden,
-  loadBundledHiddenRtuPictures,
+  clearHiddenRtuPictureCache,
 } from '@/lib/hiddenRtuPictures'
+
+vi.mock('@/data/mediaApi', () => ({
+  fetchHiddenPictureKeys: vi.fn(async () => new Set<string>()),
+  setPictureHidden: vi.fn(async () => undefined),
+}))
+
+vi.mock('@/lib/rtuPictures', () => ({
+  notifyRtuPicturesChanged: vi.fn(),
+}))
 
 describe('hiddenRtuPictures', () => {
   beforeEach(() => {
-    localStorage.clear()
-    vi.restoreAllMocks()
+    clearHiddenRtuPictureCache()
+    vi.clearAllMocks()
   })
 
-  it('hides and checks manifest picture keys', () => {
+  it('hides and checks manifest picture keys', async () => {
     const key = '2320 Bristol Circle|RTU-04 Hybrid'
     const fileName = '2320-RTU-04HYBRID (1).jpg'
     expect(isRtuManifestPictureHidden(key, fileName)).toBe(false)
-    hideRtuManifestPicture(key, fileName)
-    expect(isRtuManifestPictureHidden(key, fileName)).toBe(true)
-  })
-
-  it('merges bundled hidden.json with local hides', async () => {
-    const key = '2320 Bristol Circle|RTU-03'
-    const fileName = '2320-RTU-03-1.jpg'
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => [`${key}|${fileName}`],
-      }),
-    )
-    await loadBundledHiddenRtuPictures()
+    await hideRtuManifestPicture(key, fileName)
     expect(isRtuManifestPictureHidden(key, fileName)).toBe(true)
   })
 })

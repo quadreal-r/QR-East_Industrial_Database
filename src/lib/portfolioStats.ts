@@ -1,10 +1,13 @@
 import type { PortfolioData } from '@/types/domain'
-import type { SyncMetaSummary } from '@/types/syncMeta'
 
-export function countPortfolioStats(portfolio: PortfolioData): Pick<
-  SyncMetaSummary,
-  'buildingCount' | 'rtuCount' | 'utilityCount' | 'polygonCount'
-> {
+export interface PortfolioCounts {
+  buildingCount: number
+  rtuCount: number
+  utilityCount: number
+  polygonCount: number
+}
+
+export function countPortfolioStats(portfolio: PortfolioData): PortfolioCounts {
   let rtuCount = 0
   for (const building of portfolio.buildings) {
     rtuCount += building.rtus?.length ?? 0
@@ -15,69 +18,4 @@ export function countPortfolioStats(portfolio: PortfolioData): Pick<
     utilityCount: portfolio.utilities.length,
     polygonCount: portfolio.polygons.length,
   }
-}
-
-export function buildLocalSyncSummary(
-  portfolio: PortfolioData,
-  scheduleYears: number,
-  scheduleNotes: number,
-  pricingRows: number,
-): SyncMetaSummary {
-  return {
-    ...countPortfolioStats(portfolio),
-    manifestPictureCount: 0,
-    picturesUploaded: 0,
-    scheduleYearCount: scheduleYears,
-    scheduleNoteCount: scheduleNotes,
-    pricingRowCount: pricingRows,
-  }
-}
-
-export interface SummaryDeltaLine {
-  label: string
-  before: number
-  after: number
-  delta: number
-}
-
-type NumericSyncSummaryKey =
-  | 'buildingCount'
-  | 'rtuCount'
-  | 'utilityCount'
-  | 'polygonCount'
-  | 'manifestPictureCount'
-  | 'picturesUploaded'
-  | 'pictureChunkCount'
-  | 'picturesAdded'
-  | 'picturesRemoved'
-  | 'picturesHidden'
-  | 'scheduleYearCount'
-  | 'scheduleNoteCount'
-  | 'pricingRowCount'
-
-export function buildSummaryDeltas(
-  local: SyncMetaSummary,
-  remote: SyncMetaSummary,
-): SummaryDeltaLine[] {
-  const fields: Array<{ key: NumericSyncSummaryKey; label: string }> = [
-    { key: 'buildingCount', label: 'Buildings' },
-    { key: 'rtuCount', label: 'RTU markers' },
-    { key: 'utilityCount', label: 'Utility markers' },
-    { key: 'polygonCount', label: 'Polygons' },
-    { key: 'manifestPictureCount', label: 'RTU pictures (manifest)' },
-    { key: 'picturesAdded', label: 'Pictures added (manifest)' },
-    { key: 'picturesRemoved', label: 'Pictures removed (manifest)' },
-    { key: 'picturesHidden', label: 'Pictures hidden' },
-    { key: 'scheduleYearCount', label: 'Schedule replacement years' },
-    { key: 'scheduleNoteCount', label: 'Schedule notes' },
-    { key: 'pricingRowCount', label: 'Pricing rows' },
-  ]
-
-  return fields
-    .map(({ key, label }) => {
-      const before = local[key] ?? 0
-      const after = remote[key] ?? 0
-      return { label, before, after, delta: after - before }
-    })
-    .filter((line) => line.delta !== 0 || line.before !== line.after)
 }

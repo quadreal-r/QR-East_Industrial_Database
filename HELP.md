@@ -10,8 +10,7 @@
 - If the page is blank or won't load:
   - Check the terminal — you should see `VITE ... ready`. If the terminal is gone or shows a prompt with no server, run `npm run dev` again (see [To restart the dev server](#to-restart-the-dev-server)).
   - Run `npm install` if you just pulled new code
-  - Copy `.env.example` to `.env.local` and add your Google Maps API key
-  - In the browser, open DevTools → Application → Local Storage and delete `bme-portfolio` if data looks corrupted, then refresh
+  - Copy `.env.example` to `.env.local` and add your keys (Supabase + Google Maps)
 - Changes to the code will automatically be reflected onto the site, no need to restart the website, you can simply refresh the page
 
 ## To restart the dev server
@@ -39,7 +38,7 @@ npm run dev
 
 **OneDrive / synced folders:** use `npm run dev:onedrive` instead of `npm run dev` if the normal dev command has file-watching issues.
 
-**Keep server running in its own window (recommended):** opens a separate Command Prompt that stays up even if you close Cursor’s terminal:
+**Keep server running in its own window (recommended):** opens a separate Command Prompt that stays up even if you close Cursor's terminal:
 
 ```powershell
 cd C:\Users\Robert\Projects\building-map-explorer
@@ -63,11 +62,11 @@ There is no `npm run commit` or `npm run push`. Use git from the project folder.
 
 ### Git workflow (code changes)
 
-If you use **Settings → Sync**, GitHub Actions may commit to `main` while you work locally. **Pull before you push** so you do not get `rejected (fetch first)`.
-
 ```powershell
 cd C:\Users\Robert\Projects\building-map-explorer
 git pull origin main
+npm run typecheck
+npm run lint
 npm test
 git status
 git add .
@@ -77,7 +76,7 @@ git push origin main
 
 Pushing to **main** triggers GitHub Actions, which builds and publishes the site to GitHub Pages.
 
-**Push rejected?** Remote has commits you do not have (often from Settings sync):
+**Push rejected?** Remote has commits you do not have:
 
 ```powershell
 git pull origin main
@@ -94,56 +93,45 @@ git push origin main
 
 Or tell the agent: **"Everything is good now, push the code"** (it will pull, merge, and push when needed).
 
-### Code changes (features, UI, fixes)
-
-After `npm test` passes, use the [Git workflow](#git-workflow-code-changes) above.
+Or use **`npm run push-live`** — runs tests, commits, and pushes.
 
 ### Map / portfolio data changes
 
-See [docs/SYNC_ARCHITECTURE.md](docs/SYNC_ARCHITECTURE.md) for how app deploy vs Settings sync differ and how to fix stuck unsynced banners.
+Map data lives in **Supabase Postgres**. Sign in from **Settings → Account**, then edit markers, schedule, pricing, etc. Changes save directly to the database — no deploy step for portfolio JSON.
 
-**Recommended:** Settings → **Save & deploy** → **Sync to Cloudflare & GitHub**
+See [docs/DATA_ARCHITECTURE.md](docs/DATA_ARCHITECTURE.md) for the full data model.
 
-- Uploads your local changes via GitHub Actions
-- CI may commit and push for you (`chore: sync portfolio and RTU pictures from Settings`)
-- No manual git needed if sync succeeds
-- **Repo secret:** add the same GitHub token as Settings under repository secret `BME_SYNC_PAT` (needs **repo** Contents read/write and **workflow** scopes) — used by Settings in the browser to upload the staging bundle; CI uses the built-in `GITHUB_TOKEN` to commit and push
-- Sync uploads your bundle to branch `bme-sync-staging` in the same repo; CI reads it from there (no gists)
-
-**Manual fallback** (if sync fails or bundle is too large):
+**One-time import from legacy JSON:**
 
 ```powershell
-npm run apply-deploy-bundle
-git add supabase/data public/database/rtu-pictures/manifest.json
-git commit -m "chore: update portfolio data and RTU picture manifest"
-git push origin main
+npm run migrate-json-to-supabase
 ```
 
-### RTU pictures missing online (local shows them)
+Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
 
-Local uploads live in **IndexedDB** until you **Settings → Sync to Cloudflare & GitHub**. Git push alone does not upload pictures.
+### RTU pictures and documents
 
-If RTU names on the map include a long description (e.g. `RTU-04 Hybrid/Dual Fuel Heat Pump`), pictures may not match the manifest key (`RTU-04 Hybrid`). On load, the app now shortens those names and re-links local pictures automatically. Then:
+- **Metadata** (which files belong to each RTU) is in Supabase.
+- **Binary files** are on Cloudflare R2.
 
-1. Open the site where your pictures exist (local dev or deployed, same browser)
-2. Refresh once (watch for a toast: “Fixed RTU name(s)…”)
-3. Open **2320 Bristol Circle** → **RTU-04 Hybrid** — confirm pictures show (1/2 if you have two)
-4. **Settings → Sync to Cloudflare & GitHub**
-5. Wait for the sync-deploy workflow, then hard-refresh the live site
+Upload binaries with:
+
+```powershell
+npm run upload-rtu-pictures-r2 -- --from-folder "C:/path/to/pictures"
+npm run upload-rtu-documents-r2 -- --from-folder "C:/path/to/docs" --skip-existing
+```
 
 ### Before you push
 
 - Never commit `.env.local` (secrets) — it is gitignored
-- Do not commit `deploy-bundle.json` (gitignored; can be very large)
-- After **Settings → Sync**, run `git pull origin main` before your next code push (see [Git workflow](#git-workflow-code-changes))
 
 ## Push a new build (full checklist)
 
-Use this when local dev looks good and you want **online to match** (code + JSON in git).
+Use this when local dev looks good and you want **online to match** your code.
 
-**Important:** The live site is built from **GitHub `main`**, not your laptop. Uncommitted local code will not appear online even if the version stamp looks similar.
+**Important:** The live site is built from **GitHub `main`**, not your laptop. Uncommitted local code will not appear online.
 
-### A. Code / UI changes only
+### A. Code / UI changes
 
 ```powershell
 cd C:\Users\Robert\Projects\building-map-explorer
@@ -157,35 +145,25 @@ git commit -m "feat: short description of what changed"
 git push origin main
 ```
 
-That push starts **Deploy to GitHub Pages** (uploads JSON to R2, builds, publishes).
+Or use **`npm run push-live`**.
 
-Or use **`npm run push-live`** — tests, commits, pushes, and triggers **Manual deploy** on GitHub Actions (recommended for app UI changes).
+### B. Map data changes
 
-### B. Map data + pictures (from the app)
-
-**Settings → Sync to Cloudflare & GitHub** — no git needed if sync succeeds. Then hard-refresh the live site after ~2 minutes.
-
-Before your next code push, run `git pull origin main` (CI may have committed for you).
+Sign in to the app and edit — data saves to Supabase immediately. No git push needed for portfolio changes.
 
 ### C. RTU documents (PDFs on R2)
 
-After adding or rebuilding the manifest:
-
 ```powershell
-npm run build-rtu-documents-manifest -- --write
 npm run upload-rtu-documents-r2 -- --from-folder "C:/path/to/RTU-Documents" --all-files --skip-existing
-npm run upload-json-to-r2
-git add public/database/rtu-documents/documents-manifest.json
-git commit -m "chore: update RTU documents manifest"
-git push origin main
 ```
+
+Ensure document metadata rows exist in Supabase (via the app while signed in).
 
 ### D. After any deploy
 
 1. Watch Actions: https://github.com/quadreal-r/building-map-explorer/actions
 2. When green, open https://quadreal-r.github.io/building-map-explorer/
 3. Hard-refresh (Ctrl+Shift+R)
-4. **Manual deploy** runs automatically when you use `npm run push-live`; or open Actions → **Manual deploy (commit, push & Pages)** to run it again
 
 ### Shortcut for the agent
 

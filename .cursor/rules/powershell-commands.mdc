@@ -1,5 +1,5 @@
 ---
-description: PowerShell command cheat sheet for building-map-explorer (dev, test, deploy, sync)
+description: PowerShell command cheat sheet for building-map-explorer (dev, test, deploy)
 alwaysApply: false
 ---
 
@@ -53,7 +53,7 @@ npm run test:watch
 
 ## Deploy to live site
 
-**App UI / code changes** (buttons, features, `src/`):
+**App code changes** (`src/`, config, workflows):
 
 ```powershell
 npm run push-live
@@ -65,22 +65,15 @@ Custom commit message:
 npm run push-live -- "fix: describe your change"
 ```
 
-Push without Manual deploy (push hook only):
+**Map data changes** — sign in to the app and edit; data saves to Supabase immediately. No deploy step for portfolio JSON.
+
+**Legacy JSON import** (one-time or bulk):
 
 ```powershell
-npm run push-live -- --push-only "fix: describe your change"
+npm run migrate-json-to-supabase
 ```
 
-**Map data + pictures** (portfolio JSON, RTU photos in IndexedDB):
-
-- In the app: **Settings → Sync to Cloudflare & GitHub**
-- Needs GitHub token in Settings (`repo` + `workflow` scopes)
-
-**Full update (UI + map data):**
-
-1. `npm run push-live`
-2. Settings → **Sync to Cloudflare & GitHub**
-3. Hard-refresh live site after ~5–10 min
+Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
 
 Live site: https://quadreal-r.github.io/building-map-explorer/  
 Actions: https://github.com/quadreal-r/building-map-explorer/actions
@@ -88,8 +81,6 @@ Actions: https://github.com/quadreal-r/building-map-explorer/actions
 ---
 
 ## Git (manual push)
-
-If you prefer git over `push-live`:
 
 ```powershell
 git pull origin main
@@ -99,26 +90,17 @@ git commit -m "fix: short description"
 git push origin main
 ```
 
-Push rejected (remote ahead — often after Settings sync):
-
-```powershell
-git pull origin main
-git push origin main
-```
-
-**Never commit:** `.env.local`, `deploy-bundle.json`
+**Never commit:** `.env.local`
 
 ---
 
-## Sync reports & data
+## R2 media upload
 
 | Command | Purpose |
 |---------|---------|
-| `npm run report-sync-status` | Excel report in `reports/` (CDN, manifest, sync history) |
-| Settings → **Download sync status report** | Same from browser (includes build version, pictures added/removed) |
-| `npm run apply-deploy-bundle` | Apply exported `deploy-bundle.json` locally |
-| `npm run upload-json-to-r2` | Upload portfolio JSON to Cloudflare R2 |
-| `npm run upload-rtu-pictures-r2` | Sync RTU pictures folder to R2 |
+| `npm run upload-rtu-pictures-r2` | Upload RTU pictures to Cloudflare R2 |
+| `npm run sync-rtu-pictures-r2` | Compare manifest vs R2, upload missing |
+| `npm run upload-rtu-documents-r2` | Upload RTU documents to R2 |
 
 ---
 

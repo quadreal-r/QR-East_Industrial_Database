@@ -6,19 +6,11 @@ import {
   manifestEntryToCloudFileName,
   pictureFileRtuLabel,
 } from '@/lib/rtuPictureAssignNaming'
-import { exportHiddenRtuPicturesForDeploy, isRtuManifestPictureHidden, loadBundledHiddenRtuPictures } from '@/lib/hiddenRtuPictures'
-import { usesRemoteJsonData } from '@/lib/jsonDataUrls'
-import {
-  getRtuPictureManifestUrl,
-  rtuPictureFileUrl,
-} from '@/lib/rtuPictureUrls'
+import { fetchPictureManifest, type RtuPictureManifest } from '@/data/mediaApi'
+export type { RtuPictureManifest } from '@/data/mediaApi'
+import { isRtuManifestPictureHidden, loadHiddenRtuPictures, exportHiddenRtuPicturesForDeploy } from '@/lib/hiddenRtuPictures'
+import { rtuPictureFileUrl } from '@/lib/rtuPictureUrls'
 import { isRtuPictureReachableOnCdnWithRetry } from '@/lib/rtuPictureReachability'
-import type { DeployPictureEntry } from '@/types/deployBundle'
-
-export interface RtuPictureManifest {
-  /** Keys: `${buildingAddress}|${rtuName}` -> filenames in rtu-pictures folder */
-  entries: Record<string, string[]>
-}
 
 export interface RtuPicture {
   fileName: string
@@ -33,7 +25,9 @@ export interface RtuPicture {
 const DB_NAME = 'building-map-explorer'
 const DB_VERSION = 2
 const STORE = 'rtuPictures'
-const BUNDLED_MANIFEST_URL = `${import.meta.env.BASE_URL}database/rtu-pictures/manifest.json`
+export function clearRtuPictureManifestCache(): void {
+  manifestCache = null
+}
 
 let manifestCache: RtuPictureManifest | null = null
 let manifestPromise: Promise<RtuPictureManifest> | null = null
@@ -243,6 +237,14 @@ export async function exportIndexedDbPictureRows(): Promise<StoredRtuPictureRow[
   return idbGetAllRows()
 }
 
+export interface DeployPictureEntry {
+  fileName: string
+  rtuKey: string
+  index: number
+  mimeType: string
+  base64: string
+}
+
 export interface DeployPictureExportResult {
   pictures: DeployPictureEntry[]
   failedFileNames: string[]
@@ -397,7 +399,7 @@ export async function occupiedPictureIndicesForRtu(
   rtuName: string,
   manifest?: RtuPictureManifest,
 ): Promise<Set<number>> {
-  await loadBundledHiddenRtuPictures()
+  await loadHiddenRtuPictures()
   const resolvedManifest = manifest ?? (await loadRtuPictureManifest())
   const key = rtuPictureKey(buildingAddress, rtuName)
   const manifestKey = resolveManifestRtuKey(buildingAddress, rtuName, resolvedManifest)
@@ -596,8 +598,6 @@ async function idbDeleteMany(fileNames: string[]): Promise<void> {
  * Fixes false "942 pictures waiting to upload" after pictures are already on R2/CDN.
  */
 export async function reconcilePendingDeployWithCloud(): Promise<number> {
-  if (!usesRemoteJsonData()) return 0
-
   const manifest = await loadRtuPictureManifest()
   const rows = await idbGetAllRows()
   const pending = rows.filter((row) => row.pendingDeploy !== false)
@@ -734,56 +734,13 @@ export async function getRtuPictureCountMap(): Promise<Map<string, number>> {
   return new Map([...indexByKey.entries()].map(([key, indices]) => [key, indices.size]))
 }
 
-async function fetchManifestFromUrl(
-  url: string,
-  options?: { allowEmpty?: boolean },
-): Promise<RtuPictureManifest | null> {
-  try {
-    const res = await fetch(url, { cache: 'no-store' })
-    if (!res.ok) return null
-    const data = (await res.json()) as RtuPictureManifest
-    const entries = data.entries ?? {}
-    if (!options?.allowEmpty && Object.keys(entries).length === 0) return null
-    return { entries }
-  } catch {
-    return null
-  }
-}
-
-export function clearRtuPictureManifestCache(): void {
-  manifestCache = null
-}
-
 export async function loadRtuPictureManifest(): Promise<RtuPictureManifest> {
   if (manifestCache) return manifestCache
   if (manifestPromise) return manifestPromise
   manifestPromise = (async () => {
     try {
-      const remoteUrl = getRtuPictureManifestUrl()
-      const cloudflareJson = usesRemoteJsonData()
-
-      if (cloudflareJson) {
-        const remote = await fetchManifestFromUrl(remoteUrl, { allowEmpty: true })
-        if (remote) {
-          manifestCache = remote
-          return manifestCache
-        }
-        console.warn(
-          '[rtuPictures] Cloudflare manifest.json unavailable; falling back to bundled copy.',
-        )
-        const bundled = await fetchManifestFromUrl(BUNDLED_MANIFEST_URL)
-        manifestCache = bundled ?? { entries: {} }
-        return manifestCache
-      } else if (remoteUrl !== BUNDLED_MANIFEST_URL) {
-        const remote = await fetchManifestFromUrl(remoteUrl)
-        if (remote) {
-          manifestCache = remote
-          return manifestCache
-        }
-      }
-
-      const bundled = await fetchManifestFromUrl(BUNDLED_MANIFEST_URL)
-      manifestCache = bundled ?? { entries: {} }
+      await loadHiddenRtuPictures()
+      manifestCache = await fetchPictureManifest()
       return manifestCache
     } finally {
       manifestPromise = null

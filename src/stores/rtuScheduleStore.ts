@@ -1,22 +1,12 @@
 import { create } from 'zustand'
 import { rcbReplacementYearKey } from '@/lib/costEstimator'
 import {
-  scheduleSyncFingerprint,
-} from '@/lib/deploySyncSnapshot'
-import { isDeployDataDirty, markScheduleDirtyIfNoBaseline, syncLegacyDirtyFlags } from '@/lib/syncState'
-import { fetchRemoteJson, usesRemoteJsonData } from '@/lib/jsonDataUrls'
-import { STORAGE_KEYS } from '@/lib/storageKeys'
+  fetchSchedule,
+  saveScheduleBatch,
+  updateScheduleEntry,
+} from '@/data/scheduleApi'
 import { importEquipmentSchedule, type EquipmentImportResult } from '@/lib/equipmentSheet'
 import type { Building } from '@/types/domain'
-import bundledSchedule from '../../supabase/data/rtu-schedule.json'
-
-const STORAGE_KEY = STORAGE_KEYS.rtuSchedule
-
-interface StoredRtuSchedule {
-  replacementYears?: Record<string, string>
-  notes?: Record<string, string>
-  sourceFile?: string | null
-}
 
 interface RtuScheduleState {
   replacementYears: Record<string, string>
@@ -24,39 +14,24 @@ interface RtuScheduleState {
   sourceFile: string | null
   loaded: boolean
   load: () => Promise<void>
-  applyEquipmentImport: (result: EquipmentImportResult, sourceFile: string) => void
+  applyEquipmentImport: (result: EquipmentImportResult, sourceFile: string) => Promise<void>
   importWorkbook: (
     file: File,
     buildings: Building[],
   ) => Promise<{ stats: ReturnType<typeof importEquipmentSchedule>['stats'] }>
-  setReplacementYear: (address: string, rtu: string, year: string, defaultYear: string) => void
-  setNotes: (address: string, rtu: string, notes: string) => void
+  setReplacementYear: (address: string, rtu: string, year: string, defaultYear: string) => Promise<void>
+  setNotes: (address: string, rtu: string, notes: string) => Promise<void>
   getNotes: (address: string, rtu: string) => string
-  persist: () => void
 }
 
-function scheduleStorageKey(address: string, rtu: string): string {
-  return rcbReplacementYearKey(address, rtu)
-}
-
-function readStoredSchedule(): StoredRtuSchedule | null {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (!stored) return null
-  try {
-    return JSON.parse(stored) as StoredRtuSchedule
-  } catch {
-    return null
-  }
-}
-
-function applyStoredSchedule(
-  parsed: StoredRtuSchedule,
-  set: (partial: Partial<RtuScheduleState> | ((state: RtuScheduleState) => Partial<RtuScheduleState>)) => void,
+function applyScheduleData(
+  data: { replacementYears: Record<string, string>; notes: Record<string, string>; sourceFile: string | null },
+  set: (partial: Partial<RtuScheduleState>) => void,
 ): void {
   set({
-    replacementYears: parsed.replacementYears ?? {},
-    notes: parsed.notes ?? {},
-    sourceFile: parsed.sourceFile ?? null,
+    replacementYears: data.replacementYears,
+    notes: data.notes,
+    sourceFile: data.sourceFile,
     loaded: true,
   })
 }
@@ -68,57 +43,17 @@ export const useRtuScheduleStore = create<RtuScheduleState>((set, get) => ({
   loaded: false,
 
   load: async () => {
-    if (!usesRemoteJsonData()) {
-      const stored = readStoredSchedule()
-      if (stored) {
-        applyStoredSchedule(stored, set)
-        return
-      }
-    }
-
-    const remote = await fetchRemoteJson<StoredRtuSchedule>('rtu-schedule.json')
-    const stored = readStoredSchedule()
-
-    if (stored && remote) {
-      const preferLocal =
-        isDeployDataDirty() ||
-        scheduleSyncFingerprint({
-          replacementYears: stored.replacementYears ?? {},
-          notes: stored.notes ?? {},
-        }) !==
-          scheduleSyncFingerprint({
-            replacementYears: remote.replacementYears ?? {},
-            notes: remote.notes ?? {},
-          })
-      if (preferLocal) {
-        applyStoredSchedule(stored, set)
-        return
-      }
-      applyStoredSchedule(remote, set)
-      return
-    }
-
-    if (remote) {
-      applyStoredSchedule(remote, set)
-      return
-    }
-
-    if (stored) {
-      applyStoredSchedule(stored, set)
-      return
-    }
-
-    const bundled = bundledSchedule as StoredRtuSchedule
-    applyStoredSchedule(bundled, set)
+    const data = await fetchSchedule()
+    applyScheduleData(data, set)
   },
 
-  applyEquipmentImport: (result, sourceFile) => {
+  applyEquipmentImport: async (result, sourceFile) => {
     set({
       replacementYears: result.replacementYears,
       notes: result.notes,
       sourceFile,
     })
-    get().persist()
+    await saveScheduleBatch(result.replacementYears, result.notes, sourceFile)
   },
 
   importWorkbook: async (file, buildings) => {
@@ -129,11 +64,11 @@ export const useRtuScheduleStore = create<RtuScheduleState>((set, get) => ({
       notes: result.notes,
       sourceFile: file.name,
     })
-    get().persist()
+    await saveScheduleBatch(result.replacementYears, result.notes, file.name)
     return { stats: result.stats }
   },
 
-  setReplacementYear: (address, rtu, year, defaultYear) => {
+  setReplacementYear: async (address, rtu, year, defaultYear) => {
     const key = rcbReplacementYearKey(address, rtu)
     const current = get().replacementYears[key]
     if (year === defaultYear) {
@@ -147,11 +82,13 @@ export const useRtuScheduleStore = create<RtuScheduleState>((set, get) => ({
       else next[key] = year
       return { replacementYears: next }
     })
-    get().persist()
+    await updateScheduleEntry(address, rtu, {
+      replacementYear: year === defaultYear ? null : year,
+    })
   },
 
-  setNotes: (address, rtu, notes) => {
-    const key = scheduleStorageKey(address, rtu)
+  setNotes: async (address, rtu, notes) => {
+    const key = rcbReplacementYearKey(address, rtu)
     const trimmed = notes.trim()
     const current = get().notes[key] ?? ''
     if (current === trimmed) return
@@ -161,23 +98,14 @@ export const useRtuScheduleStore = create<RtuScheduleState>((set, get) => ({
       else delete next[key]
       return { notes: next }
     })
-    get().persist()
+    await updateScheduleEntry(address, rtu, { note: trimmed || null })
   },
 
   getNotes: (address, rtu) => {
-    return get().notes[scheduleStorageKey(address, rtu)] ?? ''
-  },
-
-  persist: () => {
-    const { replacementYears, notes, sourceFile } = get()
-    const payload: StoredRtuSchedule = { replacementYears, notes, sourceFile }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-    markScheduleDirtyIfNoBaseline()
-    syncLegacyDirtyFlags()
+    return get().notes[rcbReplacementYearKey(address, rtu)] ?? ''
   },
 }))
 
-/** Replacement-year map keyed by `rcbReplacementYearKey` for the cost estimator. */
 export function getRtuReplacementYearAssignments(): Record<string, string> {
   return useRtuScheduleStore.getState().replacementYears
 }

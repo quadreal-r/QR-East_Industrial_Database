@@ -1,5 +1,5 @@
 import { parseRtuPictureIndex, rtuPictureKey, type RtuPictureManifest } from '@/lib/rtuPictures'
-import { getRtuPictureManifestUrl, getRtuPicturesBaseUrl, rtuPictureFileUrl } from '@/lib/rtuPictureUrls'
+import { getRtuPicturesBaseUrl, rtuPictureFileUrl } from '@/lib/rtuPictureUrls'
 import type { PortfolioData } from '@/types/domain'
 
 export interface RtuPictureExportRow {
@@ -33,7 +33,7 @@ export function buildRtuPictureExportBundle(
   manifest: RtuPictureManifest,
 ): RtuPictureExportBundle {
   const picturesBaseUrl = getRtuPicturesBaseUrl()
-  const manifestUrl = getRtuPictureManifestUrl()
+  const manifestUrl = 'supabase:rtu_pictures'
   const rows: RtuPictureExportRow[] = []
   const summaryByKey = new Map<string, RtuPictureSummary>()
 

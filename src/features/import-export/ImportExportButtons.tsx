@@ -4,8 +4,6 @@ import { importCapitalRtuWorkbook } from '@/lib/capitalRtuWorkbook'
 import { detectExcelWorkbookKind } from '@/lib/excelWorkbookType'
 import { exportPortfolioExcel, importPortfolioExcel } from '@/lib/excel'
 import { importEquipmentSchedule } from '@/lib/equipmentSheet'
-import { markSchedulePricingDirty, syncLegacyDirtyFlags } from '@/lib/syncState'
-import { invalidateUnsyncedChanges } from '@/lib/unsyncedChangesEvents'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { normalizePortfolioData } from '@/types/domain'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
@@ -20,6 +18,7 @@ export interface ImportExportButtonsProps {
   onImport: (data: PortfolioData) => void
   onExportComplete?: () => void
   mode?: 'both' | 'export' | 'import'
+  isAuthenticated?: boolean
 }
 
 export function ImportExportButtons({
@@ -28,6 +27,7 @@ export function ImportExportButtons({
   onImport,
   onExportComplete,
   mode = 'both',
+  isAuthenticated = false,
 }: ImportExportButtonsProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -35,6 +35,14 @@ export function ImportExportButtons({
   const pricingTiers = useRtuPricingStore((s) => s.rows.length)
   const applyEquipmentImport = useRtuScheduleStore((s) => s.applyEquipmentImport)
   const applyPricingImport = useRtuPricingStore((s) => s.applyPricingImport)
+
+  const requireAuth = () => {
+    if (!isAuthenticated) {
+      showToastError('Sign in to import data to Supabase.')
+      return false
+    }
+    return true
+  }
 
   const handleExport = async () => {
     setBusy(true)
@@ -50,35 +58,31 @@ export function ImportExportButtons({
   }
 
   const handleCapitalImport = async (buffer: ArrayBuffer, file: File) => {
+    if (!requireAuth()) return
     const sheetNames = XLSX.read(buffer, { type: 'array', bookSheets: true }).SheetNames
     const hasPricing = sheetNames.some((name) => /^rtu pricing$/i.test(name.trim()))
 
     if (hasPricing) {
       const result = importCapitalRtuWorkbook(buffer, buildings)
-      applyEquipmentImport(result.equipment, file.name)
-      applyPricingImport(result.pricing.rows, result.pricing.version, file.name)
-      markSchedulePricingDirty()
-      syncLegacyDirtyFlags()
-      invalidateUnsyncedChanges()
+      await applyEquipmentImport(result.equipment, file.name)
+      await applyPricingImport(result.pricing.rows, result.pricing.version, file.name)
       const { stats } = result.equipment
       showToastSuccess(
-        `Imported ${stats.matchedYears} replacement years, ${stats.matchedNotes} notes, and ${result.pricing.rowCount} pricing tiers. Sync to Cloudflare & GitHub to replace cloud data.`,
+        `Imported ${stats.matchedYears} replacement years, ${stats.matchedNotes} notes, and ${result.pricing.rowCount} pricing tiers to Supabase.`,
       )
       return
     }
 
     const equipment = importEquipmentSchedule(buffer, buildings)
-    applyEquipmentImport(equipment, file.name)
-    markSchedulePricingDirty()
-    syncLegacyDirtyFlags()
-    invalidateUnsyncedChanges()
+    await applyEquipmentImport(equipment, file.name)
     const { stats } = equipment
     showToastSuccess(
-      `Imported ${stats.matchedYears} replacement years and ${stats.matchedNotes} notes. Sync to Cloudflare & GitHub to replace cloud data.`,
+      `Imported ${stats.matchedYears} replacement years and ${stats.matchedNotes} notes to Supabase.`,
     )
   }
 
   const handleFile = async (file: File) => {
+    if (!requireAuth()) return
     setBusy(true)
     try {
       const buffer = await file.arrayBuffer()
@@ -89,10 +93,7 @@ export function ImportExportButtons({
       if (kind === 'portfolio') {
         const data = normalizePortfolioData(importPortfolioExcel(buffer))
         onImport(data)
-        invalidateUnsyncedChanges()
-        showToastSuccess(
-          '✓ Database imported — use Settings → Sync to Cloudflare & GitHub to replace cloud JSON.',
-        )
+        showToastSuccess('✓ Portfolio imported to Supabase')
         return
       }
 
@@ -113,7 +114,7 @@ export function ImportExportButtons({
       {showExport ? (
         <SettingsToolButton
           variant="export"
-          tooltip="Export buildings, RTUs, tenant polygons, utilities, and Cloudflare RTU picture references to Excel."
+          tooltip="Export buildings, RTUs, tenant polygons, utilities, and RTU picture references to Excel."
           onClick={() => void handleExport()}
           disabled={busy}
         >
@@ -124,9 +125,8 @@ export function ImportExportButtons({
         <SettingsToolButton
           tooltip={
             <>
-              Import Database from Excel: portfolio export (Buildings, RTUs, Tenant Polygons, Utilities)
-              updates map positions and equipment, or Capital RTU Replacement workbook (Equipment + RTU
-              Pricing) updates replacement years, notes, and tonnage pricing.
+              Import Database from Excel: portfolio export updates map data in Supabase, or Capital RTU
+              Replacement workbook updates schedule and pricing.
               {sourceFile ? (
                 <>
                   {' '}

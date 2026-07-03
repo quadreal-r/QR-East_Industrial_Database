@@ -1,0 +1,288 @@
+import type { Json, Tables } from '@/types/database.types'
+import type {
+  Building,
+  LatLng,
+  Polygon,
+  PortfolioData,
+  Rtu,
+  Utility,
+  UtilityType,
+} from '@/types/domain'
+import { normalizePortfolioData } from '@/types/domain'
+import { supabase } from '@/lib/supabaseClient'
+
+type BuildingRow = Tables<'buildings'>
+type RtuRow = Tables<'rtus'>
+type UtilityRow = Tables<'utilities'>
+type PolygonRow = Tables<'polygons'>
+
+function rowToRtu(row: RtuRow): Rtu {
+  return {
+    id: row.id,
+    building_id: row.building_id,
+    name: row.name,
+    description: row.description ?? '',
+    lat: row.lat,
+    lng: row.lng,
+    model: row.model,
+    serial: row.serial,
+    make: row.make,
+    install_date: row.install_date,
+    install_year: row.install_year,
+    heating_btu: row.heating_btu,
+    cooling_tons: row.cooling_tons,
+    suite: row.suite,
+  }
+}
+
+function rowToBuilding(row: BuildingRow, rtus: RtuRow[]): Building {
+  return {
+    id: row.id,
+    park: row.park,
+    address: row.address,
+    bu: row.bu ?? '',
+    lat: row.lat,
+    lng: row.lng,
+    sqft: row.sqft ?? '',
+    cluster: row.cluster ?? '',
+    manager: row.manager ?? '',
+    notes: row.notes,
+    sold: row.sold,
+    rtus: rtus.map(rowToRtu),
+  }
+}
+
+function rowToUtility(row: UtilityRow): Utility {
+  return {
+    id: row.id,
+    utility_type: row.utility_type as UtilityType,
+    name: row.name,
+    description: row.description ?? '',
+    lat: row.lat,
+    lng: row.lng,
+  }
+}
+
+function rowToPolygon(row: PolygonRow): Polygon {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? '',
+    color: row.color,
+    paths: row.paths as unknown as LatLng[],
+  }
+}
+
+export async function fetchPortfolio(): Promise<PortfolioData> {
+  const [buildingsRes, rtusRes, utilitiesRes, polygonsRes] = await Promise.all([
+    supabase.from('buildings').select('*').order('address'),
+    supabase.from('rtus').select('*'),
+    supabase.from('utilities').select('*').order('name'),
+    supabase.from('polygons').select('*').order('name'),
+  ])
+
+  if (buildingsRes.error) throw buildingsRes.error
+  if (rtusRes.error) throw rtusRes.error
+  if (utilitiesRes.error) throw utilitiesRes.error
+  if (polygonsRes.error) throw polygonsRes.error
+
+  const rtusByBuilding = new Map<number, RtuRow[]>()
+  for (const rtu of rtusRes.data ?? []) {
+    const list = rtusByBuilding.get(rtu.building_id) ?? []
+    list.push(rtu)
+    rtusByBuilding.set(rtu.building_id, list)
+  }
+
+  const buildings = (buildingsRes.data ?? []).map((row) =>
+    rowToBuilding(row, rtusByBuilding.get(row.id) ?? []),
+  )
+
+  return normalizePortfolioData({
+    buildings,
+    utilities: (utilitiesRes.data ?? []).map(rowToUtility),
+    polygons: (polygonsRes.data ?? []).map(rowToPolygon),
+  })
+}
+
+export async function upsertBuilding(building: Building): Promise<Building> {
+  const payload = {
+    park: building.park,
+    address: building.address,
+    bu: building.bu || null,
+    lat: building.lat,
+    lng: building.lng,
+    sqft: building.sqft || null,
+    cluster: building.cluster || null,
+    manager: building.manager || null,
+    notes: building.notes ?? null,
+    sold: building.sold ?? false,
+  }
+
+  let buildingId = building.id
+  if (buildingId) {
+    const { error } = await supabase.from('buildings').update(payload).eq('id', buildingId)
+    if (error) throw error
+  } else {
+    const { data, error } = await supabase.from('buildings').insert(payload).select('*').single()
+    if (error) throw error
+    buildingId = data.id
+  }
+
+  const rtus = building.rtus ?? []
+  for (const rtu of rtus) {
+    await upsertRtu({ ...rtu, building_id: buildingId })
+  }
+
+  return { ...building, id: buildingId }
+}
+
+export async function upsertRtu(rtu: Rtu & { building_id: number }): Promise<Rtu> {
+  const payload = {
+    building_id: rtu.building_id,
+    name: rtu.name,
+    description: rtu.description || null,
+    lat: rtu.lat,
+    lng: rtu.lng,
+    model: rtu.model ?? null,
+    serial: rtu.serial ?? null,
+    make: rtu.make ?? null,
+    install_date: rtu.install_date ?? null,
+    install_year: rtu.install_year ?? null,
+    heating_btu: rtu.heating_btu ?? null,
+    cooling_tons: rtu.cooling_tons ?? null,
+    suite: rtu.suite ?? null,
+  }
+
+  if (rtu.id) {
+    const { data, error } = await supabase
+      .from('rtus')
+      .update(payload)
+      .eq('id', rtu.id)
+      .select('*')
+      .single()
+    if (error) throw error
+    return rowToRtu(data)
+  }
+
+  const { data, error } = await supabase.from('rtus').insert(payload).select('*').single()
+  if (error) throw error
+  return rowToRtu(data)
+}
+
+export async function deleteRtu(id: number): Promise<void> {
+  const { error } = await supabase.from('rtus').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function upsertUtility(utility: Utility): Promise<Utility> {
+  const payload = {
+    utility_type: utility.utility_type,
+    name: utility.name,
+    description: utility.description || null,
+    lat: utility.lat,
+    lng: utility.lng,
+  }
+
+  if (utility.id) {
+    const { data, error } = await supabase
+      .from('utilities')
+      .update(payload)
+      .eq('id', utility.id)
+      .select('*')
+      .single()
+    if (error) throw error
+    return rowToUtility(data)
+  }
+
+  const { data, error } = await supabase.from('utilities').insert(payload).select('*').single()
+  if (error) throw error
+  return rowToUtility(data)
+}
+
+export async function deleteUtility(id: number): Promise<void> {
+  const { error } = await supabase.from('utilities').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function upsertPolygon(polygon: Polygon): Promise<Polygon> {
+  const payload = {
+    name: polygon.name,
+    description: polygon.description || null,
+    color: polygon.color,
+    paths: polygon.paths as unknown as Json,
+  }
+
+  if (polygon.id) {
+    const { data, error } = await supabase
+      .from('polygons')
+      .update(payload)
+      .eq('id', polygon.id)
+      .select('*')
+      .single()
+    if (error) throw error
+    return rowToPolygon(data)
+  }
+
+  const { data, error } = await supabase.from('polygons').insert(payload).select('*').single()
+  if (error) throw error
+  return rowToPolygon(data)
+}
+
+export async function deletePolygon(id: number): Promise<void> {
+  const { error } = await supabase.from('polygons').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** Replace the full portfolio in Supabase (used by Excel import and bulk edits). */
+export async function savePortfolio(portfolio: PortfolioData): Promise<PortfolioData> {
+  const normalized = normalizePortfolioData(portfolio)
+
+  const existingBuildings = await supabase.from('buildings').select('id, address')
+  if (existingBuildings.error) throw existingBuildings.error
+
+  const existingByAddress = new Map(
+    (existingBuildings.data ?? []).map((row) => [row.address, row.id]),
+  )
+  const nextAddresses = new Set(normalized.buildings.map((b) => b.address))
+
+  for (const building of normalized.buildings) {
+    const id = building.id ?? existingByAddress.get(building.address)
+    await upsertBuilding({ ...building, id })
+  }
+
+  for (const [address, id] of existingByAddress) {
+    if (!nextAddresses.has(address)) {
+      await supabase.from('buildings').delete().eq('id', id)
+    }
+  }
+
+  const existingUtilities = await supabase.from('utilities').select('id')
+  if (existingUtilities.error) throw existingUtilities.error
+  const nextUtilityIds = new Set(
+    normalized.utilities.map((u) => u.id).filter((id): id is number => id != null),
+  )
+  for (const row of existingUtilities.data ?? []) {
+    if (!nextUtilityIds.has(row.id)) {
+      await deleteUtility(row.id)
+    }
+  }
+  for (const utility of normalized.utilities) {
+    await upsertUtility(utility)
+  }
+
+  const existingPolygons = await supabase.from('polygons').select('id')
+  if (existingPolygons.error) throw existingPolygons.error
+  const nextPolygonIds = new Set(
+    normalized.polygons.map((p) => p.id).filter((id): id is number => id != null),
+  )
+  for (const row of existingPolygons.data ?? []) {
+    if (!nextPolygonIds.has(row.id)) {
+      await deletePolygon(row.id)
+    }
+  }
+  for (const polygon of normalized.polygons) {
+    await upsertPolygon(polygon)
+  }
+
+  return fetchPortfolio()
+}

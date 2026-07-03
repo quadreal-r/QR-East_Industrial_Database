@@ -1,34 +1,17 @@
 import { useEffect } from 'react'
-import { saveDatabase } from '@/lib/saveDatabase'
 import { showToastSuccess } from '@/lib/toast'
 import { useSelectionStore } from '@/stores/selectionStore'
-import type { PortfolioData } from '@/types/domain'
 
 export interface UseKeyboardShortcutsOptions {
-  portfolio: PortfolioData
-  onSaved: () => void
+  onSaved?: () => void
 }
 
-export function useKeyboardShortcuts({ portfolio, onSaved }: UseKeyboardShortcutsOptions) {
+export function useKeyboardShortcuts({ onSaved }: UseKeyboardShortcutsOptions = {}) {
   const runDragUndo = useSelectionStore((s) => s.runDragUndo)
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-          e.preventDefault()
-          void saveDatabase(portfolio).then((ok) => {
-            if (ok) onSaved()
-          })
-        }
-        return
-      }
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault()
-        void saveDatabase(portfolio).then((ok) => {
-          if (ok) onSaved()
-        })
         return
       }
 
@@ -37,6 +20,13 @@ export function useKeyboardShortcuts({ portfolio, onSaved }: UseKeyboardShortcut
           e.preventDefault()
           showToastSuccess('↩ Drag undone')
         }
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        onSaved?.()
+        showToastSuccess('✓ Changes save automatically when signed in')
         return
       }
 
@@ -62,5 +52,5 @@ export function useKeyboardShortcuts({ portfolio, onSaved }: UseKeyboardShortcut
 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [portfolio, onSaved, runDragUndo])
+  }, [onSaved, runDragUndo])
 }

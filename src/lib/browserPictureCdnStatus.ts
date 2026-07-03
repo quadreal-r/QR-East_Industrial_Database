@@ -1,8 +1,7 @@
 import { manifestEntryToCloudFileName } from '@/lib/rtuPictureAssignNaming'
 import { verifyRtuPicturesOnCdn } from '@/lib/rtuPictureCdnStatus'
 import { usesRemoteRtuPicturesCdn } from '@/lib/rtuPictureUrls'
-import type { SyncMeta } from '@/types/syncMeta'
-import type { RtuPictureManifest } from '@/lib/rtuPictures'
+import type { RtuPictureManifest } from '@/data/mediaApi'
 
 const SAMPLE_SIZE = 12
 
@@ -40,29 +39,19 @@ function markAll(names: Iterable<string>, value: boolean): Map<string, boolean> 
 }
 
 /**
- * Browser-friendly CDN status for the sync Excel report.
+ * Browser-friendly CDN status check for RTU pictures.
  * Avoids loading thousands of images (HEAD is blocked by CORS on R2).
  */
 export async function buildBrowserPictureCdnStatus(
   manifest: RtuPictureManifest,
-  cloudMeta: SyncMeta | null,
 ): Promise<{ statusByFile: Map<string, boolean>; verificationNote: string }> {
   const names = collectManifestCloudFileNames(manifest)
   const manifestCount = countManifestPictures(manifest)
-  const cloudCount = cloudMeta?.summary.manifestPictureCount
-
-  if (cloudMeta && cloudCount != null && cloudCount === manifestCount && manifestCount > 0) {
-    return {
-      statusByFile: markAll(names, true),
-      verificationNote: 'Cloudflare sync-meta (manifest picture count matches)',
-    }
-  }
 
   if (!usesRemoteRtuPicturesCdn()) {
     return {
       statusByFile: markAll(names, false),
-      verificationNote:
-        'CDN URL not configured in this build — run npm run report-sync-status for a full Cloudflare check',
+      verificationNote: 'CDN URL not configured in this build',
     }
   }
 
@@ -80,7 +69,7 @@ export async function buildBrowserPictureCdnStatus(
   if (okCount === sample.length) {
     return {
       statusByFile: markAll(names, true),
-      verificationNote: `Sample CDN check (${okCount}/${sample.length} reachable)`,
+      verificationNote: `Sample CDN check (${okCount}/${sample.length} reachable, ${manifestCount} total)`,
     }
   }
 
@@ -91,6 +80,6 @@ export async function buildBrowserPictureCdnStatus(
 
   return {
     statusByFile,
-    verificationNote: `Sample CDN check (${okCount}/${sample.length} reachable) — run npm run report-sync-status for the full list`,
+    verificationNote: `Sample CDN check (${okCount}/${sample.length} reachable)`,
   }
 }

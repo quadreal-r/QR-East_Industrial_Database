@@ -1,24 +1,83 @@
 # Supabase
 
-Database schema, migrations, and seed data for Building Map Explorer.
+Project ref: `wyiymdtlncperqpwriuk`  
+URL: `https://wyiymdtlncperqpwriuk.supabase.co`
 
-## Setup
+## CLI setup (one time)
 
-1. Link project: `https://wyiymdtlncperqpwriuk.supabase.co`
-2. Run migration: `migrations/20260620000000_initial_schema.sql`
-3. Load seed: `seed.sql` (regenerate with `npm run extract`)
+The repo includes `supabase/config.toml` from `supabase init`. Install the CLI as a dev dependency (`npm install`) or use `npx supabase`.
+
+1. Create a personal access token: [Supabase Account → Access Tokens](https://supabase.com/dashboard/account/tokens)
+2. Add to `.env.local` (not committed):
+
+   ```env
+   SUPABASE_ACCESS_TOKEN=sbp_...
+   SUPABASE_DB_PASSWORD=your-database-password
+   ```
+
+3. Log in and link the project:
+
+   ```powershell
+   $env:SUPABASE_ACCESS_TOKEN = (Get-Content .env.local | Select-String '^SUPABASE_ACCESS_TOKEN=').ToString().Split('=',2)[1]
+   npm run supabase:link
+   ```
+
+   When prompted for the database password, use the value from Supabase **Project Settings → Database** (or set `$env:SUPABASE_DB_PASSWORD` before linking).
+
+Linking writes `.supabase/` (gitignored) with the remote project ref.
+
+## Apply migrations (`db push`)
+
+Remote history already includes `20260621172809_initial_schema`. Pending local migrations:
+
+| File | Purpose |
+|------|---------|
+| `20260622120000_seed_legacy_data.sql` | Portfolio seed (buildings, RTUs, etc.) |
+| `20260703000000_schedule_pricing_media.sql` | Schedule columns, pricing, picture/document metadata |
+
+```powershell
+# Preview what would run
+npm run db:push:dry-run
+
+# Apply pending migrations
+npm run db:push
+
+# Verify history
+npm run db:migration-list
+```
+
+If the CLI reports a history mismatch, repair with the version shown in the dashboard:
+
+```powershell
+npx supabase migration repair --linked --status applied 20260621172809
+```
+
+## Import JSON data (after schema is applied)
+
+```powershell
+npm run migrate-json-to-supabase
+```
+
+Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Use this for schedule, pricing, and picture/document metadata from `supabase/data/*.json` (the seed migration does not include those).
 
 ## RLS
 
-| Role | SELECT | INSERT/UPDATE/DELETE |
-|------|--------|----------------------|
-| anon | yes | no |
-| authenticated | yes | yes |
+- **Anonymous:** `SELECT` on all tables
+- **Authenticated:** full read/write
 
-## Tables
+Create editor accounts in Supabase Auth (email/password).
 
-- `buildings`, `rtus`, `tenants`, `utilities`, `polygons`, `app_settings`
+## Regenerate TypeScript types
 
-## data/
+```powershell
+npx supabase gen types typescript --project-id wyiymdtlncperqpwriuk > src/types/database.types.ts
+```
 
-JSON snapshots extracted from legacy HTML — used as static fallback when Supabase env is unset.
+## Legacy JSON under `data/`
+
+The `supabase/data/` folder holds legacy JSON snapshots used only by:
+
+- `scripts/extract.ts` (legacy HTML migration)
+- `scripts/migrate-json-to-supabase.mjs` (one-time import)
+
+The running app reads from Supabase, not these files.

@@ -6,23 +6,20 @@ import { MapPanel } from '@/features/map/MapPanel'
 import { RtuPictureViewer } from '@/features/rtu-pictures/RtuPictureViewer'
 import { SettingsModal } from '@/features/settings/SettingsModal'
 import { Sidebar } from '@/features/sidebar/Sidebar'
+import { LoginModal } from '@/features/auth/LoginModal'
+import { useAuth } from '@/hooks/useAuth'
 import { useFilteredBuildings } from '@/hooks/useFilteredBuildings'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useRtuPictureViewerHistory } from '@/hooks/useRtuPictureViewerHistory'
-import { useUnsyncedChangesWarning } from '@/hooks/useUnsyncedChangesWarning'
-import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
-import { RemoteSyncUpdateModal } from '@/features/sync/RemoteSyncUpdateModal'
-import { UnsyncedChangesBanner } from '@/features/sync/UnsyncedChangesBanner'
-import { useRemoteSyncUpdateCheck } from '@/hooks/useRemoteSyncUpdateCheck'
-import { usePortfolioData, persistPortfolio, type PortfolioData } from '@/hooks/usePortfolioData'
-import { loadBundledHiddenRtuPictures } from '@/lib/hiddenRtuPictures'
-import { notifyRtuPicturesChanged, reconcilePendingDeployWithCloud } from '@/lib/rtuPictures'
-import { showToastSuccess } from '@/lib/toast'
+import { usePortfolioData, useSavePortfolio, type PortfolioData } from '@/hooks/usePortfolioData'
+import { clearRtuPictureManifestCache } from '@/lib/rtuPictures'
+import { showToastError, showToastSuccess } from '@/lib/toast'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
 import { useUiStore } from '@/stores/uiStore'
+import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import styles from './AppShell.module.css'
 
 const EMPTY_PORTFOLIO: PortfolioData = { buildings: [], utilities: [], polygons: [] }
@@ -30,7 +27,10 @@ const EMPTY_PORTFOLIO: PortfolioData = { buildings: [], utilities: [], polygons:
 export function AppShell() {
   const queryClient = useQueryClient()
   const { data, isLoading, isError } = usePortfolioData()
+  const savePortfolio = useSavePortfolio()
+  const { isAuthenticated } = useAuth()
   const [portfolioOverride, setPortfolioOverride] = useState<PortfolioData | null>(null)
+  const [loginOpen, setLoginOpen] = useState(false)
 
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const loadRtuPricing = useRtuPricingStore((s) => s.load)
@@ -51,10 +51,6 @@ export function AppShell() {
   const markSaved = usePortfolioStore((s) => s.markSaved)
 
   useEffect(() => {
-    void loadBundledHiddenRtuPictures().then((changed) => {
-      if (changed) notifyRtuPicturesChanged()
-      return reconcilePendingDeployWithCloud()
-    })
     void loadSettings()
     void loadRtuPricing()
     void loadRtuSchedule()
@@ -67,49 +63,37 @@ export function AppShell() {
     portfolio.polygons,
   )
 
-  useKeyboardShortcuts({ portfolio, onSaved: markSaved })
+  useKeyboardShortcuts({ onSaved: markSaved })
   useRtuPictureViewerHistory()
-  const unsyncedChanges = useUnsyncedChangesWarning()
 
-  const handleUnsyncedDiscarded = useCallback(
-    (result: { portfolio: PortfolioData }) => {
+  const persistPortfolioChange = useCallback(
+    async (next: PortfolioData) => {
+      if (!isAuthenticated) {
+        setLoginOpen(true)
+        throw new Error('Sign in to save portfolio changes.')
+      }
+      const saved = await savePortfolio.mutateAsync(next)
       setPortfolioOverride(null)
-      queryClient.setQueryData(['portfolio'], result.portfolio)
-      usePortfolioStore.getState().setPortfolio(result.portfolio, { markSaved: true })
-      unsyncedChanges.refresh()
+      queryClient.setQueryData(['portfolio'], saved)
+      usePortfolioStore.getState().patchPortfolio(saved)
+      clearRtuPictureManifestCache()
+      showToastSuccess('✓ Saved to Supabase')
+      return saved
     },
-    [queryClient, unsyncedChanges],
+    [isAuthenticated, queryClient, savePortfolio],
   )
 
-  // Both import and patch use the same update path
   const handlePortfolioChange = useCallback(
     (next: PortfolioData) => {
-      persistPortfolio(next)
       setPortfolioOverride(next)
       queryClient.setQueryData(['portfolio'], next)
       usePortfolioStore.getState().patchPortfolio(next)
+      void persistPortfolioChange(next).catch((error) => {
+        showToastError(error instanceof Error ? error.message : 'Could not save portfolio')
+      })
     },
-    [queryClient],
+    [persistPortfolioChange, queryClient],
   )
-
-  const handlePortfolioImport = handlePortfolioChange
-  const handlePortfolioPatch = handlePortfolioChange
-
-  const remoteSync = useRemoteSyncUpdateCheck(portfolio, handlePortfolioImport)
-  const {
-    open: remoteSyncOpen,
-    meta: remoteSyncMeta,
-    localSummary: remoteSyncLocalSummary,
-    loading: remoteSyncLoading,
-    dismiss: dismissRemoteSync,
-    loadUpdates: loadRemoteUpdates,
-  } = remoteSync
-
-  const handleLoadRemoteUpdates = useCallback(() => {
-    void loadRemoteUpdates().then((next) => {
-      if (next) showToastSuccess('✓ Loaded latest data from Cloudflare on this PC')
-    })
-  }, [loadRemoteUpdates])
 
   const handleAddMarkerClose = useCallback(() => {
     closeAddMarker('addMarker')
@@ -132,29 +116,26 @@ export function AppShell() {
     return (
       <div className="app">
         <VersionStamp placement="fixed" />
-        <div className={styles.loading}>Failed to load portfolio data.</div>
+        <div className={styles.loading}>Failed to load portfolio data from Supabase.</div>
       </div>
     )
   }
 
   return (
-    <div className={`app${unsyncedChanges.hasUnsynced ? ` ${styles.appWithBanner}` : ''}`}>
-      {unsyncedChanges.hasUnsynced ? (
-        <UnsyncedChangesBanner lines={unsyncedChanges.lines} onDiscarded={handleUnsyncedDiscarded} />
-      ) : null}
+    <div className="app">
       <Sidebar
         allBuildings={portfolio.buildings}
         listBuildings={listBuildings}
         filteredBuildings={filteredBuildings}
         portfolio={portfolio}
-        onNotesChange={handlePortfolioPatch}
+        onNotesChange={handlePortfolioChange}
       />
       <div className={styles.mainColumn}>
         <MapPanel
           portfolio={portfolio}
           mapBuildings={filteredBuildings}
-          onPortfolioImport={handlePortfolioImport}
-          onPortfolioPatch={handlePortfolioPatch}
+          onPortfolioImport={handlePortfolioChange}
+          onPortfolioPatch={handlePortfolioChange}
           polygonDrawOpen={polygonDrawOpen}
           onPolygonDrawClose={handlePolygonDrawClose}
           addMarkerOpen={addMarkerOpen}
@@ -166,8 +147,8 @@ export function AppShell() {
         open={settingsOpen}
         onClose={closeSettings}
         portfolio={portfolio}
-        onImport={handlePortfolioImport}
-        onPortfolioPatch={handlePortfolioPatch}
+        onImport={handlePortfolioChange}
+        onPortfolioPatch={handlePortfolioChange}
         onOpenPolygonDraw={() => {
           closeSettings()
           openPolygonDraw('polygonDraw')
@@ -177,6 +158,8 @@ export function AppShell() {
           openAddMarker('addMarker')
         }}
         onSaved={markSaved}
+        onSignIn={() => setLoginOpen(true)}
+        isAuthenticated={isAuthenticated}
       />
       {rtuPictureViewer ? (
         <RtuPictureViewer
@@ -190,14 +173,7 @@ export function AppShell() {
           onPicturesUpdated={updateRtuPictureViewerPictures}
         />
       ) : null}
-      <RemoteSyncUpdateModal
-        open={remoteSyncOpen}
-        meta={remoteSyncMeta}
-        localSummary={remoteSyncLocalSummary}
-        loading={remoteSyncLoading}
-        onDismiss={dismissRemoteSync}
-        onLoadUpdates={handleLoadRemoteUpdates}
-      />
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <ConfirmDialog />
     </div>
   )
