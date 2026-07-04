@@ -1,6 +1,19 @@
 import { useEffect, type RefObject } from 'react'
 import { applyStoredRotation, installRotationGuard, resetMapRotationPreserveView } from '@/lib/mapRotation'
 import { useMapRotationStore } from '@/stores/mapRotationStore'
+import { useSelectionStore } from '@/stores/selectionStore'
+import { useMapSavePositionStore } from '@/stores/mapSavePositionStore'
+
+/** Minimum heading change (deg) during a gesture before offering to save the position. */
+const SAVE_PROMPT_MIN_HEADING_DELTA = 1
+
+function offerSavePositionAfterRotation(startHeading: number, endHeading: number): void {
+  let delta = Math.abs(endHeading - startHeading) % 360
+  if (delta > 180) delta = 360 - delta
+  if (delta < SAVE_PROMPT_MIN_HEADING_DELTA) return
+  const address = useSelectionStore.getState().currentBuilding?.address
+  if (address) useMapSavePositionStore.getState().requestPrompt(address)
+}
 
 const ROT_SCALE = 0.3
 /** Degrees of rotation per pixel of horizontal Ctrl+drag (HTML used 0.5). */
@@ -58,7 +71,10 @@ export function useMapRotation(
     }
 
     const onMouseUp = () => {
-      isDragging = false
+      if (isDragging) {
+        isDragging = false
+        offerSavePositionAfterRotation(startHeading, map.getHeading() || 0)
+      }
     }
 
     const onDblClick = (e: MouseEvent) => {
@@ -95,7 +111,11 @@ export function useMapRotation(
 
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
-        if (rg.on) rg.h0 = map.getHeading() || 0
+        if (rg.on) {
+          const endHeading = map.getHeading() || 0
+          offerSavePositionAfterRotation(rg.h0, endHeading)
+          rg.h0 = endHeading
+        }
         rg.on = false
       }
     }

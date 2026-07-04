@@ -60,6 +60,11 @@ export type Database = {
           lat: number
           lng: number
           manager: string | null
+          map_heading: number | null
+          map_lat: number | null
+          map_lng: number | null
+          map_tilt: number | null
+          map_zoom: number | null
           notes: string | null
           park: string
           sold: boolean
@@ -75,6 +80,11 @@ export type Database = {
           lat: number
           lng: number
           manager?: string | null
+          map_heading?: number | null
+          map_lat?: number | null
+          map_lng?: number | null
+          map_tilt?: number | null
+          map_zoom?: number | null
           notes?: string | null
           park: string
           sold?: boolean
@@ -90,6 +100,11 @@ export type Database = {
           lat?: number
           lng?: number
           manager?: string | null
+          map_heading?: number | null
+          map_lat?: number | null
+          map_lng?: number | null
+          map_tilt?: number | null
+          map_zoom?: number | null
           notes?: string | null
           park?: string
           sold?: boolean

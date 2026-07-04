@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchPortfolio, savePortfolio, savePortfolioChanges } from '@/data/portfolioApi'
+import {
+  fetchPortfolio,
+  savePortfolio,
+  savePortfolioChanges,
+  saveBuildingMapView,
+  type BuildingMapView,
+} from '@/data/portfolioApi'
 import type { PortfolioData } from '@/types/domain'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -44,6 +50,48 @@ export function useSavePortfolio() {
 export interface SavePendingPortfolioInput {
   baseline: PortfolioData
   pending: PortfolioData
+}
+
+export interface SaveBuildingMapViewInput {
+  buildingId: number
+  view: BuildingMapView | null
+}
+
+/** Persist (or clear) one building's saved map camera without touching the staged-edit flow. */
+export function useSaveBuildingMapView() {
+  const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
+
+  return useMutation({
+    mutationFn: async ({ buildingId, view }: SaveBuildingMapViewInput) => {
+      if (!isAuthenticated) {
+        throw new Error('Sign in to save map position.')
+      }
+      await saveBuildingMapView(buildingId, view)
+      return { buildingId, view }
+    },
+    retry: false,
+    onSuccess: ({ buildingId, view }) => {
+      queryClient.setQueryData<PortfolioData>(PORTFOLIO_QUERY_KEY, (prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          buildings: prev.buildings.map((building) =>
+            building.id === buildingId
+              ? {
+                  ...building,
+                  mapLat: view?.lat ?? null,
+                  mapLng: view?.lng ?? null,
+                  mapZoom: view?.zoom ?? null,
+                  mapHeading: view?.heading ?? null,
+                  mapTilt: view?.tilt ?? null,
+                }
+              : building,
+          ),
+        }
+      })
+    },
+  })
 }
 
 export function useSavePendingPortfolio() {

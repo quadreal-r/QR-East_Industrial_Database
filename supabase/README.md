@@ -35,6 +35,7 @@ Remote history already includes `20260621172809_initial_schema`. Pending local m
 | `20260622120000_seed_legacy_data.sql` | Portfolio seed (buildings, RTUs, etc.) |
 | `20260703024457_auth_admins.sql` | Admin user list + `is_app_admin()` for Settings user management |
 | `20260703000000_schedule_pricing_media.sql` | Schedule columns, pricing, picture/document metadata |
+| `20260703042952_building_map_view.sql` | Per-building saved map camera (center, zoom, heading, tilt) |
 
 ```powershell
 # Preview what would run

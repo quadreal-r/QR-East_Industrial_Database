@@ -58,6 +58,12 @@ export interface Building {
   manager: string
   notes?: string | null
   sold?: boolean
+  /** Saved map camera for this building (center/zoom/rotation); null = no saved view. */
+  mapLat?: number | null
+  mapLng?: number | null
+  mapZoom?: number | null
+  mapHeading?: number | null
+  mapTilt?: number | null
   rtus?: Rtu[]
 }
 

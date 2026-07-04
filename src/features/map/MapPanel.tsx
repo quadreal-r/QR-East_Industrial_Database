@@ -8,7 +8,7 @@ import { usePolygons } from '@/features/polygons/usePolygons'
 import { useMapRotation } from '@/hooks/useMapRotation'
 import { useMapMarqueeSelect } from '@/hooks/useMapMarqueeSelect'
 import { readGoogleMapsEnv, loadGoogleMaps } from '@/lib/googleMaps'
-import { IMAGERY_MODES, MAP_MAX_ZOOM } from '@/lib/constants'
+import { IMAGERY_MODES, MAP_MAX_ZOOM, MAP_DETAIL_ZOOM } from '@/lib/constants'
 import { matchesUtility } from '@/lib/dragSelection'
 import { tenantPolygonCount, buildPolygonBuildingIndex } from '@/lib/polygonBuildings'
 import { installMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
@@ -38,6 +38,9 @@ import { useUiStore } from '@/stores/uiStore'
 import { usePendingRtuPictureStore } from '@/stores/pendingRtuPictureStore'
 import { useMapViewStore } from '@/stores/mapViewStore'
 import { useMapRotationStore } from '@/stores/mapRotationStore'
+import { useMapSavePositionStore } from '@/stores/mapSavePositionStore'
+import { useSaveBuildingMapView } from '@/hooks/usePortfolioData'
+import { hasBuildingSavedView } from '@/lib/buildingMapView'
 import styles from './MapPanel.module.css'
 
 export interface MapPanelProps {
@@ -271,6 +274,64 @@ export function MapPanel({
       showToastSuccess('Photo markers cleared — upload again from Settings when ready.')
     })
   }, [clearPendingPictures, pendingPictureCount])
+
+  const savePromptAddress = useMapSavePositionStore((s) => s.promptAddress)
+  const dismissSavePrompt = useMapSavePositionStore((s) => s.dismiss)
+  const saveMapViewMutation = useSaveBuildingMapView()
+
+  // Only prompt while the rotated building is still the focused one.
+  const savePromptBuilding =
+    savePromptAddress != null && savePromptAddress === currentBuilding?.address
+      ? portfolio.buildings.find((b) => b.address === savePromptAddress)
+      : undefined
+
+  const handleSaveMapPosition = useCallback(() => {
+    if (!map || savePromptBuilding?.id == null) return
+    const center = map.getCenter()
+    if (!center) return
+    saveMapViewMutation.mutate(
+      {
+        buildingId: savePromptBuilding.id,
+        view: {
+          lat: center.lat(),
+          lng: center.lng(),
+          zoom: map.getZoom() ?? MAP_DETAIL_ZOOM,
+          heading: map.getHeading() || 0,
+          tilt: map.getTilt() || 0,
+        },
+      },
+      {
+        onSuccess: () => {
+          dismissSavePrompt()
+          showToastSuccess('✓ Map position saved for this building')
+        },
+        onError: (error) =>
+          showToastError(error instanceof Error ? error.message : 'Could not save map position'),
+      },
+    )
+  }, [map, savePromptBuilding, saveMapViewMutation, dismissSavePrompt])
+
+  const handleClearMapPosition = useCallback(() => {
+    if (savePromptBuilding?.id == null) return
+    saveMapViewMutation.mutate(
+      { buildingId: savePromptBuilding.id, view: null },
+      {
+        onSuccess: () => {
+          dismissSavePrompt()
+          showToastSuccess('Saved map position cleared')
+        },
+        onError: (error) =>
+          showToastError(error instanceof Error ? error.message : 'Could not clear map position'),
+      },
+    )
+  }, [savePromptBuilding, saveMapViewMutation, dismissSavePrompt])
+
+  // Drop a stale "Save map position" prompt when the focused building changes.
+  useEffect(() => {
+    const address = currentBuilding?.address ?? null
+    const { promptAddress, dismiss } = useMapSavePositionStore.getState()
+    if (promptAddress && promptAddress !== address) dismiss()
+  }, [currentBuilding?.address])
 
   useEffect(() => {
     if (!map) return
@@ -507,6 +568,42 @@ export function MapPanel({
               title="Remove all pending photo markers from the map"
             >
               Clear &amp; start over
+            </button>
+          </div>
+        ) : null}
+        {savePromptBuilding ? (
+          <div className={styles.savePosNotice} role="status">
+            <span className={styles.savePosNoticeText}>
+              Save this rotation &amp; zoom as the default view for{' '}
+              <strong>{savePromptBuilding.address}</strong>?
+            </span>
+            {hasBuildingSavedView(savePromptBuilding) ? (
+              <button
+                type="button"
+                className={styles.savePosNoticeGhost}
+                onClick={handleClearMapPosition}
+                disabled={saveMapViewMutation.isPending}
+                title="Remove the saved map position for this building"
+              >
+                Clear saved
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={styles.savePosNoticeGhost}
+              onClick={dismissSavePrompt}
+              disabled={saveMapViewMutation.isPending}
+            >
+              Dismiss
+            </button>
+            <button
+              type="button"
+              className={styles.savePosNoticeAction}
+              onClick={handleSaveMapPosition}
+              disabled={saveMapViewMutation.isPending}
+              title="Save the current center, zoom, and rotation for this building"
+            >
+              {saveMapViewMutation.isPending ? 'Saving…' : 'Save map position'}
             </button>
           </div>
         ) : null}

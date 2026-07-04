@@ -49,8 +49,27 @@ function rowToBuilding(row: BuildingRow, rtus: RtuRow[]): Building {
     manager: row.manager ?? '',
     notes: row.notes,
     sold: row.sold,
+    mapLat: row.map_lat,
+    mapLng: row.map_lng,
+    mapZoom: row.map_zoom,
+    mapHeading: row.map_heading,
+    mapTilt: row.map_tilt,
     rtus: rtus.map(rowToRtu),
   }
+}
+
+/**
+ * Saved map-view columns for a building, only including keys that are explicitly set
+ * so bulk imports (which omit them) never wipe an existing saved view.
+ */
+function buildingMapViewPayload(building: Building): Record<string, number | null> {
+  const payload: Record<string, number | null> = {}
+  if (building.mapLat !== undefined) payload.map_lat = building.mapLat
+  if (building.mapLng !== undefined) payload.map_lng = building.mapLng
+  if (building.mapZoom !== undefined) payload.map_zoom = building.mapZoom
+  if (building.mapHeading !== undefined) payload.map_heading = building.mapHeading
+  if (building.mapTilt !== undefined) payload.map_tilt = building.mapTilt
+  return payload
 }
 
 function rowToUtility(row: UtilityRow): Utility {
@@ -117,6 +136,7 @@ export async function upsertBuilding(building: Building): Promise<Building> {
     manager: building.manager || null,
     notes: building.notes ?? null,
     sold: building.sold ?? false,
+    ...buildingMapViewPayload(building),
   }
 
   let buildingId = building.id
@@ -153,9 +173,37 @@ async function updateBuildingOnly(building: Building): Promise<void> {
     manager: building.manager || null,
     notes: building.notes ?? null,
     sold: building.sold ?? false,
+    ...buildingMapViewPayload(building),
   }
 
   const { error } = await supabase.from('buildings').update(payload).eq('id', building.id)
+  if (error) throw error
+}
+
+export interface BuildingMapView {
+  lat: number
+  lng: number
+  zoom: number
+  heading: number
+  tilt: number
+}
+
+/** Save (or clear when `view` is null) a building's map camera directly. */
+export async function saveBuildingMapView(
+  buildingId: number,
+  view: BuildingMapView | null,
+): Promise<void> {
+  const payload = view
+    ? {
+        map_lat: view.lat,
+        map_lng: view.lng,
+        map_zoom: view.zoom,
+        map_heading: view.heading,
+        map_tilt: view.tilt,
+      }
+    : { map_lat: null, map_lng: null, map_zoom: null, map_heading: null, map_tilt: null }
+
+  const { error } = await supabase.from('buildings').update(payload).eq('id', buildingId)
   if (error) throw error
 }
 

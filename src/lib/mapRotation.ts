@@ -1,4 +1,5 @@
 import { useMapRotationStore } from '@/stores/mapRotationStore'
+import type { SavedMapView } from '@/lib/buildingMapView'
 
 function headingDiff(a: number, b: number): number {
   let d = Math.abs(a - b) % 360
@@ -62,6 +63,18 @@ export function panToPreserveRotation(
       map.setZoom(zoom)
     }
   }
+  afterMapViewChange(map)
+}
+
+/** Restore a building's saved camera: center, zoom, heading, and tilt (updates the rotation store too). */
+export function applySavedMapView(map: google.maps.Map, view: SavedMapView): void {
+  const rotation = useMapRotationStore.getState()
+  rotation.setHeading(view.heading)
+  rotation.setTilt(view.tilt)
+  map.setCenter({ lat: view.lat, lng: view.lng })
+  map.setZoom(view.zoom)
+  map.setHeading(view.heading)
+  map.setTilt(view.tilt)
   afterMapViewChange(map)
 }
 

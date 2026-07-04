@@ -32,7 +32,8 @@ import {
   unregisterMarqueeTarget,
 } from '@/lib/mapMarqueeSelect'
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
-import { panToPreserveRotation } from '@/lib/mapRotation'
+import { applySavedMapView, panToPreserveRotation } from '@/lib/mapRotation'
+import { getBuildingSavedView } from '@/lib/buildingMapView'
 import {
   consumeSuppressBuildingMapFocus,
   hasPendingHardRefreshView,
@@ -657,12 +658,17 @@ export function useMapMarkers({
       closeAllMapPopups()
       callbacksRef.current.onSelectBuilding(entry.building)
       highlightBuilding(entry.building)
-      panToPreserveRotation(
-        map,
-        { lat: entry.building.lat, lng: entry.building.lng },
-        MAP_DETAIL_ZOOM,
-        { onlyZoomIn: true },
-      )
+      const savedView = getBuildingSavedView(entry.building)
+      if (savedView) {
+        applySavedMapView(map, savedView)
+      } else {
+        panToPreserveRotation(
+          map,
+          { lat: entry.building.lat, lng: entry.building.lng },
+          MAP_DETAIL_ZOOM,
+          { onlyZoomIn: true },
+        )
+      }
       refreshDetailVisibility()
       setTimeout(() => {
         document

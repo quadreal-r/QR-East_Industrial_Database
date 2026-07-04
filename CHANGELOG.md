@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] - 2026-07-04
+
+### Added
+
+- Per-building saved map view (center, zoom, heading, tilt) stored in Supabase
+- Save map position prompt after rotating the map while focused on a building (sign-in required)
+- Restore saved map view when opening a building from search or the sidebar
+- Clear saved map position from the save prompt overlay
+
+### Changed
+
+- Building imports no longer wipe existing saved map views unless map fields are explicitly set
+
 ## [1.3.1] - 2026-07-03
 
 ### Fixed
