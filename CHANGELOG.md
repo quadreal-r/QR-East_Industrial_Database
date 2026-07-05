@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.1] - 2026-07-04
+
+### Fixed
+
+- Paginate Supabase picture and document manifest fetches so RTUs with metadata beyond the 1,000-row API limit show all photos (e.g. 2320 RTU-04B Hybrid missing picture 3)
+
+### Changed
+
+- Folder RTU picture uploads now upsert Supabase `rtu_pictures` rows after R2 upload so new batches appear in the app without a manual sync
+
 ## [1.5.0] - 2026-07-04
 
 ### Added

@@ -1,6 +1,6 @@
 /**
  * Upload every RTU picture in a folder to Cloudflare R2, merge into manifest.json,
- * upload cloud aliases, and push JSON to the R2 json bucket.
+ * sync metadata to Supabase rtu_pictures, upload cloud aliases, and push JSON to R2.
  *
  * Usage:
  *   node scripts/upload-rtu-pictures-from-folder.mjs --dry-run
@@ -29,6 +29,11 @@ import {
   buildSyncMetaFromDataDir,
   writeSyncMetaFile,
 } from './lib/sync-meta.mjs'
+import {
+  buildPictureRowsFromManifest,
+  isSupabaseServiceConfigured,
+  upsertPictureManifestToSupabase,
+} from './lib/sync-rtu-pictures-supabase.mjs'
 import { uploadPortfolioJsonToR2 } from './upload-json-to-r2.mjs'
 
 const ROOT = getProjectRoot()
@@ -151,6 +156,17 @@ async function main() {
     `Upload plan: ${toUpload.length} file(s)${skipExisting ? ` (${fileNames.length - toUpload.length} already on R2)` : ''}`,
   )
 
+  const supabaseRowCount = buildPictureRowsFromManifest(mergedManifest, {
+    onlyFileNames: new Set(fileNames),
+  }).length
+  if (isSupabaseServiceConfigured()) {
+    console.log(`Supabase: ${dryRun ? 'would upsert' : 'will upsert'} ${supabaseRowCount} row(s) in rtu_pictures`)
+  } else {
+    console.warn(
+      'Supabase service role not configured — pictures will upload to R2 but will not appear in the app until rtu_pictures is synced.',
+    )
+  }
+
   if (dryRun) {
     console.log('\nDry run — sample uploads:')
     for (const name of toUpload.slice(0, 20)) console.log(`  ${name}`)
@@ -182,6 +198,16 @@ async function main() {
   writeFileSync(MANIFEST_PATH, `${JSON.stringify(mergedManifest, null, 2)}\n`, 'utf8')
   console.log(`\nWrote ${MANIFEST_PATH}`)
 
+  let supabaseUpserted = 0
+  if (isSupabaseServiceConfigured()) {
+    console.log('\nSyncing picture metadata to Supabase…')
+    const result = await upsertPictureManifestToSupabase(mergedManifest, {
+      onlyFileNames: new Set(fileNames),
+    })
+    supabaseUpserted = result.upserted
+    console.log(`Upserted ${supabaseUpserted} row(s) to Supabase rtu_pictures`)
+  }
+
   console.log('\nUploading cloud filename aliases…')
   runNodeScript('upload-rtu-picture-cloud-aliases.mjs', ['--from-folder', fromFolder])
 
@@ -194,12 +220,20 @@ async function main() {
     ...syncMeta.summary,
     picturesUploaded: uploaded,
     picturesAdded: manifestDiff.added.length,
+    picturesSupabaseUpserted: supabaseUpserted,
   }
   writeSyncMetaFile(syncMetaPath, syncMeta)
   appendSyncHistoryEntry(DATA_DIR, syncMeta)
 
-  const jsonUpload = await uploadPortfolioJsonToR2()
-  console.log(`Uploaded ${jsonUpload.uploaded} JSON file(s) to R2`)
+  try {
+    const jsonUpload = await uploadPortfolioJsonToR2()
+    console.log(`Uploaded ${jsonUpload.uploaded} JSON file(s) to R2`)
+  } catch (error) {
+    console.warn(
+      `R2 JSON bucket upload skipped: ${error instanceof Error ? error.message : error}`,
+    )
+    console.warn('The live app reads picture metadata from Supabase, not the R2 JSON bucket.')
+  }
 
   mkdirSync(REPORT_DIR, { recursive: true })
   const stamp = new Date().toISOString().slice(0, 10)
@@ -213,6 +247,7 @@ async function main() {
         folderFileCount: fileNames.length,
         uploaded,
         manifestAdded: manifestDiff.added,
+        supabaseUpserted,
         unmatched: folderBuild.unmatched,
       },
       null,
@@ -222,12 +257,14 @@ async function main() {
   )
 
   const publicBase = getR2PublicBaseUrl()
-  console.log(`\nDone. Uploaded ${uploaded} picture(s); manifest +${manifestDiff.added.length}.`)
+  console.log(
+    `\nDone. Uploaded ${uploaded} picture(s) to R2; manifest +${manifestDiff.added.length}${supabaseUpserted ? `; Supabase ${supabaseUpserted} row(s)` : ''}.`,
+  )
   console.log(`Report: ${reportPath}`)
   if (publicBase && toUpload.length) {
     console.log(`Sample URL: ${publicBase}${encodeURIComponent(toUpload[0])}`)
   }
-  console.log('\nNext: git add manifest.json sync-meta.json sync-history.json && git commit && git push')
+  console.log('\nHard-refresh the app to see new pictures (metadata comes from Supabase).')
 }
 
 main().catch((error) => {

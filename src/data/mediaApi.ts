@@ -16,16 +16,38 @@ function pictureKey(buildingAddress: string, rtuName: string): string {
   return `${buildingAddress}|${rtuName}`
 }
 
+/** PostgREST caps each response at 1000 rows; paginate for full manifests. */
+const SUPABASE_PAGE_SIZE = 1000
+
+async function fetchAllPages<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: Error | null }>,
+): Promise<T[]> {
+  const rows: T[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await fetchPage(from, from + SUPABASE_PAGE_SIZE - 1)
+    if (error) throw error
+    if (!data?.length) break
+    rows.push(...data)
+    if (data.length < SUPABASE_PAGE_SIZE) break
+    from += SUPABASE_PAGE_SIZE
+  }
+  return rows
+}
+
 export async function fetchPictureManifest(): Promise<RtuPictureManifest> {
-  const { data, error } = await supabase
-    .from('rtu_pictures')
-    .select('building_address, rtu_name, file_name, hidden, position')
-    .eq('hidden', false)
-    .order('position', { ascending: true })
-  if (error) throw error
+  type Row = Pick<PictureRow, 'building_address' | 'rtu_name' | 'file_name'>
+  const data = await fetchAllPages<Row>(async (from, to) =>
+    supabase
+      .from('rtu_pictures')
+      .select('building_address, rtu_name, file_name')
+      .eq('hidden', false)
+      .order('position', { ascending: true })
+      .range(from, to),
+  )
 
   const entries: Record<string, string[]> = {}
-  for (const row of data ?? []) {
+  for (const row of data) {
     const key = pictureKey(row.building_address, row.rtu_name)
     if (!entries[key]) entries[key] = []
     entries[key]!.push(row.file_name)
@@ -34,14 +56,18 @@ export async function fetchPictureManifest(): Promise<RtuPictureManifest> {
 }
 
 export async function fetchHiddenPictureKeys(): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from('rtu_pictures')
-    .select('building_address, rtu_name, file_name')
-    .eq('hidden', true)
-  if (error) throw error
+  type Row = Pick<PictureRow, 'building_address' | 'rtu_name' | 'file_name'>
+  const data = await fetchAllPages<Row>(async (from, to) =>
+    supabase
+      .from('rtu_pictures')
+      .select('building_address, rtu_name, file_name')
+      .eq('hidden', true)
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
 
   const hidden = new Set<string>()
-  for (const row of data ?? []) {
+  for (const row of data) {
     hidden.add(`${pictureKey(row.building_address, row.rtu_name)}|${row.file_name}`)
   }
   return hidden
@@ -101,14 +127,17 @@ export async function deletePictureRow(
 }
 
 export async function fetchDocumentManifest(): Promise<RtuDocumentManifest> {
-  const { data, error } = await supabase
-    .from('rtu_documents')
-    .select('building_address, rtu_name, file_name, position')
-    .order('position', { ascending: true })
-  if (error) throw error
+  type Row = Pick<DocumentRow, 'building_address' | 'rtu_name' | 'file_name'>
+  const data = await fetchAllPages<Row>(async (from, to) =>
+    supabase
+      .from('rtu_documents')
+      .select('building_address, rtu_name, file_name')
+      .order('position', { ascending: true })
+      .range(from, to),
+  )
 
   const entries: Record<string, string[]> = {}
-  for (const row of data ?? []) {
+  for (const row of data) {
     const key = pictureKey(row.building_address, row.rtu_name)
     if (!entries[key]) entries[key] = []
     entries[key]!.push(row.file_name)
