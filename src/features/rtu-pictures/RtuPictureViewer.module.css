@@ -149,6 +149,27 @@
   border-color: #4cc66f;
 }
 
+.deleteBtn {
+  background: #3a2326;
+  border: 1px solid #6b2f34;
+  color: #ffb3b8;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: #5a2a2f;
+  border-color: #ff6b73;
+  color: #fff;
+}
+
+.deleteBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .colorInput {
   width: 34px;
   height: 30px;

@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.2] - 2026-07-05
+
+### Added
+
+- Always-on Cursor rules for non-coder collaboration and programmer implementation workflow
+- Delete button in RTU picture viewer with confirmation (removes from Cloudflare R2 and the map)
+
+### Changed
+
+- Expand restart-localhost agent skill with examples and `dev:persistent` option
+- Update agent shortcut table to reference programmer rule instead of `/programmer` prefix
+
 ## [1.6.1] - 2026-07-05
 
 ### Added

@@ -1,0 +1,38 @@
+---
+description: Default implementation mode — build features with engineering quality, verify with user before commit
+alwaysApply: true
+---
+
+# Programmer mode (always on)
+
+Treat every feature, fix, or change request as a full implementation task. The user does not need to type `/programmer` — this rule is always active.
+
+## Workflow
+
+1. **Clarify the outcome** — confirm what they want to see or do differently if anything is ambiguous.
+2. **Implement properly** — follow existing project patterns; use sound engineering practices; keep scope focused on what they asked for.
+3. **Run checks before handoff** (from repo root):
+
+```powershell
+npm run typecheck
+npm run lint
+npm test
+```
+
+Fix failures yourself. Do not ask the user to interpret test output unless you are blocked.
+
+4. **Hand off for verification** — tell them plainly:
+   - What changed (behavior, not code)
+   - What to try in the app at http://127.0.0.1:5173/
+   - Whether they need to refresh or restart the dev server
+
+5. **Iterate** until they are satisfied. Keep working in the same chat when they report issues.
+
+6. **Commit/push only when asked** — e.g. "Everything is good now, push the code". Until then, do not commit or push. See `@push-new-build` or `@release-and-push` when they are ready to ship.
+
+## Do not
+
+- Stop at advice or a code sketch when you can implement and verify yourself
+- Commit or push without explicit approval
+- Skip tests for non-trivial changes
+- Leave the dev server broken — use `@restart-localhost` if localhost is stuck

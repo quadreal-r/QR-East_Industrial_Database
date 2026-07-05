@@ -50,6 +50,7 @@ Run with `block_until_ms: 0` so the dev server stays running in the background.
 | `npm run dev:restart` | Default — stuck port, blank page, or explicit restart |
 | `npm run dev:window` | Dev should survive closing the Cursor terminal |
 | `npm run dev:onedrive` | File-watching issues in OneDrive-synced folders |
+| `npm run dev:persistent` | Vite in its own window with auto-restart on crash |
 
 ### Step 3: Confirm server is up
 
@@ -62,6 +63,20 @@ Tell the user:
 - Dev server restarted (or started)
 - Open http://127.0.0.1:5173/
 - Hard-refresh (Ctrl+Shift+R) if they still see a stale blank page
+
+## Examples
+
+**User:** "Restart localhost" / "dev server is stuck" / "blank page on 5173"
+
+→ Run `npm run dev:restart` from repo root with `block_until_ms: 0`, poll until Vite shows `Local:` on 5173, report http://127.0.0.1:5173/
+
+**User:** "Start the dev server" (no prior server, no port conflict)
+
+→ Run `npm run dev` with `block_until_ms: 0`
+
+**User:** "Keep dev running after I close Cursor"
+
+→ Run `npm run dev:window` or `npm run dev:persistent`
 
 ## Do not
 

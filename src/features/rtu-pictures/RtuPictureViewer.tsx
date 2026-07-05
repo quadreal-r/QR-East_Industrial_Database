@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { listRtuPictures, saveRtuPictureEdit } from '@/lib/rtuPictures'
+import { confirm } from '@/stores/confirmStore'
+import { deleteRtuPicture, listRtuPictures, saveRtuPictureEdit } from '@/lib/rtuPictures'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import type { RtuPictureViewerItem } from '@/stores/uiStore'
 import { useImageEditor } from './useImageEditor'
@@ -93,6 +94,7 @@ export function RtuPictureViewer({
     getEditedBlob,
   } = useImageEditor()
   const [savingToMap, setSavingToMap] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const revokeBlobUrls = useCallback((items: RtuPictureViewerItem[]) => {
     for (const pic of items) {
@@ -140,6 +142,54 @@ export function RtuPictureViewer({
     revokeBlobUrls,
     rtuName,
     savingToMap,
+  ])
+
+  const handleDelete = useCallback(async () => {
+    if (!current || deleting) return
+    const message = `Delete "${current.fileName}" from Cloudflare and the map? This cannot be undone.`
+    if (!(await confirm(message))) return
+
+    setDeleting(true)
+    try {
+      const result = await deleteRtuPicture(buildingAddress, rtuName, current.fileName)
+      if (result === 'not-found') {
+        showToastError('Picture not found')
+        return
+      }
+
+      revokeBlobUrls(pictures)
+      const nextPictures = await listRtuPictures(buildingAddress, rtuName)
+      const items = nextPictures.map((p) => ({
+        fileName: p.fileName,
+        fullUrl: p.fullUrl,
+        thumbUrl: p.thumbUrl,
+        index: p.index,
+      }))
+
+      if (!items.length) {
+        showToastSuccess('Picture deleted')
+        onClose()
+        return
+      }
+
+      const nextIndex = Math.min(index, items.length - 1)
+      onPicturesUpdated(items, nextIndex)
+      showToastSuccess('Picture deleted from Cloudflare and the map')
+    } catch (error) {
+      showToastError(error instanceof Error ? error.message : 'Failed to delete picture')
+    } finally {
+      setDeleting(false)
+    }
+  }, [
+    buildingAddress,
+    current,
+    deleting,
+    index,
+    onClose,
+    onPicturesUpdated,
+    pictures,
+    revokeBlobUrls,
+    rtuName,
   ])
 
   useEffect(() => {
@@ -231,10 +281,21 @@ export function RtuPictureViewer({
           <button
             type="button"
             className={styles.saveBtn}
-            disabled={!canSaveToMap || savingToMap}
+            disabled={!canSaveToMap || savingToMap || deleting}
             onClick={() => void handleSaveToMap()}
           >
             {savingToMap ? 'Saving…' : 'Save to map'}
+          </button>
+        ) : null}
+        {buildingAddress ? (
+          <button
+            type="button"
+            className={styles.deleteBtn}
+            disabled={deleting || savingToMap}
+            onClick={() => void handleDelete()}
+            title="Delete from Cloudflare and the map"
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
           </button>
         ) : null}
         <span className={styles.sep} />

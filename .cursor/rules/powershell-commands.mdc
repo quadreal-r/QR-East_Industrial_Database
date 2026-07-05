@@ -127,6 +127,6 @@ copy .env.example .env.local
 |--------|----------------|
 | "start server" / "run dev" | `npm run dev` or `npm run dev:restart` |
 | "push the code" / "push live" | `npm run push-live` or git pull → test → commit → push |
-| "/programmer …" | Implement feature, run tests, ask you to verify before commit |
+| Feature / fix request | Implement (`.cursor/rules/programmer.mdc`), run tests, ask you to verify before commit |
 
 Related rules: `@push-new-build` for full deploy checklist.
