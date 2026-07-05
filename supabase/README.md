@@ -100,6 +100,24 @@ The app shows **Set new password** when you open a valid recovery link. Sign in 
 
 Signed-in admins see **Settings → Manage users** to add (name, email, password) or delete editor accounts.
 
+## RTU picture delete (Cloudflare R2)
+
+Deleting a picture from the map invokes the `delete-rtu-picture` Edge Function (authenticated users). It removes the object from the R2 pictures bucket, updates `manifest.json` in the JSON bucket, and deletes the Supabase `rtu_pictures` row.
+
+1. Set Edge Function secrets (Dashboard → Edge Functions → Secrets, or CLI):
+
+   ```powershell
+   npx supabase secrets set R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET_NAME=rtu-pictures --project-ref wyiymdtlncperqpwriuk
+   ```
+
+   Optional: `R2_JSON_BUCKET`, `R2_KEY_PREFIX` (same as local `.env.local`).
+
+2. Deploy:
+
+   ```powershell
+   npx supabase functions deploy delete-rtu-picture --project-ref wyiymdtlncperqpwriuk
+   ```
+
 ## Regenerate TypeScript types
 
 ```powershell

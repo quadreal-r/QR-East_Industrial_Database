@@ -487,9 +487,7 @@ export function buildRtuPicturesHtml(
   const backBtn = `<button type="button" class="iw-back-btn" data-iw-action="pictures-back" title="Back to RTU details">← Details</button>`
   const deletePicBtn =
     total && current
-      ? current.source === 'static'
-        ? `<button type="button" class="iw-del-btn" data-iw-action="picture-delete" data-iw-picture-file="${escapeHtml(current.fileName)}" data-iw-picture-static="1" title="Hide this picture on the map">🗑 Hide</button>`
-        : `<button type="button" class="iw-del-btn" data-iw-action="picture-delete" data-iw-picture-file="${escapeHtml(current.fileName)}" data-iw-picture-static="0" title="Delete this picture">🗑 Delete</button>`
+      ? `<button type="button" class="iw-del-btn" data-iw-action="picture-delete" data-iw-picture-file="${escapeHtml(current.fileName)}" title="Delete this picture from the map and Cloudflare">🗑 Delete</button>`
       : ''
 
   return `<div class="iw iw-pictures" data-iw-building="${escapeHtml(buildingAddress)}" data-iw-rtu="${escapeHtml(name)}" data-iw-picture-index="${safeIndex}">

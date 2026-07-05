@@ -8,7 +8,8 @@ import {
 } from '@/lib/rtuPictureAssignNaming'
 import { fetchPictureManifest, type RtuPictureManifest } from '@/data/mediaApi'
 export type { RtuPictureManifest } from '@/data/mediaApi'
-import { isRtuManifestPictureHidden, loadHiddenRtuPictures, exportHiddenRtuPicturesForDeploy } from '@/lib/hiddenRtuPictures'
+import { deleteRtuPictureFromCloud } from '@/data/rtuPictureDeleteApi'
+import { isRtuManifestPictureHidden, loadHiddenRtuPictures, exportHiddenRtuPicturesForDeploy, clearHiddenRtuPictureCache } from '@/lib/hiddenRtuPictures'
 import { rtuPictureFileUrl } from '@/lib/rtuPictureUrls'
 import { isRtuPictureReachableOnCdnWithRetry } from '@/lib/rtuPictureReachability'
 
@@ -706,32 +707,28 @@ export async function discardPendingLocalRtuPictures(): Promise<number> {
   return toDelete.length
 }
 
-/** Picture count per RTU key (`buildingAddress|rtuName`), merging manifest + IndexedDB by index. */
+/** Picture count per RTU key (`buildingAddress|rtuName`), merging manifest + IndexedDB. */
 export async function getRtuPictureCountMap(): Promise<Map<string, number>> {
   const manifest = await loadRtuPictureManifest()
   const rows = await idbGetAllRows()
-  const indexByKey = new Map<string, Set<number>>()
+  const countByKey = new Map<string, number>()
 
   for (const [key, files] of Object.entries(manifest.entries ?? {})) {
-    const indices = new Set<number>()
+    let count = 0
     for (const fileName of files) {
       if (isRtuManifestPictureHidden(key, fileName)) continue
-      const index = parseRtuPictureIndex(fileName)
-      if (index != null && index >= 1) indices.add(index)
+      count += 1
     }
-    if (indices.size) indexByKey.set(key, indices)
+    if (count) countByKey.set(key, count)
   }
 
   for (const row of rows) {
-    let indices = indexByKey.get(row.rtuKey)
-    if (!indices) {
-      indices = new Set()
-      indexByKey.set(row.rtuKey, indices)
-    }
-    indices.add(row.index)
+    const manifestFiles = manifest.entries[row.rtuKey] ?? []
+    if (manifestFiles.includes(row.fileName)) continue
+    countByKey.set(row.rtuKey, (countByKey.get(row.rtuKey) ?? 0) + 1)
   }
 
-  return new Map([...indexByKey.entries()].map(([key, indices]) => [key, indices.size]))
+  return countByKey
 }
 
 export async function loadRtuPictureManifest(): Promise<RtuPictureManifest> {
@@ -792,16 +789,29 @@ export async function listRtuPictures(
     ...(await idbGetAllForRtu(key)),
     ...(manifestKey !== key ? await idbGetAllForRtu(manifestKey) : []),
   ]
+  const idbByFileName = new Map(idbRows.map((row) => [row.fileName, row]))
 
-  /** One picture per index -- IndexedDB uploads replace static/manifest entries at the same slot. */
-  const byIndex = new Map<number, RtuPicture>()
+  const pictures: RtuPicture[] = []
 
   for (const fileName of staticNames) {
     if (isRtuManifestPictureHidden(manifestKey, fileName)) continue
-    const index = parseRtuPictureIndex(fileName)
-    if (index == null || index < 1) continue
+    const index = parseRtuPictureIndex(fileName) ?? 0
+    const idbRow = idbByFileName.get(fileName)
+    if (idbRow) {
+      const fullBlob = idbRow.fullBlob ?? idbRow.thumbBlob
+      const thumbUrl = URL.createObjectURL(idbRow.thumbBlob)
+      const fullUrl = fullBlob === idbRow.thumbBlob ? thumbUrl : URL.createObjectURL(fullBlob)
+      pictures.push({
+        fileName: idbRow.fileName,
+        index: idbRow.index,
+        thumbUrl,
+        fullUrl,
+        source: 'indexeddb',
+      })
+      continue
+    }
     const url = rtuPictureFileUrl(fileName)
-    byIndex.set(index, {
+    pictures.push({
       fileName,
       index,
       thumbUrl: url,
@@ -810,11 +820,13 @@ export async function listRtuPictures(
     })
   }
 
+  const manifestFileSet = new Set(staticNames)
   for (const row of idbRows) {
+    if (manifestFileSet.has(row.fileName)) continue
     const fullBlob = row.fullBlob ?? row.thumbBlob
     const thumbUrl = URL.createObjectURL(row.thumbBlob)
     const fullUrl = fullBlob === row.thumbBlob ? thumbUrl : URL.createObjectURL(fullBlob)
-    byIndex.set(row.index, {
+    pictures.push({
       fileName: row.fileName,
       index: row.index,
       thumbUrl,
@@ -823,7 +835,7 @@ export async function listRtuPictures(
     })
   }
 
-  return [...byIndex.values()].sort((a, b) => a.index - b.index)
+  return pictures
 }
 
 async function idbDelete(fileName: string): Promise<void> {
@@ -926,13 +938,31 @@ export async function deleteRtuPicture(
   buildingAddress: string,
   rtuName: string,
   fileName: string,
-): Promise<'deleted' | 'not-found' | 'static'> {
+): Promise<'deleted' | 'not-found'> {
   const pictures = await listRtuPictures(buildingAddress, rtuName)
   const pic = pictures.find((p) => p.fileName === fileName)
   if (!pic) return 'not-found'
-  if (pic.source === 'static') return 'static'
-  revokeRtuPictureUrls([pic])
-  await idbDelete(fileName)
+
+  if (pic.source === 'indexeddb') {
+    revokeRtuPictureUrls([pic])
+  }
+
+  const manifest = await loadRtuPictureManifest()
+  const manifestKey = resolveManifestRtuKey(buildingAddress, rtuName, manifest)
+  const onCloud = (manifest.entries[manifestKey] ?? []).includes(fileName)
+
+  if (onCloud) {
+    await deleteRtuPictureFromCloud({ buildingAddress, rtuName, fileName })
+  }
+
+  try {
+    await idbDelete(fileName)
+  } catch {
+    /* no local copy */
+  }
+
+  clearRtuPictureManifestCache()
+  clearHiddenRtuPictureCache()
   notifyRtuPicturesChanged()
   return 'deleted'
 }

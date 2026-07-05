@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.0] - 2026-07-05
+
+### Added
+
+- Show every RTU picture file on the map, including duplicates at the same slot number (e.g. Audit-2024 and Audit-None pairs)
+- Delete RTU pictures from the map with removal from Cloudflare R2, the JSON manifest bucket, and Supabase via a new `delete-rtu-picture` Edge Function
+
+### Changed
+
+- Picture count badges and galleries count total files instead of unique slot numbers
+- Replace **Hide** with **Delete** for cloud-hosted pictures in the RTU picture viewer
+
 ## [1.5.1] - 2026-07-04
 
 ### Fixed

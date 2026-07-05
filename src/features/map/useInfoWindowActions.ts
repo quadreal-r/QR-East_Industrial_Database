@@ -23,10 +23,7 @@ import { afterMapViewChange, panToPreserveRotation } from '@/lib/mapRotation'
 import {
   addRtuPicturesFromFiles,
   deleteRtuPicture,
-  hideRtuManifestPicture,
   listRtuPictures,
-  notifyRtuPicturesChanged,
-  rtuPictureKey,
   type RtuPicture,
 } from '@/lib/rtuPictures'
 import { listRtuDocuments } from '@/lib/rtuDocuments'
@@ -648,30 +645,10 @@ export function useInfoWindowActions(
               if (!ctx || ctx.entry.type !== 'rtu' || ctx.view !== 'pictures' || !btn) return
 
               const fileName = btn.getAttribute('data-iw-picture-file') ?? ''
-              const isStatic = btn.getAttribute('data-iw-picture-static') === '1'
               const buildingAddress = ctx.entry.building?.address
               if (!buildingAddress || !fileName) return
 
-              if (isStatic) {
-                hideRtuManifestPicture(
-                  rtuPictureKey(buildingAddress, ctx.entry.data.name),
-                  fileName,
-                )
-                notifyRtuPicturesChanged()
-                showToastSuccess(
-                  '- Picture hidden - use Settings - Sync to Cloudflare & GitHub to hide for everyone.',
-                )
-                try {
-                  await refreshRtuPicturesView()
-                } catch (error) {
-                  showToastError(
-                    error instanceof Error ? error.message : 'Failed to refresh pictures',
-                  )
-                }
-                return
-              }
-
-              if (!(await confirm(`Delete picture "${fileName}"?`))) return
+              if (!(await confirm(`Delete picture "${fileName}" from Cloudflare and the map?`))) return
 
               try {
                 const result = await deleteRtuPicture(
@@ -680,7 +657,7 @@ export function useInfoWindowActions(
                   fileName,
                 )
                 if (result === 'deleted') {
-                  showToastSuccess('- Picture deleted')
+                  showToastSuccess('Picture deleted from Cloudflare and the map')
                   await refreshRtuPicturesView()
                 }
               } catch (error) {
