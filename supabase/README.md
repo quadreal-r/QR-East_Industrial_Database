@@ -36,6 +36,7 @@ Remote history already includes `20260621172809_initial_schema`. Pending local m
 | `20260703024457_auth_admins.sql` | Admin user list + `is_app_admin()` for Settings user management |
 | `20260703000000_schedule_pricing_media.sql` | Schedule columns, pricing, picture/document metadata |
 | `20260703042952_building_map_view.sql` | Per-building saved map camera (center, zoom, heading, tilt) |
+| `20260704171200_building_map_imagery_mode.sql` | Saved map imagery provider (google, esri) per building |
 
 ```powershell
 # Preview what would run
@@ -68,6 +69,19 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Use this for schedule, pri
 - **Authenticated:** full read/write
 
 Create editor accounts in Supabase Auth (email/password), or use **Settings → Manage users** after you are listed as an admin.
+
+## Auth redirect URLs (password reset)
+
+Password-reset emails redirect to the app. In the [Supabase dashboard](https://supabase.com/dashboard/project/wyiymdtlncperqpwriuk/auth/url-configuration) set:
+
+| Setting | Value |
+|---------|--------|
+| **Site URL** | `https://quadreal-r.github.io/building-map-explorer/` |
+| **Redirect URLs** | `http://127.0.0.1:5173`, `http://localhost:5173`, `https://quadreal-r.github.io/building-map-explorer/` |
+
+Local dev runs on port **5173** (not 3000). If reset links point at the wrong host, the page will be blank.
+
+The app shows **Set new password** when you open a valid recovery link. Sign in → **Forgot password?** sends a new email.
 
 ## Admin user management
 

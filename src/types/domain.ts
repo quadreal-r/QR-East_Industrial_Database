@@ -20,7 +20,7 @@ export type AdvFilterValue = 'any' | 'yes' | 'no'
 
 export type CostBasis = 'hyb' | 'std'
 
-export type ImageryModeId = 'google' | 'esri' | 'usgs'
+export type ImageryModeId = 'google' | 'esri'
 
 export interface LatLng {
   lat: number
@@ -64,6 +64,8 @@ export interface Building {
   mapZoom?: number | null
   mapHeading?: number | null
   mapTilt?: number | null
+  /** Saved imagery provider: google or esri. */
+  mapImageryMode?: ImageryModeId | null
   rtus?: Rtu[]
 }
 
@@ -120,10 +122,21 @@ export interface FilterState {
   dq: DqFilterState
 }
 
+export interface PortfolioMapViewFields {
+  mapLat: number | null
+  mapLng: number | null
+  mapZoom: number | null
+  mapHeading: number | null
+  mapTilt: number | null
+  mapImageryMode: ImageryModeId | null
+}
+
 export interface PortfolioData {
   buildings: Building[]
   utilities: Utility[]
   polygons: Polygon[]
+  /** Saved map cameras keyed by `${park}|${cluster}|${manager}`. */
+  portfolioMapViews?: Record<string, PortfolioMapViewFields>
 }
 
 export interface ImageryMode {
@@ -179,6 +192,7 @@ export function normalizeBuilding(building: Building): Building {
 export function normalizePortfolioData(portfolio: PortfolioData): PortfolioData {
   return {
     ...portfolio,
+    portfolioMapViews: portfolio.portfolioMapViews ?? {},
     buildings: portfolio.buildings.map(normalizeBuilding),
   }
 }

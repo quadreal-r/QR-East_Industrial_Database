@@ -424,7 +424,7 @@ function AddMarkerForm({
           style={{ width: '100%' }}
         />
       </label>
-      {error ? <p style={{ color: '#f87171', fontSize: 11 }}>{error}</p> : null}
+      {error ? <p className={styles.error}>{error}</p> : null}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button type="button" className="btn-action" onClick={handleCancel}>Cancel</button>
         <button

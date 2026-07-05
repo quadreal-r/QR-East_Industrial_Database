@@ -217,7 +217,7 @@ export function UserAdminSettings({ open, onClose }: UserAdminSettingsProps) {
         </select>
 
         {usersQuery.isError ? (
-          <p className={styles.mgrFieldLabel} style={{ textTransform: 'none', letterSpacing: 0, fontSize: 11, color: '#f87171' }}>
+          <p className={styles.pwMismatch}>
             {usersQuery.error instanceof Error ? usersQuery.error.message : 'Could not load users'}
           </p>
         ) : null}

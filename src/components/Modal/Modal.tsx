@@ -8,6 +8,9 @@ export interface ModalProps {
   children: ReactNode
   align?: 'center' | 'right'
   width?: number | string
+  /** When set, shows a back control in the header (e.g. settings sub-pages). */
+  onBack?: () => void
+  backLabel?: string
   /** When true, overlay click, Escape, and the close button do nothing. */
   preventClose?: boolean
 }
@@ -19,6 +22,8 @@ export function Modal({
   children,
   align = 'center',
   width = 400,
+  onBack,
+  backLabel = 'Back',
   preventClose = false,
 }: ModalProps) {
   useEffect(() => {
@@ -51,7 +56,14 @@ export function Modal({
       <div className={styles.panel} style={panelStyle} role="dialog" aria-modal="true">
         {title ? (
           <header className={styles.header}>
-            <h2 className={styles.title}>{title}</h2>
+            <div className={styles.headerStart}>
+              {onBack ? (
+                <button type="button" className={styles.back} onClick={onBack} aria-label={backLabel}>
+                  ←
+                </button>
+              ) : null}
+              <h2 className={styles.title}>{title}</h2>
+            </div>
             <button
               type="button"
               className={styles.close}

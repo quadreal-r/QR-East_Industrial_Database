@@ -1,4 +1,4 @@
-import type { Building } from '@/types/domain'
+import type { Building, ImageryModeId } from '@/types/domain'
 
 /** A fully-specified saved map camera for a building. */
 export interface SavedMapView {
@@ -7,6 +7,7 @@ export interface SavedMapView {
   zoom: number
   heading: number
   tilt: number
+  imageryMode: ImageryModeId | null
 }
 
 /**
@@ -14,15 +15,28 @@ export interface SavedMapView {
  * Tilt defaults to 0 (north-up flat) when absent.
  */
 export function getBuildingSavedView(
-  building: Pick<Building, 'mapLat' | 'mapLng' | 'mapZoom' | 'mapHeading' | 'mapTilt'>,
+  building: Pick<
+    Building,
+    'mapLat' | 'mapLng' | 'mapZoom' | 'mapHeading' | 'mapTilt' | 'mapImageryMode'
+  >,
 ): SavedMapView | null {
-  const { mapLat, mapLng, mapZoom, mapHeading, mapTilt } = building
+  const { mapLat, mapLng, mapZoom, mapHeading, mapTilt, mapImageryMode } = building
   if (mapLat == null || mapLng == null || mapZoom == null || mapHeading == null) return null
-  return { lat: mapLat, lng: mapLng, zoom: mapZoom, heading: mapHeading, tilt: mapTilt ?? 0 }
+  return {
+    lat: mapLat,
+    lng: mapLng,
+    zoom: mapZoom,
+    heading: mapHeading,
+    tilt: mapTilt ?? 0,
+    imageryMode: mapImageryMode ?? null,
+  }
 }
 
 export function hasBuildingSavedView(
-  building: Pick<Building, 'mapLat' | 'mapLng' | 'mapZoom' | 'mapHeading' | 'mapTilt'>,
+  building: Pick<
+    Building,
+    'mapLat' | 'mapLng' | 'mapZoom' | 'mapHeading' | 'mapTilt' | 'mapImageryMode'
+  >,
 ): boolean {
   return getBuildingSavedView(building) != null
 }

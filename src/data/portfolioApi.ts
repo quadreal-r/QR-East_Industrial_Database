@@ -1,9 +1,11 @@
 import type { Json, Tables } from '@/types/database.types'
 import type {
   Building,
+  ImageryModeId,
   LatLng,
   Polygon,
   PortfolioData,
+  PortfolioMapViewFields,
   Rtu,
   Utility,
   UtilityType,
@@ -16,6 +18,7 @@ type BuildingRow = Tables<'buildings'>
 type RtuRow = Tables<'rtus'>
 type UtilityRow = Tables<'utilities'>
 type PolygonRow = Tables<'polygons'>
+type PortfolioMapViewRow = Tables<'portfolio_map_views'>
 
 function rowToRtu(row: RtuRow): Rtu {
   return {
@@ -54,6 +57,7 @@ function rowToBuilding(row: BuildingRow, rtus: RtuRow[]): Building {
     mapZoom: row.map_zoom,
     mapHeading: row.map_heading,
     mapTilt: row.map_tilt,
+    mapImageryMode: parseMapImageryMode(row.map_imagery_mode),
     rtus: rtus.map(rowToRtu),
   }
 }
@@ -62,13 +66,19 @@ function rowToBuilding(row: BuildingRow, rtus: RtuRow[]): Building {
  * Saved map-view columns for a building, only including keys that are explicitly set
  * so bulk imports (which omit them) never wipe an existing saved view.
  */
-function buildingMapViewPayload(building: Building): Record<string, number | null> {
-  const payload: Record<string, number | null> = {}
+function parseMapImageryMode(value: string | null | undefined): ImageryModeId | null {
+  if (value === 'google' || value === 'esri') return value
+  return null
+}
+
+function buildingMapViewPayload(building: Building): Record<string, number | string | null> {
+  const payload: Record<string, number | string | null> = {}
   if (building.mapLat !== undefined) payload.map_lat = building.mapLat
   if (building.mapLng !== undefined) payload.map_lng = building.mapLng
   if (building.mapZoom !== undefined) payload.map_zoom = building.mapZoom
   if (building.mapHeading !== undefined) payload.map_heading = building.mapHeading
   if (building.mapTilt !== undefined) payload.map_tilt = building.mapTilt
+  if (building.mapImageryMode !== undefined) payload.map_imagery_mode = building.mapImageryMode
   return payload
 }
 
@@ -93,18 +103,34 @@ function rowToPolygon(row: PolygonRow): Polygon {
   }
 }
 
+function rowToPortfolioMapView(row: PortfolioMapViewRow): [string, PortfolioMapViewFields] {
+  return [
+    row.filter_key,
+    {
+      mapLat: row.map_lat,
+      mapLng: row.map_lng,
+      mapZoom: row.map_zoom,
+      mapHeading: row.map_heading,
+      mapTilt: row.map_tilt,
+      mapImageryMode: parseMapImageryMode(row.map_imagery_mode),
+    },
+  ]
+}
+
 export async function fetchPortfolio(): Promise<PortfolioData> {
-  const [buildingsRes, rtusRes, utilitiesRes, polygonsRes] = await Promise.all([
+  const [buildingsRes, rtusRes, utilitiesRes, polygonsRes, mapViewsRes] = await Promise.all([
     supabase.from('buildings').select('*').order('address'),
     supabase.from('rtus').select('*'),
     supabase.from('utilities').select('*').order('name'),
     supabase.from('polygons').select('*').order('name'),
+    supabase.from('portfolio_map_views').select('*'),
   ])
 
   if (buildingsRes.error) throw buildingsRes.error
   if (rtusRes.error) throw rtusRes.error
   if (utilitiesRes.error) throw utilitiesRes.error
   if (polygonsRes.error) throw polygonsRes.error
+  if (mapViewsRes.error) throw mapViewsRes.error
 
   const rtusByBuilding = new Map<number, RtuRow[]>()
   for (const rtu of rtusRes.data ?? []) {
@@ -117,10 +143,15 @@ export async function fetchPortfolio(): Promise<PortfolioData> {
     rowToBuilding(row, rtusByBuilding.get(row.id) ?? []),
   )
 
+  const portfolioMapViews = Object.fromEntries(
+    (mapViewsRes.data ?? []).map(rowToPortfolioMapView),
+  )
+
   return normalizePortfolioData({
     buildings,
     utilities: (utilitiesRes.data ?? []).map(rowToUtility),
     polygons: (polygonsRes.data ?? []).map(rowToPolygon),
+    portfolioMapViews,
   })
 }
 
@@ -186,6 +217,7 @@ export interface BuildingMapView {
   zoom: number
   heading: number
   tilt: number
+  imageryMode: ImageryModeId | null
 }
 
 /** Save (or clear when `view` is null) a building's map camera directly. */
@@ -200,10 +232,45 @@ export async function saveBuildingMapView(
         map_zoom: view.zoom,
         map_heading: view.heading,
         map_tilt: view.tilt,
+        map_imagery_mode: view.imageryMode,
       }
-    : { map_lat: null, map_lng: null, map_zoom: null, map_heading: null, map_tilt: null }
+    : {
+        map_lat: null,
+        map_lng: null,
+        map_zoom: null,
+        map_heading: null,
+        map_tilt: null,
+        map_imagery_mode: null,
+      }
 
   const { error } = await supabase.from('buildings').update(payload).eq('id', buildingId)
+  if (error) throw error
+}
+
+/** Save (or clear when `view` is null) a portfolio filter's map camera. */
+export async function savePortfolioMapView(
+  filterKey: string,
+  view: BuildingMapView | null,
+): Promise<void> {
+  if (view) {
+    const payload = {
+      filter_key: filterKey,
+      map_lat: view.lat,
+      map_lng: view.lng,
+      map_zoom: view.zoom,
+      map_heading: view.heading,
+      map_tilt: view.tilt,
+      map_imagery_mode: view.imageryMode,
+      updated_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('portfolio_map_views').upsert(payload, {
+      onConflict: 'filter_key',
+    })
+    if (error) throw error
+    return
+  }
+
+  const { error } = await supabase.from('portfolio_map_views').delete().eq('filter_key', filterKey)
   if (error) throw error
 }
 

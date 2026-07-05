@@ -32,10 +32,33 @@
   border-bottom: 1px solid var(--border, #2e6ec0);
 }
 
+.headerStart {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.back {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--accent, #7db8ff);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.back:hover {
+  color: var(--text-primary, #ffffff);
+}
+
 .title {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary, #ffffff);
+  margin: 0;
 }
 
 .close {

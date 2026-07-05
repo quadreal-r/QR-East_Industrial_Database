@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] - 2026-07-04
+
+### Added
+
+- Settings **Account** page with sign-in, passkeys, password change, and authenticator-app MFA
+- MFA challenge and password-reset modals for Supabase auth flows
+- Portfolio map views saved to Supabase for park/cluster/manager filters and the **All Buildings** view
+- Save rotation and zoom prompt after rotating the map in a filtered or all-buildings portfolio view
+- Saved satellite imagery mode (Google/Esri) on building and portfolio map views
+
+### Changed
+
+- Show **Signed in as** above the Account button on the main Settings screen
+- Make error and warning messages use high-contrast red alert callouts
+- Default Google satellite imagery to labels off; labels stay on only when toggled manually in the map control
+- Move account sign-in out of the main Settings list into the dedicated Account sub-page
+
 ## [1.4.0] - 2026-07-04
 
 ### Added

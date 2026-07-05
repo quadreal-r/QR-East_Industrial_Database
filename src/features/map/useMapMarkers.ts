@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   addAppMarkerListener,
   createAppMarker,
@@ -34,6 +34,8 @@ import {
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
 import { applySavedMapView, panToPreserveRotation } from '@/lib/mapRotation'
 import { getBuildingSavedView } from '@/lib/buildingMapView'
+import { getPortfolioSavedView } from '@/lib/portfolioMapView'
+import { imageryModeIndexFromId } from '@/lib/imageryMode'
 import {
   consumeSuppressBuildingMapFocus,
   hasPendingHardRefreshView,
@@ -82,7 +84,7 @@ import { useMarkerVisibility } from '@/features/map/useMarkerVisibility'
 import { useRtuPictureBadges } from '@/features/map/useRtuPictureBadges'
 import { useMarkerDrag } from '@/features/map/useMarkerDrag'
 import { useInfoWindowActions } from '@/features/map/useInfoWindowActions'
-import type { Building, LayerKey, Polygon, Rtu, Utility } from '@/types/domain'
+import type { Building, ImageryMode, LayerKey, Polygon, PortfolioMapViewFields, Rtu, Utility } from '@/types/domain'
 
 export interface UseMapMarkersOptions {
   map: google.maps.Map | null
@@ -90,6 +92,7 @@ export interface UseMapMarkersOptions {
   mapBuildings: Building[]
   utilities: Utility[]
   polygons: Polygon[]
+  portfolioMapViews: Record<string, PortfolioMapViewFields>
   onSelectBuilding: (building: Building) => void
   onBuildingMoved?: (building: Building, lat: number, lng: number) => void
   onDetailMoved?: (
@@ -111,6 +114,7 @@ export interface UseMapMarkersOptions {
     utilities: Utility[]
     polygons: Polygon[]
   }) => void
+  onImageryModeChange?: (mode: ImageryMode) => void
 }
 
 export function useMapMarkers({
@@ -119,12 +123,14 @@ export function useMapMarkers({
   mapBuildings,
   utilities,
   polygons,
+  portfolioMapViews,
   onSelectBuilding,
   onBuildingMoved,
   onDetailMoved,
   onDeleteDetail,
   onEditDetail,
   onGroupMoved,
+  onImageryModeChange,
 }: UseMapMarkersOptions) {
   const layers = useLayerStore((s) => s.layers)
   const search = useFilterStore((s) => s.search)
@@ -185,7 +191,7 @@ export function useMapMarkers({
   }, [])
 
   // ------------------------------------------------------------
-  const { cycleImagery } = useImageryMode(
+  const { cycleImagery, applyMode } = useImageryMode(
     map,
     imageryModeRef,
     imageryOverlayRef,
@@ -661,6 +667,10 @@ export function useMapMarkers({
       const savedView = getBuildingSavedView(entry.building)
       if (savedView) {
         applySavedMapView(map, savedView)
+        if (savedView.imageryMode) {
+          const applied = applyMode(imageryModeIndexFromId(savedView.imageryMode))
+          if (applied) onImageryModeChange?.(applied)
+        }
       } else {
         panToPreserveRotation(
           map,
@@ -678,7 +688,7 @@ export function useMapMarkers({
     }
     window.addEventListener('map:openBuilding', handler)
     return () => window.removeEventListener('map:openBuilding', handler)
-  }, [map, highlightBuilding, refreshDetailVisibility])
+  }, [map, highlightBuilding, refreshDetailVisibility, applyMode, onImageryModeChange])
 
   const visibleAddressesRef = useRef('')
 
@@ -705,8 +715,65 @@ export function useMapMarkers({
       return
     }
     visibleAddressesRef.current = fitKey
+
+    const savedPortfolioView = !currentBuilding
+      ? getPortfolioSavedView(portfolioMapViews ?? {}, { park, cluster, manager })
+      : null
+    if (savedPortfolioView) {
+      applySavedMapView(map, savedPortfolioView)
+      if (savedPortfolioView.imageryMode) {
+        const applied = applyMode(imageryModeIndexFromId(savedPortfolioView.imageryMode))
+        if (applied) onImageryModeChange?.(applied)
+      }
+      return
+    }
+
     fitAllMarkers()
-  }, [map, mapBuildings, fitAllMarkers, buildings, polygons, search, park, cluster, manager])
+  }, [
+    map,
+    mapBuildings,
+    fitAllMarkers,
+    buildings,
+    polygons,
+    search,
+    park,
+    cluster,
+    manager,
+    portfolioMapViews,
+    currentBuilding,
+    applyMode,
+    onImageryModeChange,
+  ])
+
+  const showAllBuildingsView = useCallback(() => {
+    if (!map) return
+    const filter = { park: '', cluster: '', manager: '' }
+    const addressKey = mapBuildings
+      .map((b) => b.address)
+      .sort()
+      .join('\n')
+    visibleAddressesRef.current = `|||${addressKey}`
+
+    const saved = getPortfolioSavedView(portfolioMapViews ?? {}, filter)
+    if (saved) {
+      applySavedMapView(map, saved)
+      if (saved.imageryMode) {
+        const applied = applyMode(imageryModeIndexFromId(saved.imageryMode))
+        if (applied) onImageryModeChange?.(applied)
+      }
+      refreshDetailVisibility()
+      return
+    }
+    showAllMarkers()
+  }, [
+    map,
+    mapBuildings,
+    portfolioMapViews,
+    applyMode,
+    onImageryModeChange,
+    refreshDetailVisibility,
+    showAllMarkers,
+  ])
 
   useEffect(() => {
     if (
@@ -749,6 +816,7 @@ export function useMapMarkers({
   return {
     fitAllMarkers,
     showAllMarkers,
+    showAllBuildingsView,
     cycleImagery,
     refreshDetailVisibility,
     buildingMarkersRef,

@@ -3,12 +3,11 @@ import { ImportExportButtons } from '@/features/import-export/ImportExportButton
 import { RtuPictureGpsAssign } from '@/features/settings/RtuPictureGpsAssign'
 import { RtuPricingSettings } from '@/features/settings/RtuPricingSettings'
 import { PolygonEditorSettings } from '@/features/settings/PolygonEditorSettings'
-import { UserAdminSettings } from '@/features/settings/UserAdminSettings'
+import { SettingsAccountPage } from '@/features/settings/SettingsAccountPage'
 import { RtuEditorSettings } from '@/features/settings/RtuEditorSettings'
 import { SettingsSectionLabel } from '@/features/settings/SettingsSectionLabel'
 import { SettingsToolButton } from '@/features/settings/SettingsToolButton'
 import { Modal } from '@/components/Modal/Modal'
-import { Button } from '@/components/Button/Button'
 import { APP_THEMES } from '@/lib/themes'
 import selectStyles from '@/components/Select/Select.module.css'
 import {
@@ -18,13 +17,13 @@ import {
   type ManagerSlot,
 } from '@/lib/managerNames'
 import { showToastError, showToastSuccess } from '@/lib/toast'
-import { supabaseDashboardUrl as SUPABASE_DASHBOARD_URL } from '@/lib/supabaseClient'
 import { useAuth } from '@/hooks/useAuth'
-import { useIsAppAdmin } from '@/hooks/useIsAppAdmin'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { PortfolioData } from '@/types/domain'
 import styles from './SettingsModal.module.css'
+
+type SettingsView = 'main' | 'account'
 
 export interface SettingsModalProps {
   open: boolean
@@ -150,14 +149,11 @@ function SettingsForm({
   onPortfolioPatch,
   onOpenPolygonDraw,
   onOpenAddMarker,
-  isAuthenticated,
-  onSignIn,
 }: SettingsFormProps) {
   const setThemeIndex = useSettingsStore((s) => s.setThemeIndex)
   const applyTheme = useSettingsStore((s) => s.applyTheme)
   const saveSettings = useSettingsStore((s) => s.saveSettings)
-  const { signOut, user } = useAuth()
-  const { data: isAppAdmin = false } = useIsAppAdmin()
+  const { isAuthenticated, user } = useAuth()
 
   const dragMode = useSelectionStore((s) => s.dragMode)
   const dragSelectedCount = useSelectionStore((s) => s.dragSelectedKeys.length)
@@ -168,7 +164,7 @@ function SettingsForm({
   const [pricingOpen, setPricingOpen] = useState(false)
   const [rtuEditorOpen, setRtuEditorOpen] = useState(false)
   const [polygonEditorOpen, setPolygonEditorOpen] = useState(false)
-  const [userAdminOpen, setUserAdminOpen] = useState(false)
+  const [settingsView, setSettingsView] = useState<SettingsView>('main')
 
   const managerEditorKey = useMemo(() => {
     if (!open) return 'closed'
@@ -180,6 +176,7 @@ function SettingsForm({
 
   const handleClose = useCallback(() => {
     if (uploadBusy) return
+    setSettingsView('main')
     onClose()
   }, [onClose, uploadBusy])
 
@@ -208,46 +205,26 @@ function SettingsForm({
       open={open}
       onClose={handleClose}
       preventClose={uploadBusy}
-      title="Settings"
+      title={settingsView === 'account' ? 'Account' : 'Settings'}
+      onBack={settingsView === 'account' ? () => setSettingsView('main') : undefined}
+      backLabel="Back to settings"
       width={420}
       align="right"
     >
+      {settingsView === 'account' ? (
+        <SettingsAccountPage />
+      ) : (
       <div className={styles.body}>
         <section>
-          <SettingsSectionLabel>Account</SettingsSectionLabel>
           {isAuthenticated ? (
-            <div className={styles.tools}>
-              <p className={styles.authStatus}>Signed in as {user?.email}</p>
-              {isAppAdmin ? (
-                <>
-                  <SettingsToolButton
-                    tooltip="Add or remove Supabase sign-in accounts for map editors."
-                    onClick={() => setUserAdminOpen(true)}
-                  >
-                    Manage users
-                  </SettingsToolButton>
-                  <SettingsToolButton
-                    tooltip="Open the Supabase dashboard (database, auth, and logs) in a new tab."
-                    onClick={() =>
-                      window.open(SUPABASE_DASHBOARD_URL, '_blank', 'noopener,noreferrer')
-                    }
-                  >
-                    Open Supabase dashboard ↗
-                  </SettingsToolButton>
-                </>
-              ) : null}
-              <Button type="button" variant="ghost" onClick={() => void signOut()}>
-                Sign out
-              </Button>
-            </div>
-          ) : (
-            <div className={styles.tools}>
-              <p className={styles.authStatus}>Sign in to edit map data, schedule, and pricing.</p>
-              <Button type="button" onClick={onSignIn}>
-                Sign in
-              </Button>
-            </div>
-          )}
+            <p className={styles.authStatus}>Signed in as {user?.email}</p>
+          ) : null}
+          <SettingsToolButton
+            tooltip="Sign in, password, passkeys, and two-factor authentication."
+            onClick={() => setSettingsView('account')}
+          >
+            Account
+          </SettingsToolButton>
         </section>
 
         <section>
@@ -371,6 +348,7 @@ function SettingsForm({
           </div>
         </section>
       </div>
+      )}
       <RtuPricingSettings open={pricingOpen} onClose={() => setPricingOpen(false)} />
       <RtuEditorSettings
         open={rtuEditorOpen}
@@ -384,7 +362,6 @@ function SettingsForm({
         portfolio={portfolio}
         onPortfolioPatch={onPortfolioPatch}
       />
-      <UserAdminSettings open={userAdminOpen} onClose={() => setUserAdminOpen(false)} />
     </Modal>
   )
 }

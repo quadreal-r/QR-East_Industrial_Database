@@ -61,6 +61,7 @@ export type Database = {
           lng: number
           manager: string | null
           map_heading: number | null
+          map_imagery_mode: string | null
           map_lat: number | null
           map_lng: number | null
           map_tilt: number | null
@@ -81,6 +82,7 @@ export type Database = {
           lng: number
           manager?: string | null
           map_heading?: number | null
+          map_imagery_mode?: string | null
           map_lat?: number | null
           map_lng?: number | null
           map_tilt?: number | null
@@ -101,6 +103,7 @@ export type Database = {
           lng?: number
           manager?: string | null
           map_heading?: number | null
+          map_imagery_mode?: string | null
           map_lat?: number | null
           map_lng?: number | null
           map_tilt?: number | null
@@ -139,6 +142,42 @@ export type Database = {
           id?: number
           name?: string
           paths?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      portfolio_map_views: {
+        Row: {
+          created_at: string
+          filter_key: string
+          map_heading: number | null
+          map_imagery_mode: string | null
+          map_lat: number | null
+          map_lng: number | null
+          map_tilt: number | null
+          map_zoom: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          filter_key: string
+          map_heading?: number | null
+          map_imagery_mode?: string | null
+          map_lat?: number | null
+          map_lng?: number | null
+          map_tilt?: number | null
+          map_zoom?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          filter_key?: string
+          map_heading?: number | null
+          map_imagery_mode?: string | null
+          map_lat?: number | null
+          map_lng?: number | null
+          map_tilt?: number | null
+          map_zoom?: number | null
           updated_at?: string
         }
         Relationships: []

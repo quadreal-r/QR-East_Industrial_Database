@@ -10,6 +10,8 @@ import { RtuPictureViewer } from '@/features/rtu-pictures/RtuPictureViewer'
 import { SettingsModal } from '@/features/settings/SettingsModal'
 import { Sidebar } from '@/features/sidebar/Sidebar'
 import { LoginModal } from '@/features/auth/LoginModal'
+import { ResetPasswordModal } from '@/features/auth/ResetPasswordModal'
+import { MfaChallengeModal } from '@/features/auth/MfaChallengeModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useFilteredBuildings } from '@/hooks/useFilteredBuildings'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -31,7 +33,12 @@ import { useUiStore } from '@/stores/uiStore'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import styles from './AppShell.module.css'
 
-const EMPTY_PORTFOLIO: PortfolioData = { buildings: [], utilities: [], polygons: [] }
+const EMPTY_PORTFOLIO: PortfolioData = {
+  buildings: [],
+  utilities: [],
+  polygons: [],
+  portfolioMapViews: {},
+}
 const SAVE_SUCCESS_DISPLAY_MS = 1000
 
 export function AppShell() {
@@ -44,7 +51,7 @@ export function AppShell() {
   const saveDismissTimerRef = useRef<number | null>(null)
   const { data, isLoading, isError } = usePortfolioData()
   const savePendingPortfolioMutation = useSavePendingPortfolio()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, needsPasswordRecovery } = useAuth()
   const [loginOpen, setLoginOpen] = useState(false)
 
   const persistPortfolioChange = useCallback(
@@ -260,6 +267,8 @@ export function AppShell() {
         />
       ) : null}
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <ResetPasswordModal open={needsPasswordRecovery} onClose={() => {}} />
+      <MfaChallengeModal />
       <ConfirmDialog />
     </div>
   )

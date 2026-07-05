@@ -190,7 +190,10 @@ export function BulkRtuPictureImport({ portfolio, onBusyChange }: BulkRtuPicture
                 {report.warnings.length ? (
                   <>
                     {' '}
-                    · Warnings <strong>{report.warnings.length}</strong>
+                    ·{' '}
+                    <span className={styles.importSummaryWarning}>
+                      Warnings <strong>{report.warnings.length}</strong>
+                    </span>
                   </>
                 ) : null}
               </div>
@@ -219,7 +222,7 @@ export function BulkRtuPictureImport({ portfolio, onBusyChange }: BulkRtuPicture
           ) : null}
 
           {report.warnings.length ? (
-            <details className={styles.importDetails}>
+            <details className={`${styles.importDetails} ${styles.importDetailsWarning}`} open>
               <summary>
                 {report.warnings.length} warning{report.warnings.length === 1 ? '' : 's'}
               </summary>

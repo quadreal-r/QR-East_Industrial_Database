@@ -62,16 +62,7 @@ export const IMAGERY_MODES: ImageryMode[] = [
     color: 'rgb(245, 158, 11)',
     borderColor: 'rgb(245, 158, 11)',
   },
-  {
-    id: 'usgs',
-    label: '🛰 USGS',
-    color: 'rgb(16, 185, 129)',
-    borderColor: 'rgb(16, 185, 129)',
-  },
 ]
 
 export const ESRI_TILE_URL =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-
-export const USGS_TILE_URL =
-  'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}'
