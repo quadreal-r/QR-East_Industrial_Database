@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.1] - 2026-07-05
+
+### Added
+
+- `npm run reconcile-rtu-pictures` rebuilds the picture manifest from R2 and syncs Supabase (removes rows for files deleted on Cloudflare, upserts new files)
+
+### Changed
+
+- Reconcile keeps all duplicate slot files in the manifest when rebuilding from R2
+- JSON bucket upload failure during reconcile is non-fatal when Supabase sync succeeds
+
 ## [1.6.0] - 2026-07-05
 
 ### Added

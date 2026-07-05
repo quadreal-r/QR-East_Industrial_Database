@@ -119,3 +119,94 @@ export async function upsertPictureManifestToSupabase(manifest, options = {}) {
 
   return { upserted: rows.length, rows }
 }
+
+const SUPABASE_PAGE_SIZE = 1000
+
+/** All `rtu_pictures` rows (paginated past PostgREST 1k limit). */
+export async function fetchAllPictureRows(supabase) {
+  const rows = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('rtu_pictures')
+      .select('id, building_address, rtu_name, file_name, hidden')
+      .order('id', { ascending: true })
+      .range(from, from + SUPABASE_PAGE_SIZE - 1)
+    if (error) throw error
+    if (!data?.length) break
+    rows.push(...data)
+    if (data.length < SUPABASE_PAGE_SIZE) break
+    from += SUPABASE_PAGE_SIZE
+  }
+  return rows
+}
+
+function isFileOnR2(fileName, r2FileNames) {
+  if (r2FileNames.has(fileName)) return true
+  const lower = fileName.toLowerCase()
+  for (const name of r2FileNames) {
+    if (name.toLowerCase() === lower) return true
+  }
+  return false
+}
+
+/**
+ * Align Supabase `rtu_pictures` with files that exist on R2.
+ * - Deletes rows whose file_name is not on R2 (e.g. manual Cloudflare deletes).
+ * - Upserts manifest rows (adds new R2 files, updates positions).
+ */
+export async function syncSupabasePicturesWithR2(manifest, r2FileNames, options = {}) {
+  const { dryRun = false, hiddenPath } = options
+  const r2Set = new Set(r2FileNames)
+  const supabase = createSupabaseServiceClient()
+  const existing = await fetchAllPictureRows(supabase)
+
+  const orphans = existing.filter((row) => !isFileOnR2(row.file_name, r2Set))
+
+  let deleted = 0
+  if (!dryRun) {
+    for (const row of orphans) {
+      const { error } = await supabase
+        .from('rtu_pictures')
+        .delete()
+        .eq('building_address', row.building_address)
+        .eq('rtu_name', row.rtu_name)
+        .eq('file_name', row.file_name)
+      if (error) throw error
+      deleted += 1
+    }
+  } else {
+    deleted = orphans.length
+  }
+
+  const rtuIdByKey = await loadRtuIdByKey(supabase)
+  const hiddenSet = loadHiddenPictureKeys(hiddenPath ?? DEFAULT_HIDDEN_PATH)
+  const upsertRows = buildPictureRowsFromManifest(manifest, { hiddenSet, rtuIdByKey })
+
+  let upserted = 0
+  if (!dryRun && upsertRows.length) {
+    const chunkSize = 500
+    for (let i = 0; i < upsertRows.length; i += chunkSize) {
+      const chunk = upsertRows.slice(i, i + chunkSize)
+      const { error } = await supabase.from('rtu_pictures').upsert(chunk, {
+        onConflict: 'building_address,rtu_name,file_name',
+      })
+      if (error) throw error
+      upserted += chunk.length
+    }
+  } else {
+    upserted = upsertRows.length
+  }
+
+  return {
+    deleted,
+    upserted,
+    orphans: orphans.map((r) => ({
+      building_address: r.building_address,
+      rtu_name: r.rtu_name,
+      file_name: r.file_name,
+    })),
+    supabaseBefore: existing.length,
+    r2FileCount: r2Set.size,
+  }
+}

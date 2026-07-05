@@ -18,7 +18,8 @@ function sortPictureFiles(files) {
 }
 
 /** Build `{ entries }` manifest from image basenames + portfolio RTU catalog. */
-export function buildManifestFromFileNames(fileNames, root = getProjectRoot()) {
+export function buildManifestFromFileNames(fileNames, root = getProjectRoot(), options = {}) {
+  const { keepAllFiles = false } = options
   const imageFiles = fileNames.filter(isImageFileName)
   const buildings = loadBuildingsJson(root)
   const catalog = buildRtuCatalog(buildings)
@@ -39,23 +40,25 @@ export function buildManifestFromFileNames(fileNames, root = getProjectRoot()) {
     const list = entries[key] ?? []
     if (list.includes(fileName)) continue
 
-    const sameIndex = list.find((existing) => {
-      const existingIndex = Number(
-        existing.match(/_\((\d+)\)\./)?.[1] ?? existing.match(/-(\d+)\./)?.[1] ?? 0,
-      )
-      return existingIndex === result.pictureIndex && existingIndex > 0
-    })
-    if (sameIndex) {
-      if (shouldPreferPictureFile(fileName, sameIndex)) {
-        const idx = list.indexOf(sameIndex)
-        list[idx] = fileName
-        entries[key] = sortPictureFiles(list)
-        slotConflicts.push({ fileName: sameIndex, key, index: result.pictureIndex, existing: fileName })
-        matched.push({ fileName, key, rtu: result.entry.rtu.name })
-      } else {
-        slotConflicts.push({ fileName, key, index: result.pictureIndex, existing: sameIndex })
+    if (!keepAllFiles) {
+      const sameIndex = list.find((existing) => {
+        const existingIndex = Number(
+          existing.match(/_\((\d+)\)\./)?.[1] ?? existing.match(/-(\d+)\./)?.[1] ?? 0,
+        )
+        return existingIndex === result.pictureIndex && existingIndex > 0
+      })
+      if (sameIndex) {
+        if (shouldPreferPictureFile(fileName, sameIndex)) {
+          const idx = list.indexOf(sameIndex)
+          list[idx] = fileName
+          entries[key] = sortPictureFiles(list)
+          slotConflicts.push({ fileName: sameIndex, key, index: result.pictureIndex, existing: fileName })
+          matched.push({ fileName, key, rtu: result.entry.rtu.name })
+        } else {
+          slotConflicts.push({ fileName, key, index: result.pictureIndex, existing: sameIndex })
+        }
+        continue
       }
-      continue
     }
 
     list.push(fileName)

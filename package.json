@@ -1,7 +1,7 @@
 {
   "name": "building-map-explorer",
   "private": true,
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -35,6 +35,7 @@
     "clear-rtu-pictures": "node scripts/clear-rtu-pictures.mjs",
     "build-rtu-documents-manifest": "node scripts/build-rtu-documents-manifest.mjs",
     "reconcile-rtu-picture-manifest": "node scripts/reconcile-rtu-picture-manifest.mjs",
+    "reconcile-rtu-pictures": "node scripts/reconcile-rtu-picture-manifest.mjs --sync-supabase",
     "report-rtu-picture-gaps": "node scripts/report-rtu-picture-manifest-gaps.mjs",
     "prune-r2-pictures": "node scripts/prune-r2-pictures-by-allowlist.mjs",
     "delete-rtu-pictures-from-list": "node scripts/delete-rtu-pictures-from-list.mjs",

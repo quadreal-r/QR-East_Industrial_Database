@@ -10,6 +10,8 @@
  *   node scripts/reconcile-rtu-picture-manifest.mjs
  *   node scripts/reconcile-rtu-picture-manifest.mjs --dry-run
  *   node scripts/reconcile-rtu-picture-manifest.mjs --skip-upload
+ *   node scripts/reconcile-rtu-picture-manifest.mjs --sync-supabase
+ *   node scripts/reconcile-rtu-picture-manifest.mjs --sync-supabase --dry-run
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -27,6 +29,10 @@ import {
   uploadJsonFileToR2,
 } from './lib/r2-client.mjs'
 import { alternateCdnFileNames } from './lib/cloud-picture-filename.mjs'
+import {
+  isSupabaseServiceConfigured,
+  syncSupabasePicturesWithR2,
+} from './lib/sync-rtu-pictures-supabase.mjs'
 
 const ROOT = getProjectRoot()
 const MANIFEST_PATH = join(ROOT, 'public', 'database', 'rtu-pictures', 'manifest.json')
@@ -34,11 +40,13 @@ const MANIFEST_PATH = join(ROOT, 'public', 'database', 'rtu-pictures', 'manifest
 function parseArgs(argv) {
   let dryRun = false
   let skipUpload = false
+  let syncSupabase = false
   for (const arg of argv.slice(2)) {
     if (arg === '--dry-run') dryRun = true
     if (arg === '--skip-upload') skipUpload = true
+    if (arg === '--sync-supabase') syncSupabase = true
   }
-  return { dryRun, skipUpload }
+  return { dryRun, skipUpload, syncSupabase }
 }
 
 function normalizeBaseUrl(url) {
@@ -123,7 +131,7 @@ function printManifestStats(label, manifest) {
 
 async function main() {
   loadDotEnvLocal()
-  const { dryRun, skipUpload } = parseArgs(process.argv)
+  const { dryRun, skipUpload, syncSupabase } = parseArgs(process.argv)
 
   const cdnBase = normalizeBaseUrl(
     process.env.VITE_RTU_PICTURES_BASE_URL ?? process.env.R2_PUBLIC_URL,
@@ -199,9 +207,10 @@ async function main() {
     }
   }
 
-  const build = buildManifestFromFileNames(sourceFiles)
+  const build = buildManifestFromFileNames(sourceFiles, ROOT, { keepAllFiles: true })
   const newManifest = build.manifest
   const newNames = collectManifestFileNames(newManifest)
+  const r2ImageFiles = sourceFiles.filter(isImageFileName)
 
   console.log(`\nBuilt manifest from ${sourceLabel}`)
   console.log(`  Matched: ${build.pictureCount} picture(s) on ${build.rtuCount} RTU(s)`)
@@ -236,11 +245,50 @@ async function main() {
 
   if (dryRun) {
     console.log('\nDry run — manifest not written or uploaded.')
+    if (syncSupabase) {
+      if (!isSupabaseServiceConfigured()) {
+        console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for --sync-supabase.')
+        process.exit(1)
+      }
+      const preview = await syncSupabasePicturesWithR2(newManifest, r2ImageFiles, { dryRun: true })
+      console.log('\nSupabase sync preview (--sync-supabase):')
+      console.log(`  R2 image files: ${preview.r2FileCount}`)
+      console.log(`  Supabase rows now: ${preview.supabaseBefore}`)
+      console.log(`  Would delete (not on R2): ${preview.deleted}`)
+      console.log(`  Would upsert from manifest: ${preview.upserted}`)
+      if (preview.orphans.length) {
+        console.log('\n  Orphan samples (first 20):')
+        for (const row of preview.orphans.slice(0, 20)) {
+          console.log(`    ${row.building_address}|${row.rtu_name} → ${row.file_name}`)
+        }
+      }
+    }
     return
   }
 
   writeFileSync(MANIFEST_PATH, `${JSON.stringify(newManifest, null, 2)}\n`, 'utf8')
   console.log(`\nWrote ${MANIFEST_PATH}`)
+
+  if (syncSupabase) {
+    if (!isSupabaseServiceConfigured()) {
+      console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for --sync-supabase.')
+      process.exit(1)
+    }
+    console.log('\nSyncing Supabase rtu_pictures with R2…')
+    const sync = await syncSupabasePicturesWithR2(newManifest, r2ImageFiles)
+    console.log(`  Deleted ${sync.deleted} orphan row(s) (file not on R2)`)
+    console.log(`  Upserted ${sync.upserted} row(s) from manifest`)
+    console.log(`  Supabase before: ${sync.supabaseBefore} → after: ${sync.supabaseBefore - sync.deleted}`)
+    if (sync.orphans.length) {
+      console.log('\n  Removed from Supabase:')
+      for (const row of sync.orphans.slice(0, 20)) {
+        console.log(`    ${row.file_name}`)
+      }
+      if (sync.orphans.length > 20) {
+        console.log(`    … and ${sync.orphans.length - 20} more`)
+      }
+    }
+  }
 
   if (skipUpload) {
     console.log('Skipped JSON bucket upload (--skip-upload).')
@@ -258,10 +306,10 @@ async function main() {
     console.log('Uploaded manifest.json → Cloudflare JSON bucket')
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error(`\nJSON bucket upload failed: ${message}`)
-    console.error('Commit the updated manifest.json and fix R2 credentials, then run:')
-    console.error('  npm run upload-json-to-r2')
-    process.exit(1)
+    console.warn(`\nJSON bucket upload failed: ${message}`)
+    console.warn('Supabase and local manifest.json are updated. To upload JSON later:')
+    console.warn('  npm run upload-json-to-r2')
+    if (!syncSupabase) process.exit(1)
   }
 }
 

@@ -118,6 +118,22 @@ Deleting a picture from the map invokes the `delete-rtu-picture` Edge Function (
    npx supabase functions deploy delete-rtu-picture --project-ref wyiymdtlncperqpwriuk
    ```
 
+## RTU picture reconcile (R2 → manifest + Supabase)
+
+When files are deleted directly in the Cloudflare R2 dashboard, the live map still reads **Supabase** until metadata is reconciled.
+
+Rebuild `manifest.json` from the R2 bucket and remove orphaned `rtu_pictures` rows (files in Supabase but not on R2):
+
+```powershell
+# Preview changes
+npm run reconcile-rtu-pictures -- --dry-run
+
+# Apply: local manifest + JSON bucket + Supabase
+npm run reconcile-rtu-pictures
+```
+
+Requires R2 credentials and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Hard-refresh the app after sync.
+
 ## Regenerate TypeScript types
 
 ```powershell
