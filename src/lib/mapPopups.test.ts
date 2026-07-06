@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  bindMapPopupWheelScroll,
   closeAllMapPopups,
+  isInsideMapInfoWindow,
   MAP_CLOSE_POPUPS_EVENT,
   releaseInfoWindowCloseReset,
   shouldSuppressInfoWindowCloseReset,
@@ -24,5 +26,30 @@ describe('mapPopups close reset suppress', () => {
     closeAllMapPopups()
     expect(listener).toHaveBeenCalledTimes(1)
     window.removeEventListener(MAP_CLOSE_POPUPS_EVENT, listener)
+  })
+})
+
+describe('isInsideMapInfoWindow', () => {
+  it('detects elements inside the info window shell', () => {
+    document.body.innerHTML =
+      '<div class="gm-style-iw-c"><div class="iw-body">text</div></div><div id="map"></div>'
+    const body = document.querySelector('.iw-body')
+    const map = document.getElementById('map')
+    expect(isInsideMapInfoWindow(body)).toBe(true)
+    expect(isInsideMapInfoWindow(map)).toBe(false)
+  })
+})
+
+describe('bindMapPopupWheelScroll', () => {
+  it('stops wheel events from bubbling to the map', () => {
+    const shell = document.createElement('div')
+    document.body.appendChild(shell)
+    bindMapPopupWheelScroll(shell)
+
+    const wheel = new WheelEvent('wheel', { bubbles: true, cancelable: true })
+    const stopSpy = vi.spyOn(wheel, 'stopPropagation')
+    shell.dispatchEvent(wheel)
+    expect(stopSpy).toHaveBeenCalled()
+    document.body.removeChild(shell)
   })
 })

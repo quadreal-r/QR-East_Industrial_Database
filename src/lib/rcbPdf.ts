@@ -287,6 +287,28 @@ function addByUnitSizeSection(doc: jsPDF, presentation: RcbPresentation): void {
   })
 }
 
+function addPricingSection(doc: jsPDF, presentation: RcbPresentation): void {
+  doc.addPage('a4', presentation.pricing.years.length > 4 ? 'landscape' : 'portrait')
+  addPageHeader(doc, 'RTU Pricing by Tonnage', presentation)
+  let y = PAGE_MARGIN + 22
+  y = addSectionTitle(doc, y, 'RTU Pricing by Tonnage', `Pricing basis: ${presentation.pricing.basisLabel}`)
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+    head: [['Unit Size', ...presentation.pricing.years.map((year) => `${year} (CAD)`)]],
+    body: presentation.pricing.rows.map((row) => [
+      row.label,
+      ...presentation.pricing.years.map((year) => formatMoney(row.costsByYear[year] ?? 0)),
+    ]),
+    styles: { fontSize: presentation.pricing.years.length > 4 ? 7 : 8.5, cellPadding: 2.5 },
+    headStyles: { fillColor: HEADER_COLOR, textColor: 255 },
+    columnStyles: Object.fromEntries(
+      presentation.pricing.years.map((_, index) => [index + 1, { halign: 'right' as const }]),
+    ),
+  })
+}
+
 function addAllUnitsSection(doc: jsPDF, presentation: RcbPresentation): void {
   doc.addPage('a4', 'landscape')
   addPageHeader(doc, 'All Units — Full Detail', presentation)
@@ -374,6 +396,7 @@ export function exportRcbPdf(
   addByBuildingSection(doc, presentation)
   addCostOfWaitingSection(doc, presentation)
   addByUnitSizeSection(doc, presentation)
+  addPricingSection(doc, presentation)
   addAllUnitsSection(doc, presentation)
   addPageNumbers(doc)
 

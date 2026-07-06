@@ -9,6 +9,7 @@ import {
   isRtuFlaggedForReview,
   presentationToByBuildingRows,
   presentationToDashboardRows,
+  presentationToPricingRows,
   rcbShareBar,
 } from '@/lib/rcbPresentation'
 import { normalizeLegacyBuilding, type LegacyBuildingJson } from '@/types/domain'
@@ -84,6 +85,12 @@ describe('buildRcbPresentation', () => {
       'Units',
       'Cost (CAD)',
     ])
+    const pricingRows = presentationToPricingRows(presentation)
+    expect(pricingRows[0]?.[0]).toBe('RTU Pricing by Tonnage')
+    expect(pricingRows[3]?.[0]).toBe('Unit Size')
+    expect(pricingRows[3]?.length).toBeGreaterThan(1)
+    expect(String(pricingRows[4]?.[1] ?? '')).toMatch(/^\$[\d,]+$/)
+    expect(presentation.pricing.rows.length).toBeGreaterThan(0)
     expect(presentation.totals.units).toBeGreaterThan(0)
     expect(presentation.buildings.length).toBeGreaterThan(0)
     expect(presentation.unitSizes.length).toBeGreaterThan(0)

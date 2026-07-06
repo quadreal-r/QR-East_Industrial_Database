@@ -127,7 +127,7 @@ function PolygonEditorForm({
   return (
     <div className={styles.body}>
       <p className={styles.mgrFieldLabel} style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12 }}>
-        Edit vertex points here or use Edit Multiple Positions to move polygons on the map.
+        Edit vertex points on the map — click a corner, then press Delete to remove it. Double-click the polygon when done. Or use Edit Multiple Positions to move polygons on the map.
       </p>
 
       <label className={styles.mgrFieldLabel} htmlFor="polygon-editor-search">

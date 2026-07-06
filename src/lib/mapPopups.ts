@@ -22,6 +22,34 @@ export function closeAllMapPopups(): void {
   window.dispatchEvent(new CustomEvent(MAP_CLOSE_POPUPS_EVENT))
 }
 
+/** True when the event target is inside a Google Maps info window popup. */
+export function isInsideMapInfoWindow(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  return Boolean(target.closest('.gm-style-iw-c, .gm-style-iw'))
+}
+
+/** Keep mouse-wheel scrolling on the popup instead of zooming the map. */
+export function bindMapPopupWheelScroll(
+  container: Element,
+  options: { signal?: AbortSignal } = {},
+): void {
+  const onWheel: EventListener = (event) => {
+    event.stopPropagation()
+  }
+  container.addEventListener('wheel', onWheel, { passive: false, signal: options.signal })
+}
+
+/** After an InfoWindow opens, block wheel events from reaching the map zoom handlers. */
+export function bindMapPopupWheelScrollFromInfoWindow(
+  infoWindow: google.maps.InfoWindow,
+  map: google.maps.Map,
+): void {
+  google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+    const shell = map.getDiv().querySelector('.gm-style-iw-c')
+    if (shell) bindMapPopupWheelScroll(shell)
+  })
+}
+
 /** Pan the map so an InfoWindow opened with disableAutoPan stays fully on screen. */
 export function ensureInfoWindowVisible(
   map: google.maps.Map,

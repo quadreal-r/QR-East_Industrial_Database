@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.1] - 2026-07-06
+
+### Added
+
+- RTU pricing per tonnage sheet in replacement cost Excel and PDF exports
+- Delete polygon vertices by selecting a point and pressing Delete or Backspace
+
+### Fixed
+
+- Stop map zoom when scrolling to the end of an address or info popup
+
 ## [1.7.0] - 2026-07-06
 
 ### Added

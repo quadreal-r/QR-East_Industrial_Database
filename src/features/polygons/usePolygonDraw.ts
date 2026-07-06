@@ -6,6 +6,8 @@ import {
   setAppMarkerPosition,
   type AppMapMarker,
 } from '@/lib/appMapMarker'
+import { bindPointListDelete, bindPolygonVertexDelete } from '@/lib/polygonVertexEdit'
+import { showToastError } from '@/lib/toast'
 import type { LatLng } from '@/types/domain'
 
 export interface UsePolygonDrawOptions {
@@ -13,14 +15,14 @@ export interface UsePolygonDrawOptions {
   color: string
 }
 
-function pointMarkerIcon(color: string): google.maps.Symbol {
+function pointMarkerIcon(color: string, selected = false): google.maps.Symbol {
   return {
     path: google.maps.SymbolPath.CIRCLE,
-    scale: 6,
-    fillColor: color,
+    scale: selected ? 8 : 6,
+    fillColor: selected ? '#fbbf24' : color,
     fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWeight: 2,
+    strokeColor: selected ? '#ffffff' : '#ffffff',
+    strokeWeight: selected ? 3 : 2,
   }
 }
 
@@ -38,11 +40,33 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
   const [points, setPoints] = useState<LatLng[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
   const [shapeEditActive, setShapeEditActive] = useState(false)
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null)
   const polylineRef = useRef<google.maps.Polyline | null>(null)
   const shapePolyRef = useRef<google.maps.Polygon | null>(null)
   const shapeListenersRef = useRef<google.maps.MapsEventListener[]>([])
   const pointMarkersRef = useRef<AppMapMarker[]>([])
+  const pointMarkerListenersRef = useRef<google.maps.MapsEventListener[]>([])
   const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null)
+  const vertexDeleteCleanupRef = useRef<(() => void) | null>(null)
+  const pointDeleteCleanupRef = useRef<(() => void) | null>(null)
+  const selectedPointIndexRef = useRef<number | null>(null)
+
+  const clearPointMarkerListeners = useCallback(() => {
+    for (const listener of pointMarkerListenersRef.current) {
+      listener.remove()
+    }
+    pointMarkerListenersRef.current = []
+  }, [])
+
+  const clearVertexDeleteBinding = useCallback(() => {
+    vertexDeleteCleanupRef.current?.()
+    vertexDeleteCleanupRef.current = null
+  }, [])
+
+  const clearPointDeleteBinding = useCallback(() => {
+    pointDeleteCleanupRef.current?.()
+    pointDeleteCleanupRef.current = null
+  }, [])
 
   const clearPreviewLines = useCallback(() => {
     polylineRef.current?.setMap(null)
@@ -50,11 +74,12 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
   }, [])
 
   const clearPointMarkers = useCallback(() => {
+    clearPointMarkerListeners()
     for (const marker of pointMarkersRef.current) {
       setAppMarkerMap(marker, null)
     }
     pointMarkersRef.current = []
-  }, [])
+  }, [clearPointMarkerListeners])
 
   const stopListeners = useCallback(() => {
     setIsDrawing(false)
@@ -63,6 +88,7 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
   }, [])
 
   const clearShapePolygon = useCallback(() => {
+    clearVertexDeleteBinding()
     for (const listener of shapeListenersRef.current) {
       listener.remove()
     }
@@ -74,11 +100,16 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
       shapePolyRef.current = null
     }
     setShapeEditActive(false)
-  }, [])
+  }, [clearVertexDeleteBinding])
+
+  useEffect(() => {
+    selectedPointIndexRef.current = selectedPointIndex
+  }, [selectedPointIndex])
 
   const syncPointMarkers = useCallback(
-    (nextPoints: LatLng[]) => {
+    (nextPoints: LatLng[], selectedIndex: number | null) => {
       if (!map) return
+      clearPointMarkerListeners()
       while (pointMarkersRef.current.length > nextPoints.length) {
         const removed = pointMarkersRef.current.pop()
         if (removed) setAppMarkerMap(removed, null)
@@ -90,18 +121,25 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
             map,
             position: point,
             zIndex: 55,
-            clickable: false,
-            icon: pointMarkerIcon(color),
+            clickable: true,
+            icon: pointMarkerIcon(color, index === selectedIndex),
           })
           pointMarkersRef.current[index] = marker
-          return
+        } else {
+          setAppMarkerPosition(marker, point.lat, point.lng)
+          setAppMarkerIcon(marker, pointMarkerIcon(color, index === selectedIndex))
+          setAppMarkerMap(marker, map)
         }
-        setAppMarkerPosition(marker, point.lat, point.lng)
-        setAppMarkerIcon(marker, pointMarkerIcon(color))
-        setAppMarkerMap(marker, map)
+
+        pointMarkerListenersRef.current.push(
+          marker.addListener('click', (e: google.maps.MapMouseEvent) => {
+            e.stop?.()
+            setSelectedPointIndex(index)
+          }),
+        )
       })
     },
-    [color, map],
+    [clearPointMarkerListeners, color, map],
   )
 
   const syncPointsFromShape = useCallback(() => {
@@ -161,8 +199,17 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
 
       setShapeEditActive(true)
       setPoints(nextPoints)
+      setSelectedPointIndex(null)
+
+      clearVertexDeleteBinding()
+      vertexDeleteCleanupRef.current = bindPolygonVertexDelete(poly, {
+        onVerticesChanged: syncPointsFromShape,
+        onMinVerticesBlocked: () => {
+          showToastError('Polygon needs at least 3 points.')
+        },
+      })
     },
-    [attachShapeListeners, clearPointMarkers, clearPreviewLines, color, map, stopListeners],
+    [attachShapeListeners, clearPointMarkers, clearPreviewLines, clearVertexDeleteBinding, color, map, stopListeners, syncPointsFromShape],
   )
 
   const updatePreview = useCallback(
@@ -175,7 +222,7 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
       }
 
       clearShapePolygon()
-      syncPointMarkers(nextPoints)
+      syncPointMarkers(nextPoints, selectedPointIndexRef.current)
       clearPreviewLines()
       if (nextPoints.length > 1) {
         polylineRef.current = new google.maps.Polyline({
@@ -193,11 +240,21 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
 
   const reset = useCallback(() => {
     stopListeners()
+    clearPointDeleteBinding()
+    clearVertexDeleteBinding()
     clearShapePolygon()
     setPoints([])
+    setSelectedPointIndex(null)
     clearPreviewLines()
     clearPointMarkers()
-  }, [clearPointMarkers, clearPreviewLines, clearShapePolygon, stopListeners])
+  }, [
+    clearPointDeleteBinding,
+    clearPointMarkers,
+    clearPreviewLines,
+    clearShapePolygon,
+    clearVertexDeleteBinding,
+    stopListeners,
+  ])
 
   const startDrawing = useCallback(() => {
     if (!map) return
@@ -231,10 +288,34 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
       return
     }
     if (points.length > 0 && points.length < 3) {
-      syncPointMarkers(points)
+      syncPointMarkers(points, selectedPointIndex)
       polylineRef.current?.setOptions({ strokeColor: color })
     }
-  }, [color, points, shapeEditActive, syncPointMarkers])
+  }, [color, points, selectedPointIndex, shapeEditActive, syncPointMarkers])
+
+  useEffect(() => {
+    clearPointDeleteBinding()
+    if (!isDrawing || shapeEditActive || points.length === 0) return
+
+    pointDeleteCleanupRef.current = bindPointListDelete({
+      isActive: () => isDrawing && !shapeEditActive,
+      getSelectedIndex: () => selectedPointIndexRef.current,
+      clearSelectedIndex: () => setSelectedPointIndex(null),
+      getPointCount: () => points.length,
+      removeSelectedPoint: () => {
+        const index = selectedPointIndexRef.current
+        if (index == null) return
+        setPoints((prev) => {
+          const updated = prev.filter((_, pointIndex) => pointIndex !== index)
+          updatePreview(updated)
+          return updated
+        })
+      },
+      minPoints: 1,
+    })
+
+    return clearPointDeleteBinding
+  }, [clearPointDeleteBinding, isDrawing, points.length, shapeEditActive, updatePreview])
 
   useEffect(() => () => reset(), [reset])
 

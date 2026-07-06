@@ -6,7 +6,8 @@ import {
   type RcbScheduledLineItem,
   type RcbTierAggregate,
 } from '@/lib/costEstimator'
-import type { RcbPricingTable } from '@/lib/costEstimator.pricing'
+import type { CostBasis } from '@/types/domain'
+import { RCB_YEARS, type RcbPricingTable } from '@/lib/costEstimator.pricing'
 import { DEFAULT_RCB_PRICING } from '@/lib/costEstimator.pricing'
 
 /** RTU names flagged redundant, disconnected, or do-not-replace in presentation exports. */
@@ -82,6 +83,24 @@ export interface RcbUnitSizeRow {
   total: number
 }
 
+export interface RcbPricingTierRow {
+  label: string
+  costsByYear: Record<string, number>
+}
+
+export interface RcbPricingSection {
+  basis: CostBasis
+  basisLabel: string
+  years: string[]
+  rows: RcbPricingTierRow[]
+}
+
+export function rcbPricingBasisLabel(basis: CostBasis): string {
+  return basis === 'hyb'
+    ? 'Hybrid Lennox (all-in installed)'
+    : 'Standard Efficiency / Lennox Xion (all-in installed)'
+}
+
 export interface RcbPresentation {
   scopeLabel: string
   preparedDate: string
@@ -89,6 +108,8 @@ export interface RcbPresentation {
   defaultYear: string
   threshold: number
   hasCustomSchedule: boolean
+  basis: CostBasis
+  pricing: RcbPricingSection
   totals: {
     bldgCount: number
     units: number
@@ -157,6 +178,31 @@ function buildUnitSizeRows(tiers: RcbTierAggregate[]): RcbUnitSizeRow[] {
     }))
 }
 
+function buildPricingSection(
+  pricingTable: RcbPricingTable,
+  basis: CostBasis,
+): RcbPricingSection {
+  const years = RCB_YEARS[basis] ?? []
+  const rows: RcbPricingTierRow[] = pricingTable.tiers.map((tier) => {
+    const unit = pricingTable.pricing[String(tier)]
+    const costsByYear: Record<string, number> = {}
+    for (const year of years) {
+      const cost = unit?.[basis]?.[year]
+      costsByYear[year] = cost != null ? Math.round(cost) : 0
+    }
+    return {
+      label: unit?.l ?? `${tier} Ton`,
+      costsByYear,
+    }
+  })
+  return {
+    basis,
+    basisLabel: rcbPricingBasisLabel(basis),
+    years,
+    rows,
+  }
+}
+
 /** Build structured presentation data shared by Excel and PDF exports. */
 export function buildRcbPresentation(
   result: RcbComputeResult,
@@ -206,6 +252,8 @@ export function buildRcbPresentation(
     defaultYear: scheduled.defaultYear,
     threshold: result.threshold,
     hasCustomSchedule,
+    basis: result.basis,
+    pricing: buildPricingSection(pricingTable, result.basis),
     totals: {
       bldgCount: scheduled.totals.bldgCount,
       units: scheduled.totals.units,
@@ -272,6 +320,25 @@ export function presentationToDashboardRows(p: RcbPresentation): unknown[][] {
     rows.push([row.park, row.manager, row.units, formatMoney(row.cost), formatPercent(row.share)])
   }
   rows.push(['TOTAL', '', T.units, formatMoney(T.cost), T.cost ? formatPercent(1) : ''])
+
+  return rows
+}
+
+export function presentationToPricingRows(p: RcbPresentation): unknown[][] {
+  const { pricing } = p
+  const rows: unknown[][] = [
+    ['RTU Pricing by Tonnage'],
+    [`Pricing basis: ${pricing.basisLabel}`],
+    [],
+    ['Unit Size', ...pricing.years.map((year) => `${year} (CAD)`)],
+  ]
+
+  for (const row of pricing.rows) {
+    rows.push([
+      row.label,
+      ...pricing.years.map((year) => formatMoney(row.costsByYear[year] ?? 0)),
+    ])
+  }
 
   return rows
 }

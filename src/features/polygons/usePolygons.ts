@@ -12,10 +12,11 @@ import { MAP_DETAIL_ZOOM } from '@/lib/constants'
 import { afterMapViewChange, panToPreserveRotation } from '@/lib/mapRotation'
 import { consumeMapClickClearSuppression, isSelectionAdditiveClick, registerMarqueeTarget, suppressMapClickClearOnce, unregisterMarqueeTarget } from '@/lib/mapMarqueeSelect'
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
-import { closeAllMapPopups, ensureInfoWindowVisible, MAP_CLOSE_POPUPS_EVENT } from '@/lib/mapPopups'
+import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScrollFromInfoWindow, MAP_CLOSE_POPUPS_EVENT } from '@/lib/mapPopups'
 import { buildPolygonInfoHtml } from '@/lib/mapInfoWindow'
 import { buildingForPolygon } from '@/lib/polygonBuildings'
-import { showToastSuccess } from '@/lib/toast'
+import { bindPolygonVertexDelete } from '@/lib/polygonVertexEdit'
+import { showToastError, showToastSuccess } from '@/lib/toast'
 import { useLayerStore } from '@/stores/layerStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { Building, Polygon, Utility } from '@/types/domain'
@@ -80,6 +81,7 @@ export function usePolygons({
   const infoPolyRef = useRef<google.maps.Polygon | null>(null)
   const editingRef = useRef<{ poly: google.maps.Polygon; data: Polygon } | null>(null)
   const editDblListenerRef = useRef<google.maps.MapsEventListener | null>(null)
+  const editVertexDeleteRef = useRef<(() => void) | null>(null)
   const resolveGroupKeys = useCallback((anchorKey: string) => {
     const selected = useSelectionStore.getState().dragSelectedKeys
     if (selected.length > 0 && selected.includes(anchorKey)) return selected
@@ -157,6 +159,8 @@ export function usePolygons({
       google.maps.event.removeListener(editDblListenerRef.current)
       editDblListenerRef.current = null
     }
+    editVertexDeleteRef.current?.()
+    editVertexDeleteRef.current = null
   }, [])
 
   const stopEdit = useCallback(
@@ -180,14 +184,27 @@ export function usePolygons({
       if (editingRef.current) stopEdit({ silent: true })
       editingRef.current = { poly, data }
       poly.setEditable(true)
-      showToastSuccess('Edit mode — drag vertices. Double-click the polygon when done.')
+      showToastSuccess(
+        'Edit mode — drag vertices. Click a point, then press Delete to remove it. Double-click when done.',
+      )
+
+      editVertexDeleteRef.current = bindPolygonVertexDelete(poly, {
+        onVerticesChanged: () => {
+          const entry = editingRef.current
+          if (!entry) return
+          entry.data = syncPaths(entry.poly, entry.data)
+        },
+        onMinVerticesBlocked: () => {
+          showToastError('Polygon needs at least 3 points.')
+        },
+      })
 
       editDblListenerRef.current = poly.addListener('dblclick', (e: google.maps.MapMouseEvent) => {
         e.stop()
         stopEdit()
       })
     },
-    [stopEdit],
+    [stopEdit, syncPaths],
   )
 
   const openPopup = useCallback(
@@ -226,6 +243,7 @@ export function usePolygons({
         description: data.description ?? '',
       })
       infoWindowRef.current.open({ map, shouldFocus: false })
+      bindMapPopupWheelScrollFromInfoWindow(infoWindowRef.current, map)
       ensureInfoWindowVisible(map, infoWindowRef.current)
       afterMapViewChange(map)
     },

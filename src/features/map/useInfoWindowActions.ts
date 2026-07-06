@@ -17,7 +17,7 @@ import {
   copyPopupText,
 } from '@/lib/mapInfoWindow'
 import { suppressMapClickClearOnce } from '@/lib/mapMarqueeSelect'
-import { closeAllMapPopups, ensureInfoWindowVisible } from '@/lib/mapPopups'
+import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScroll } from '@/lib/mapPopups'
 import { MAP_DETAIL_ZOOM } from '@/lib/constants'
 import { afterMapViewChange, panToPreserveRotation } from '@/lib/mapRotation'
 import {
@@ -250,6 +250,9 @@ export function useInfoWindowActions(
       }
       container.addEventListener('click', keepPopupOpenOnMapClick, { signal })
       container.addEventListener('mousedown', keepPopupOpenOnMapClick, { signal })
+
+      const iwShell = container.closest('.gm-style-iw-c') ?? container
+      bindMapPopupWheelScroll(iwShell, { signal })
 
       container.querySelector('[data-iw-action="close"]')?.addEventListener(
         'click',

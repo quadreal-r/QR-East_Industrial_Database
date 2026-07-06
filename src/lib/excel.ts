@@ -26,6 +26,7 @@ import {
   presentationToByUnitSizeRows,
   presentationToCostOfWaitingRows,
   presentationToDashboardRows,
+  presentationToPricingRows,
   rcbExportFilenameBase,
 } from '@/lib/rcbPresentation'
 import type { RcbPricingTable } from '@/lib/costEstimator.pricing'
@@ -680,6 +681,11 @@ export function exportRcbExcel(
   )
   XLSX.utils.book_append_sheet(
     wb,
+    aoaToSheetWithColumnWidths(presentationToPricingRows(presentation)),
+    'RTU Pricing',
+  )
+  XLSX.utils.book_append_sheet(
+    wb,
     aoaToSheetWithColumnWidths(presentationToByBuildingRows(presentation)),
     'By Building',
   )
@@ -701,6 +707,7 @@ export function exportRcbExcel(
 
   const raw = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
   const frozen = injectFreezePanes(new Uint8Array(raw), {
+    'RTU Pricing': 3,
     'By Building': 2,
     'Cost of Waiting': 2,
     'By Unit Size': 2,

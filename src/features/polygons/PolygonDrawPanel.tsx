@@ -145,14 +145,14 @@ export function PolygonDrawPanel({ open, onClose, map, polygons = [], onSaved }:
       ? drawMode === 'snap'
         ? points.length >= 3
           ? shapeEditActive
-            ? 'Drag the shape to move it, or drag corner dots to adjust. Save when ready.'
+            ? 'Drag the shape to move it, or drag corner dots to adjust. Click a corner, then press Delete to remove it.'
             : `${points.length} corners snapped — click Save when ready.`
           : 'Drag a box around the building footprint.'
         : points.length === 0
           ? 'Click the map to place the first point.'
           : points.length < 3
-            ? `${points.length} point${points.length === 1 ? '' : 's'} — need ${3 - points.length} more.`
-            : 'Drag the shape to move it, or drag corner dots to adjust. Save when ready.'
+            ? `${points.length} point${points.length === 1 ? '' : 's'} — click a point to select it, Delete to remove. Need ${3 - points.length} more.`
+            : 'Drag the shape to move it, or drag corner dots to adjust. Click a corner, then press Delete to remove it.'
       : '')
 
   const primaryLabel =

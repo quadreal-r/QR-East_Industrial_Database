@@ -1,4 +1,5 @@
 import { MAP_EXTRA_ZOOM_LEVELS, MAP_MAX_DIGITAL_SCALE, MAP_MAX_ZOOM } from '@/lib/constants'
+import { isInsideMapInfoWindow } from '@/lib/mapPopups'
 
 export interface MapDigitalZoomOptions {
   onScaleChange?: (scale: number) => void
@@ -54,6 +55,8 @@ export function enableMapDigitalZoom(
   }
 
   const onWheel = (event: WheelEvent): void => {
+    if (isInsideMapInfoWindow(event.target)) return
+
     const zoom = map.getZoom() ?? 0
     const zoomingIn = event.deltaY < 0
     const zoomingOut = event.deltaY > 0
