@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.2] - 2026-07-06
+
+### Fixed
+
+- Widen replacement year dropdown so labels like 2026 (default) are fully visible
+
 ## [1.7.1] - 2026-07-06
 
 ### Added

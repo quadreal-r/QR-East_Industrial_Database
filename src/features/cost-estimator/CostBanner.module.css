@@ -403,11 +403,11 @@
 }
 
 .replYearTh {
-  min-width: 44px;
+  min-width: 92px;
 }
 
 .replYearTd {
-  min-width: 44px;
+  min-width: 92px;
 }
 
 .rcbYearSelect {
@@ -417,9 +417,8 @@
   border-radius: 4px;
   font-size: 10px;
   padding: 2px 4px;
-  width: 44px;
-  min-width: 44px;
-  max-width: 44px;
+  width: auto;
+  min-width: 92px;
   box-sizing: border-box;
   cursor: pointer;
 }
