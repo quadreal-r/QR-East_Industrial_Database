@@ -3,6 +3,80 @@ import { distanceFeet } from '@/lib/geo'
 
 export type PolygonBuildingIndex = Map<string, Polygon[]>
 
+export function polygonOptionKey(polygon: Pick<Polygon, 'name' | 'description'>): string {
+  return `${polygon.name}\0${polygon.description ?? ''}`
+}
+
+export function polygonEditorLabel(
+  polygon: Polygon,
+  buildingAddress: string | null,
+): string {
+  const name = polygon.name || 'Polygon'
+  if (buildingAddress) return `${name} — ${buildingAddress}`
+  if (polygon.description) return `${name} (${polygon.description.split('\n')[0]})`
+  return name
+}
+
+export function polygonMatchesSearch(
+  polygon: Polygon,
+  buildings: Building[],
+  query: string,
+): boolean {
+  const trimmed = query.trim().toLowerCase()
+  if (!trimmed) return true
+  const building = buildingForPolygon(buildings, polygon)
+  const haystack = [
+    polygon.name,
+    polygon.description,
+    building?.address,
+    building?.park,
+    building?.bu,
+    building?.cluster,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(trimmed)
+}
+
+export function resolvePolygonEditorSelection(
+  polygons: Polygon[],
+  buildings: Building[],
+  options: {
+    viewedPolygon?: { name: string; description: string } | null
+    buildingAddress?: string | null
+  },
+): string {
+  if (!polygons.length) return ''
+
+  const sorted = [...polygons].sort((a, b) =>
+    polygonEditorLabel(a, buildingForPolygon(buildings, a)?.address ?? null).localeCompare(
+      polygonEditorLabel(b, buildingForPolygon(buildings, b)?.address ?? null),
+    ),
+  )
+
+  if (options.viewedPolygon) {
+    const viewedKey = polygonOptionKey(options.viewedPolygon)
+    const viewedMatch = sorted.find((polygon) => polygonOptionKey(polygon) === viewedKey)
+    if (viewedMatch) return viewedKey
+  }
+
+  if (options.buildingAddress) {
+    const index = buildPolygonBuildingIndex(buildings, polygons)
+    const buildingPolygons = polygonsForBuilding(index, options.buildingAddress)
+    if (buildingPolygons.length) {
+      const preferred = [...buildingPolygons].sort((a, b) =>
+        polygonEditorLabel(a, options.buildingAddress!).localeCompare(
+          polygonEditorLabel(b, options.buildingAddress!),
+        ),
+      )
+      return polygonOptionKey(preferred[0]!)
+    }
+  }
+
+  return polygonOptionKey(sorted[0]!)
+}
+
 export function polygonCentroid(paths: LatLng[]): { lat: number; lng: number } {
   const lats = paths.map((p) => p.lat)
   const lngs = paths.map((p) => p.lng)

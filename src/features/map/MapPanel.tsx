@@ -771,6 +771,7 @@ export function MapPanel({
         open={polygonDrawOpen}
         onClose={handlePolygonDrawClose}
         map={map}
+        polygons={portfolio.polygons}
         onSaved={(polygon) =>
           onPortfolioPatch({ ...portfolio, polygons: [...portfolio.polygons, polygon] })
         }

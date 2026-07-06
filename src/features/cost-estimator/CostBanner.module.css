@@ -203,6 +203,18 @@
   color: #fff;
 }
 
+.rcbBtnPdf {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.rcbBtnPdf:hover {
+  border-color: #ef4444;
+  color: #fff;
+  background: #b91c1c;
+}
+
 .detail {
   display: none;
   flex: 1;
@@ -383,6 +395,21 @@
   font-style: italic;
 }
 
+.replYearTh,
+.replYearTd {
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.replYearTh {
+  min-width: 44px;
+}
+
+.replYearTd {
+  min-width: 44px;
+}
+
 .rcbYearSelect {
   background: var(--bg, #194a8d);
   border: 1px solid var(--border, #2e6ec0);
@@ -390,7 +417,10 @@
   border-radius: 4px;
   font-size: 10px;
   padding: 2px 4px;
-  min-width: 68px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  box-sizing: border-box;
   cursor: pointer;
 }
 
@@ -401,11 +431,6 @@
 
 .deferredRtuRow td {
   background: rgba(251, 191, 36, 0.08);
-}
-
-.replYearTh {
-  vertical-align: bottom;
-  min-width: 88px;
 }
 
 .sortableTh {
@@ -428,7 +453,10 @@
 
 .rcbYearFilter {
   display: block;
-  width: 100%;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  box-sizing: border-box;
   background: var(--bg, #194a8d);
   border: 1px solid var(--border, #2e6ec0);
   color: #fff;

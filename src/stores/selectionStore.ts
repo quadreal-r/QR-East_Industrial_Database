@@ -3,6 +3,7 @@ import type { Building } from '@/types/domain'
 
 interface SelectionState {
   currentBuilding: Building | null
+  viewedPolygon: { name: string; description: string } | null
   dragMode: boolean
   dragSelectedKeys: string[]
   sidebarCollapsed: boolean
@@ -10,6 +11,7 @@ interface SelectionState {
   setCurrentBuilding: (building: Building | null) => void
   selectBuilding: (building: Building) => void
   clearSelection: () => void
+  setViewedPolygon: (polygon: { name: string; description: string } | null) => void
   setDragMode: (active: boolean) => void
   toggleDragMode: () => void
   toggleDragSelect: (key: string, additive: boolean) => void
@@ -24,6 +26,7 @@ interface SelectionState {
 
 export const useSelectionStore = create<SelectionState>((set, get) => ({
   currentBuilding: null,
+  viewedPolygon: null,
   dragMode: false,
   dragSelectedKeys: [],
   sidebarCollapsed: false,
@@ -31,7 +34,9 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
 
   setCurrentBuilding: (building) => set({ currentBuilding: building }),
   selectBuilding: (building) => set({ currentBuilding: building }),
-  clearSelection: () => set({ currentBuilding: null }),
+  clearSelection: () => set({ currentBuilding: null, viewedPolygon: null }),
+
+  setViewedPolygon: (polygon) => set({ viewedPolygon: polygon }),
 
   setDragMode: (active) =>
     set({

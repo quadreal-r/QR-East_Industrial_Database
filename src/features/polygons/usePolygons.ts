@@ -221,6 +221,10 @@ export function usePolygons({
         disableAutoPan: true,
       })
       infoPolyRef.current = poly
+      useSelectionStore.getState().setViewedPolygon({
+        name: data.name,
+        description: data.description ?? '',
+      })
       infoWindowRef.current.open({ map, shouldFocus: false })
       ensureInfoWindowVisible(map, infoWindowRef.current)
       afterMapViewChange(map)
@@ -265,6 +269,10 @@ export function usePolygons({
 
     const onOpenPolygon = (e: Event) => {
       const detail = (e as CustomEvent<{ name: string; description: string }>).detail
+      useSelectionStore.getState().setViewedPolygon({
+        name: detail.name,
+        description: detail.description ?? '',
+      })
       const key = polygonKey({ name: detail.name, description: detail.description, color: '', paths: [] })
       const entry = renderedRef.current.find((r) => polygonKey(r.data) === key)
       if (!entry) return
@@ -274,6 +282,10 @@ export function usePolygons({
 
     const onEditPolygon = (e: Event) => {
       const detail = (e as CustomEvent<{ name: string; description: string }>).detail
+      useSelectionStore.getState().setViewedPolygon({
+        name: detail.name,
+        description: detail.description ?? '',
+      })
       const key = polygonKey({ name: detail.name, description: detail.description, color: '', paths: [] })
       const entry = renderedRef.current.find((r) => polygonKey(r.data) === key)
       if (!entry) return

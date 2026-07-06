@@ -9,6 +9,43 @@ export const PARK_COLORS: Record<string, string> = {
 
 export const DEFAULT_PARK_COLOR = '#3d7fff'
 
+export const DEFAULT_POLYGON_COLOR = '#60a5fa'
+
+/** Preset polygon colours used across the portfolio (matches existing tenant polygons). */
+export const POLYGON_DRAW_COLORS: ReadonlyArray<{ color: string; label: string }> = [
+  { color: '#60a5fa', label: 'Blue' },
+  { color: '#34d399', label: 'Green' },
+  { color: '#38bdf8', label: 'Sky' },
+  { color: '#a78bfa', label: 'Purple' },
+  { color: '#fb923c', label: 'Orange' },
+  { color: '#f97316', label: 'Deep orange' },
+  { color: '#facc15', label: 'Yellow' },
+  { color: '#f472b6', label: 'Pink' },
+  { color: '#fb608e', label: 'Rose' },
+]
+
+export function polygonColorOptions(existing: Array<{ color: string }> = []): string[] {
+  const seen = new Set<string>()
+  const options: string[] = []
+  for (const color of [
+    ...POLYGON_DRAW_COLORS.map((entry) => entry.color),
+    ...existing.map((polygon) => polygon.color),
+  ]) {
+    const normalized = color.trim().toLowerCase()
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    options.push(color)
+  }
+  return options
+}
+
+export function polygonColorLabel(color: string): string {
+  const match = POLYGON_DRAW_COLORS.find(
+    (entry) => entry.color.toLowerCase() === color.trim().toLowerCase(),
+  )
+  return match?.label ?? color
+}
+
 export const LAYER_COLORS: Record<LayerKey, LayerStyle> = {
   rtu: { fill: '#fbbf24', stroke: '#92400e', scale: 9 },
   polygons: { fill: '#34d399', stroke: '#065f46', scale: 6 },

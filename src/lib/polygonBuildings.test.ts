@@ -7,6 +7,9 @@ import {
   nearestBuilding,
   nearestBuildingForPolygon,
   parseSuiteImportLabel,
+  polygonMatchesSearch,
+  polygonOptionKey,
+  resolvePolygonEditorSelection,
 } from '@/lib/polygonBuildings'
 
 const bristol2320: Building = {
@@ -82,5 +85,37 @@ describe('polygonBuildings', () => {
       'Unit # 8 — 2320 Bristol Circle',
     )
     expect(parseSuiteImportLabel('Unit # 8 — 2320 Bristol Circle')).toBe('Unit # 8')
+  })
+
+  it('matches polygons by building address in editor search', () => {
+    expect(polygonMatchesSearch(mcsPolygon, [brighton2910, bristol2320], '2320 Bristol')).toBe(true)
+    expect(polygonMatchesSearch(mcsPolygon, [brighton2910, bristol2320], '2910 Brighton')).toBe(false)
+  })
+
+  it('prefers the viewed polygon, then the current building, when opening the editor', () => {
+    const otherPolygon: Polygon = {
+      name: 'Unit # 1',
+      description: 'Other tenant',
+      color: '#60a5fa',
+      paths: [
+        { lat: 43.5155779, lng: -79.6779795 },
+        { lat: 43.5156, lng: -79.6781 },
+        { lat: 43.5155, lng: -79.6779 },
+      ],
+    }
+    const polygons = [otherPolygon, mcsPolygon]
+
+    expect(
+      resolvePolygonEditorSelection(polygons, [bristol2320], {
+        viewedPolygon: { name: 'Unit # 8', description: mcsPolygon.description },
+        buildingAddress: '2910 Brighton Road',
+      }),
+    ).toBe(polygonOptionKey(mcsPolygon))
+
+    expect(
+      resolvePolygonEditorSelection([mcsPolygon], [bristol2320], {
+        buildingAddress: '2320 Bristol Circle',
+      }),
+    ).toBe(polygonOptionKey(mcsPolygon))
   })
 })

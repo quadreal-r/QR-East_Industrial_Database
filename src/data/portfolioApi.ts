@@ -356,9 +356,9 @@ export async function upsertPolygon(polygon: Polygon): Promise<Polygon> {
       .update(payload)
       .eq('id', polygon.id)
       .select('*')
-      .single()
+      .maybeSingle()
     if (error) throw error
-    return rowToPolygon(data)
+    if (data) return rowToPolygon(data)
   }
 
   const { data, error } = await supabase.from('polygons').insert(payload).select('*').single()

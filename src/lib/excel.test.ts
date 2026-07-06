@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildRtuImportDescription,
+  columnWidthsFromRows,
   formatSqftExport,
   rtuNotesForExport,
   stripCapacityRestatement,
@@ -133,5 +134,17 @@ describe('rtuNotesForExport', () => {
     ].join('\r\n')
 
     expect(rtuNotesForExport(description)).toBe('was missing from WB1')
+  })
+})
+
+describe('columnWidthsFromRows', () => {
+  it('sizes each column to the longest cell value', () => {
+    const widths = columnWidthsFromRows([
+      ['Building', 'Cost (CAD)'],
+      ['441 Courtneypark', '$891,390'],
+      ['TOTAL', '$5,877,658'],
+    ])
+    expect(widths[0]?.wch).toBeGreaterThanOrEqual('441 Courtneypark'.length)
+    expect(widths[1]?.wch).toBeGreaterThanOrEqual('Cost (CAD)'.length)
   })
 })

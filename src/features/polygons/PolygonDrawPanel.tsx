@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { showToastSuccess } from '@/lib/toast'
+import {
+  DEFAULT_POLYGON_COLOR,
+  polygonColorLabel,
+  polygonColorOptions,
+} from '@/lib/constants'
 import { usePolygonDraw } from '@/features/polygons/usePolygonDraw'
+import { usePolygonBuildingSnap } from '@/features/polygons/usePolygonBuildingSnap'
 import { useUiStore } from '@/stores/uiStore'
 import type { Polygon } from '@/types/domain'
 import styles from './PolygonDrawPanel.module.css'
@@ -9,27 +15,36 @@ export interface PolygonDrawPanelProps {
   open: boolean
   onClose: () => void
   map: google.maps.Map | null
+  polygons?: Polygon[]
   onSaved: (polygon: Polygon) => void
 }
 
 type DrawPhase = 'config' | 'drawing'
+type DrawMode = 'manual' | 'snap'
 
-export function PolygonDrawPanel({ open, onClose, map, onSaved }: PolygonDrawPanelProps) {
+export function PolygonDrawPanel({ open, onClose, map, polygons = [], onSaved }: PolygonDrawPanelProps) {
   const [phase, setPhase] = useState<DrawPhase>('config')
+  const [drawMode, setDrawMode] = useState<DrawMode>('manual')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [color, setColor] = useState('#60a5fa')
+  const [color, setColor] = useState(DEFAULT_POLYGON_COLOR)
   const [status, setStatus] = useState('')
+  const [snapLoading, setSnapLoading] = useState(false)
   const wasOpenRef = useRef(false)
 
-  const { points, startDrawing, reset } = usePolygonDraw({
-    map,
-    color,
-  })
+  const colorOptions = useMemo(() => polygonColorOptions(polygons), [polygons])
+
+  const { points, startDrawing, stopDrawing, reset, applyPoints, getCurrentPoints, shapeEditActive } =
+    usePolygonDraw({
+      map,
+      color,
+    })
 
   const resetPanel = useCallback(() => {
     setPhase('config')
+    setDrawMode('manual')
     setStatus('')
+    setSnapLoading(false)
     reset()
     useUiStore.getState().setPolygonDrawMode(false)
   }, [reset])
@@ -43,9 +58,11 @@ export function PolygonDrawPanel({ open, onClose, map, onSaved }: PolygonDrawPan
     if (open && !wasOpenRef.current) {
       setName('')
       setDescription('')
-      setColor('#60a5fa')
+      setColor(DEFAULT_POLYGON_COLOR)
+      setDrawMode('manual')
       setPhase('config')
       setStatus('')
+      setSnapLoading(false)
       reset()
     }
     wasOpenRef.current = open
@@ -60,11 +77,12 @@ export function PolygonDrawPanel({ open, onClose, map, onSaved }: PolygonDrawPan
 
   useEffect(() => {
     if (!map) return
-    map.setOptions({ draggableCursor: phase === 'drawing' ? 'crosshair' : '' })
+    const cursor = phase === 'drawing' && !shapeEditActive ? 'crosshair' : ''
+    map.setOptions({ draggableCursor: cursor })
     return () => {
       map.setOptions({ draggableCursor: '' })
     }
-  }, [map, phase])
+  }, [map, phase, shapeEditActive])
 
   useEffect(
     () => () => {
@@ -74,19 +92,27 @@ export function PolygonDrawPanel({ open, onClose, map, onSaved }: PolygonDrawPan
     [reset],
   )
 
+  usePolygonBuildingSnap({
+    map,
+    active: open && phase === 'drawing' && drawMode === 'snap' && !shapeEditActive && points.length < 3,
+    onFootprint: applyPoints,
+    onStatus: setStatus,
+    onLoadingChange: setSnapLoading,
+  })
+
   if (!open) return null
 
   const handleSave = () => {
-    if (points.length < 3) {
+    const currentPoints = getCurrentPoints()
+    if (currentPoints.length < 3) {
       setStatus('Add at least 3 points on the map.')
       return
     }
     const polygon: Polygon = {
-      id: Date.now(),
       name: name.trim() || 'Polygon',
       description: description.trim(),
       color,
-      paths: points,
+      paths: currentPoints,
     }
     onSaved(polygon)
     showToastSuccess('✓ Polygon added — save to HTML to keep it.')
@@ -100,8 +126,13 @@ export function PolygonDrawPanel({ open, onClose, map, onSaved }: PolygonDrawPan
         setStatus('Map is not ready.')
         return
       }
-      setStatus('Click the map to place each corner point.')
-      startDrawing()
+      if (drawMode === 'manual') {
+        setStatus('Click the map to place each corner point.')
+        startDrawing()
+      } else {
+        stopDrawing()
+        setStatus('Drag a box around the building on the map.')
+      }
       setPhase('drawing')
       return
     }
@@ -111,12 +142,25 @@ export function PolygonDrawPanel({ open, onClose, map, onSaved }: PolygonDrawPan
   const statusText =
     status ||
     (phase === 'drawing'
-      ? points.length === 0
-        ? 'Click the map to place the first point.'
-        : points.length < 3
-          ? `${points.length} point${points.length === 1 ? '' : 's'} — need ${3 - points.length} more.`
-          : `${points.length} points placed — adjust details if needed, then Save.`
+      ? drawMode === 'snap'
+        ? points.length >= 3
+          ? shapeEditActive
+            ? 'Drag the shape to move it, or drag corner dots to adjust. Save when ready.'
+            : `${points.length} corners snapped — click Save when ready.`
+          : 'Drag a box around the building footprint.'
+        : points.length === 0
+          ? 'Click the map to place the first point.'
+          : points.length < 3
+            ? `${points.length} point${points.length === 1 ? '' : 's'} — need ${3 - points.length} more.`
+            : 'Drag the shape to move it, or drag corner dots to adjust. Save when ready.'
       : '')
+
+  const primaryLabel =
+    phase === 'drawing'
+      ? 'Save'
+      : drawMode === 'snap'
+        ? 'Drag around building'
+        : 'Click map to add points'
 
   return (
     <div className={styles.panel} data-polygon-draw-panel="">
@@ -142,23 +186,65 @@ export function PolygonDrawPanel({ open, onClose, map, onSaved }: PolygonDrawPan
         />
         <div className={styles.colorRow}>
           <label>Colour</label>
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+          <div className={styles.colorSwatches} role="group" aria-label="Polygon colour">
+            {colorOptions.map((option) => {
+              const selected = option.toLowerCase() === color.toLowerCase()
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  className={selected ? styles.colorSwatchActive : styles.colorSwatch}
+                  style={{ backgroundColor: option }}
+                  title={polygonColorLabel(option)}
+                  aria-label={polygonColorLabel(option)}
+                  aria-pressed={selected}
+                  onClick={() => setColor(option)}
+                />
+              )
+            })}
+          </div>
         </div>
+        {phase === 'config' ? (
+          <div className={styles.modeRow}>
+            <span className={styles.modeLabel}>Draw method</span>
+            <div className={styles.modeToggle} role="group" aria-label="Polygon draw method">
+              <button
+                type="button"
+                className={drawMode === 'manual' ? styles.modeActive : undefined}
+                onClick={() => setDrawMode('manual')}
+              >
+                Click points
+              </button>
+              <button
+                type="button"
+                className={drawMode === 'snap' ? styles.modeActive : undefined}
+                onClick={() => setDrawMode('snap')}
+              >
+                Snap to building
+              </button>
+            </div>
+            <p className={styles.modeHint}>
+              {drawMode === 'snap'
+                ? 'Drag a box around a building and the outline is filled in automatically.'
+                : 'Click each corner of the area you want to outline.'}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {statusText ? <div className={styles.status}>{statusText}</div> : null}
 
       <div className={styles.actions}>
-        <button type="button" className="btn-action" onClick={handleClose}>
+        <button type="button" className="btn-action" onClick={handleClose} disabled={snapLoading}>
           Cancel
         </button>
         <button
           type="button"
           className={`btn-action ${phase === 'drawing' ? styles.saveBtn : styles.drawBtn}`}
           onClick={handlePrimary}
-          disabled={!map || (phase === 'drawing' && points.length < 3)}
+          disabled={!map || snapLoading || (phase === 'drawing' && points.length < 3)}
         >
-          {phase === 'drawing' ? 'Save' : 'Click map to add points'}
+          {primaryLabel}
         </button>
       </div>
     </div>

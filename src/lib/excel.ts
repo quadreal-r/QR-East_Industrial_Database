@@ -20,12 +20,22 @@ import { buildRtuPictureExportBundle } from '@/lib/rtuPictureExport'
 import { injectFreezePanes } from '@/lib/xlsxFreeze'
 import type { RcbComputeResult } from '@/lib/costEstimator'
 import {
-  rcbBuildScheduledExport,
-  rcbCostForTier,
-  rcbProjection,
-} from '@/lib/costEstimator'
+  buildRcbPresentation,
+  presentationToAllUnitsRows,
+  presentationToByBuildingRows,
+  presentationToByUnitSizeRows,
+  presentationToCostOfWaitingRows,
+  presentationToDashboardRows,
+  rcbExportFilenameBase,
+} from '@/lib/rcbPresentation'
 import type { RcbPricingTable } from '@/lib/costEstimator.pricing'
-import { DEFAULT_RCB_PRICING } from '@/lib/costEstimator.pricing'
+
+export {
+  formatCompactMoney,
+  formatMoney,
+  formatPercent,
+  rcbShareBar,
+} from '@/lib/rcbPresentation'
 
 const FMT_COORD = '0.0000000'
 const FMT_INT = '#,##0'
@@ -513,6 +523,34 @@ function downloadXlsx(bytes: Uint8Array, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+/** Fit column widths to the longest cell value in each column (SheetJS wch units). */
+export function columnWidthsFromRows(
+  rows: unknown[][],
+  options: { min?: number; max?: number; padding?: number } = {},
+): { wch: number }[] {
+  const min = options.min ?? 8
+  const max = options.max ?? 90
+  const padding = options.padding ?? 2
+  let colCount = 0
+  for (const row of rows) {
+    colCount = Math.max(colCount, row.length)
+  }
+  const widths = new Array<number>(colCount).fill(min)
+  for (const row of rows) {
+    row.forEach((cell, col) => {
+      const len = String(cell ?? '').length
+      widths[col] = Math.min(max, Math.max(widths[col]!, len + padding))
+    })
+  }
+  return widths.map((wch) => ({ wch }))
+}
+
+function aoaToSheetWithColumnWidths(rows: unknown[][]): XLSX.WorkSheet {
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+  ws['!cols'] = columnWidthsFromRows(rows)
+  return ws
+}
+
 function sheetToObjects(ws: XLSX.WorkSheet): Record<string, unknown>[] {
   const raw = XLSX.utils.sheet_to_json<(string | number | Date)[]>(ws, {
     header: 1,
@@ -632,168 +670,44 @@ export function exportRcbExcel(
     pricingTable?: RcbPricingTable
   } = {},
 ): void {
-  const pricingTable = options.pricingTable ?? DEFAULT_RCB_PRICING
-  const scheduled = rcbBuildScheduledExport(
-    result,
-    options.replacementYearByRtu ?? {},
-    pricingTable,
-  )
-  const T = scheduled.totals
-  const global = result.totals
-  const basisLbl =
-    result.basis === 'hyb'
-      ? 'Hybrid Lennox (all-in installed)'
-      : 'Standard Efficiency / Lennox Xion (all-in installed)'
-  const today = new Date().toISOString().slice(0, 10)
-  const hasCustomSchedule = scheduled.customizedCount > 0
-
-  const sum: unknown[][] = [
-    ['RTU Replacement Cost Estimate'],
-    ['Generated', today],
-    ['Selection (scope)', scopeLabel],
-    ['Age threshold', `≥ ${result.threshold} years (by install date)`],
-    ['Pricing basis', basisLbl],
-    ['Global replacement year (default)', scheduled.defaultYear],
-  ]
-
-  if (hasCustomSchedule) {
-    sum.push(
-      ['RTUs with custom replacement year', scheduled.customizedCount],
-      [
-        'Global estimate — all units at default year (CAD)',
-        Math.round(global.cost),
-      ],
-      ['Scheduled estimate — per-RTU replacement years (CAD)', Math.round(T.cost)],
-    )
-  }
-
-  sum.push(
-    [],
-    ['Buildings with qualifying RTUs', T.bldgCount],
-    ['Qualifying RTUs', T.units],
-    ['Average cost per unit', T.units ? Math.round(T.cost / T.units) : 0],
-    [
-      hasCustomSchedule
-        ? 'TOTAL SCHEDULED REPLACEMENT COST (CAD)'
-        : 'TOTAL ESTIMATED REPLACEMENT COST (CAD)',
-      Math.round(T.cost),
-    ],
-    [],
-    ['Aged units excluded (no rated tonnage)', result.totals.excludedOld],
-    [],
-    [
-      'Note',
-      hasCustomSchedule
-        ? 'Scheduled costs use each RTU’s assigned replacement year (see By RTU). Projection by Year still shows uniform-year scenarios for comparison.'
-        : 'Budgetary estimate only — not a vendor quote. Tonnage rounded up to nearest supplied tier (2–50 ton).',
-    ],
-  )
-
-  const bldg: unknown[][] = [
-    [
-      'Building Address',
-      'Portfolio',
-      'Cluster',
-      'Manager',
-      'Qualifying RTUs',
-      'Scheduled Replacement Cost (CAD)',
-    ],
-  ]
-  for (const r of scheduled.perBldg) {
-    bldg.push([r.address, r.park, r.cluster, r.manager, r.units, Math.round(r.cost)])
-  }
-  bldg.push(['TOTAL', '', '', '', T.units, Math.round(T.cost)])
-
-  const li: unknown[][] = [
-    [
-      'Building Address',
-      'Portfolio',
-      'Cluster',
-      'Manager',
-      'RTU',
-      'Model',
-      'Serial',
-      'Make',
-      'Suite',
-      'Installed',
-      'Age (yr)',
-      'Cooling Tons',
-      'Priced Tier',
-      'Replacement Year',
-      'Unit Cost (CAD)',
-      'vs Global Year',
-    ],
-  ]
-  for (const r of [...scheduled.items].sort((a, b) =>
-    a.address < b.address ? -1 : a.address > b.address ? 1 : a.rtu.localeCompare(b.rtu),
-  )) {
-    const globalUnitCost =
-      rcbCostForTier(r.tierKey, result.basis, scheduled.defaultYear, pricingTable) ?? r.cost
-    const vsGlobal =
-      r.replacementYear === scheduled.defaultYear ? '—' : Math.round(r.cost - globalUnitCost)
-    li.push([
-      r.address,
-      r.park,
-      r.cluster,
-      r.manager,
-      r.rtu,
-      r.model || '',
-      r.serial || '',
-      r.make || '',
-      r.suite || '',
-      r.year,
-      r.age,
-      r.tons,
-      r.tier,
-      r.replacementYear,
-      Math.round(r.cost),
-      vsGlobal,
-    ])
-  }
-
-  const tier: unknown[][] = [
-    ['Tonnage Tier', 'Avg Unit Cost (CAD)', 'Qty', 'Extended Cost (CAD)'],
-  ]
-  for (const t of scheduled.tiers) {
-    tier.push([t.label, Math.round(t.unit), t.qty, Math.round(t.ext)])
-  }
-  tier.push(['TOTAL', '', T.units, Math.round(T.cost)])
-
-  const pj = rcbProjection(result, pricingTable)
-  const proj: unknown[][] = [
-    [
-      'Replacement Year',
-      'Est. Total Cost — all units same year (CAD)',
-      `vs ${pj[0]?.year ?? ''} (CAD)`,
-    ],
-  ]
-  for (const p of pj) {
-    proj.push([p.year, Math.round(p.total), Math.round(p.total - (pj[0]?.total ?? 0))])
-  }
-  if (hasCustomSchedule) {
-    proj.push([])
-    proj.push([
-      'Scheduled mix (per-RTU years)',
-      Math.round(T.cost),
-      Math.round(T.cost - (pj.find((p) => p.year === scheduled.defaultYear)?.total ?? global.cost)),
-    ])
-  }
+  const presentation = buildRcbPresentation(result, scopeLabel, options)
 
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), 'Summary')
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bldg), 'By Building')
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(li), 'By RTU')
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tier), 'By Tonnage Tier')
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(proj), 'Projection by Year')
-
-  const safe = (scopeLabel === 'All buildings' ? 'All' : scopeLabel)
-    .replace(/[^A-Za-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 40)
-  const scheduleTag = hasCustomSchedule ? '_scheduled' : ''
-  XLSX.writeFile(
+  XLSX.utils.book_append_sheet(
     wb,
-    `RTU_Replacement_Estimate_${safe}_${scheduled.defaultYear}${scheduleTag}_${today}.xlsx`,
-    { compression: true },
+    aoaToSheetWithColumnWidths(presentationToDashboardRows(presentation)),
+    'Dashboard',
+  )
+  XLSX.utils.book_append_sheet(
+    wb,
+    aoaToSheetWithColumnWidths(presentationToByBuildingRows(presentation)),
+    'By Building',
+  )
+  XLSX.utils.book_append_sheet(
+    wb,
+    aoaToSheetWithColumnWidths(presentationToCostOfWaitingRows(presentation)),
+    'Cost of Waiting',
+  )
+  XLSX.utils.book_append_sheet(
+    wb,
+    aoaToSheetWithColumnWidths(presentationToByUnitSizeRows(presentation)),
+    'By Unit Size',
+  )
+  XLSX.utils.book_append_sheet(
+    wb,
+    aoaToSheetWithColumnWidths(presentationToAllUnitsRows(presentation)),
+    'All Units',
+  )
+
+  const raw = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const frozen = injectFreezePanes(new Uint8Array(raw), {
+    'By Building': 2,
+    'Cost of Waiting': 2,
+    'By Unit Size': 2,
+    'All Units': 2,
+  })
+  downloadXlsx(
+    frozen,
+    `${rcbExportFilenameBase(scopeLabel, presentation.defaultYear, presentation.today)}.xlsx`,
   )
 }

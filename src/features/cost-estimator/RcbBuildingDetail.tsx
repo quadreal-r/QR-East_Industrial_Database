@@ -221,7 +221,7 @@ export function RcbBuildingDetail({
                         <td className="num">{item.year ?? '—'}</td>
                         <td className="num">{item.age ?? '—'}</td>
                         <td className="num">{formatRtuTons(item.tons)}</td>
-                        <td>
+                        <td className={styles.replYearTd}>
                           <select
                             className={`${styles.rcbYearSelect}${
                               assigned || deferred ? ` ${styles.rcbYearSelectAssigned}` : ''

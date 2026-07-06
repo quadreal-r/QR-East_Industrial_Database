@@ -154,4 +154,29 @@ describe('diffPortfolio', () => {
     expect(changes.buildingsToUpdate).toHaveLength(0)
     expect(changes.buildingsToInsert).toHaveLength(0)
   })
+
+  it('treats new polygons without database ids as inserts', () => {
+    const pending: PortfolioData = {
+      ...baseline,
+      polygons: [
+        ...baseline.polygons,
+        {
+          name: 'Unit # 99',
+          description: 'New tenant',
+          color: '#60a5fa',
+          paths: [
+            { lat: 43.66, lng: -79.65 },
+            { lat: 43.661, lng: -79.65 },
+            { lat: 43.661, lng: -79.649 },
+          ],
+        },
+      ],
+    }
+
+    const changes = computePortfolioChanges(baseline, pending)
+
+    expect(changes.polygonsToUpsert).toHaveLength(1)
+    expect(changes.polygonsToUpsert[0]?.id).toBeUndefined()
+    expect(changes.polygonIdsToDelete).toHaveLength(0)
+  })
 })

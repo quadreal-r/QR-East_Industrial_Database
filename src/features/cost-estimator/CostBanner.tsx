@@ -17,6 +17,7 @@ import {
   type RcbScheduledLineItem,
 } from '@/lib/costEstimator'
 import { exportRcbExcel } from '@/lib/excel'
+import { exportRcbPdf } from '@/lib/rcbPdf'
 import { formatFilterScope } from '@/lib/format'
 import { useFilterStore } from '@/stores/filterStore'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
@@ -368,6 +369,19 @@ export function CostBanner({ buildings }: CostBannerProps) {
             title="Export this estimate to Excel"
           >
             Excel
+          </button>
+          <button
+            type="button"
+            className={`${styles.rcbBtn} ${styles.rcbBtnPdf}`}
+            onClick={() =>
+              exportRcbPdf(result, scopeLabel, {
+                replacementYearByRtu: sanitizedReplacementYearByRtu,
+                pricingTable,
+              })
+            }
+            title="Export this estimate to PDF"
+          >
+            PDF
           </button>
           <button
             type="button"

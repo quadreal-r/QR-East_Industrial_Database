@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.0] - 2026-07-06
+
+### Added
+
+- PDF export for RTU replacement cost estimates (presentation layout matching Excel)
+- Presentation-style Excel export for replacement cost with Dashboard, By Building, Cost of Waiting, By Unit Size, and All Units sheets
+- Building footprint snap when drawing tenant polygons on the map
+- Polygon editor settings for snap distance and building alignment
+
+### Changed
+
+- Format dollar amounts with $ and comma separators and show percentages with two decimals in replacement cost exports
+- Auto-size Excel export columns to fit cell content
+- Remove extra comment rows and the Share of Plan column from the replacement cost Excel report
+- Slim down replacement year dropdown fields in the building cost detail view
+- Improve polygon draw panel controls and building snap feedback
+
 ## [1.6.2] - 2026-07-05
 
 ### Added

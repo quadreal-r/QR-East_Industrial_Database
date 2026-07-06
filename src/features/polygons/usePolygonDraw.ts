@@ -24,22 +24,29 @@ function pointMarkerIcon(color: string): google.maps.Symbol {
   }
 }
 
+function readPathsFromPolygon(poly: google.maps.Polygon): LatLng[] {
+  const path = poly.getPath()
+  const paths: LatLng[] = []
+  for (let i = 0; i < path.getLength(); i++) {
+    const pt = path.getAt(i)
+    paths.push({ lat: pt.lat(), lng: pt.lng() })
+  }
+  return paths
+}
+
 export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
   const [points, setPoints] = useState<LatLng[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
+  const [shapeEditActive, setShapeEditActive] = useState(false)
   const polylineRef = useRef<google.maps.Polyline | null>(null)
-  const closingLineRef = useRef<google.maps.Polyline | null>(null)
-  const fillPreviewRef = useRef<google.maps.Polygon | null>(null)
+  const shapePolyRef = useRef<google.maps.Polygon | null>(null)
+  const shapeListenersRef = useRef<google.maps.MapsEventListener[]>([])
   const pointMarkersRef = useRef<AppMapMarker[]>([])
   const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null)
 
   const clearPreviewLines = useCallback(() => {
     polylineRef.current?.setMap(null)
     polylineRef.current = null
-    closingLineRef.current?.setMap(null)
-    closingLineRef.current = null
-    fillPreviewRef.current?.setMap(null)
-    fillPreviewRef.current = null
   }, [])
 
   const clearPointMarkers = useCallback(() => {
@@ -47,6 +54,26 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
       setAppMarkerMap(marker, null)
     }
     pointMarkersRef.current = []
+  }, [])
+
+  const stopListeners = useCallback(() => {
+    setIsDrawing(false)
+    clickListenerRef.current?.remove()
+    clickListenerRef.current = null
+  }, [])
+
+  const clearShapePolygon = useCallback(() => {
+    for (const listener of shapeListenersRef.current) {
+      listener.remove()
+    }
+    shapeListenersRef.current = []
+    if (shapePolyRef.current) {
+      shapePolyRef.current.setEditable(false)
+      shapePolyRef.current.setDraggable(false)
+      shapePolyRef.current.setMap(null)
+      shapePolyRef.current = null
+    }
+    setShapeEditActive(false)
   }, [])
 
   const syncPointMarkers = useCallback(
@@ -77,9 +104,77 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
     [color, map],
   )
 
+  const syncPointsFromShape = useCallback(() => {
+    if (!shapePolyRef.current) return
+    setPoints(readPathsFromPolygon(shapePolyRef.current))
+  }, [])
+
+  const attachShapeListeners = useCallback(
+    (poly: google.maps.Polygon) => {
+      for (const listener of shapeListenersRef.current) {
+        listener.remove()
+      }
+      const path = poly.getPath()
+      shapeListenersRef.current = [
+        path.addListener('set_at', syncPointsFromShape),
+        path.addListener('insert_at', syncPointsFromShape),
+        path.addListener('remove_at', syncPointsFromShape),
+        poly.addListener('drag', syncPointsFromShape),
+        poly.addListener('dragend', syncPointsFromShape),
+      ]
+    },
+    [syncPointsFromShape],
+  )
+
+  const mountShapePolygon = useCallback(
+    (nextPoints: LatLng[], options?: { keepClickListener?: boolean }) => {
+      if (!map || nextPoints.length < 3) return
+
+      if (!options?.keepClickListener) {
+        stopListeners()
+      }
+      clearPreviewLines()
+      clearPointMarkers()
+
+      let poly = shapePolyRef.current
+      if (!poly) {
+        poly = new google.maps.Polygon({
+          paths: nextPoints,
+          strokeColor: color,
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          fillColor: color,
+          fillOpacity: 0.15,
+          map,
+          zIndex: 50,
+          draggable: true,
+          editable: true,
+        })
+        shapePolyRef.current = poly
+        attachShapeListeners(poly)
+      } else {
+        poly.setPath(nextPoints)
+        poly.setMap(map)
+        poly.setDraggable(true)
+        poly.setEditable(true)
+      }
+
+      setShapeEditActive(true)
+      setPoints(nextPoints)
+    },
+    [attachShapeListeners, clearPointMarkers, clearPreviewLines, color, map, stopListeners],
+  )
+
   const updatePreview = useCallback(
     (nextPoints: LatLng[]) => {
       if (!map) return
+
+      if (nextPoints.length >= 3) {
+        mountShapePolygon(nextPoints, { keepClickListener: true })
+        return
+      }
+
+      clearShapePolygon()
       syncPointMarkers(nextPoints)
       clearPreviewLines()
       if (nextPoints.length > 1) {
@@ -92,43 +187,17 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
           zIndex: 50,
         })
       }
-      if (nextPoints.length >= 3) {
-        const last = nextPoints[nextPoints.length - 1]!
-        const first = nextPoints[0]!
-        closingLineRef.current = new google.maps.Polyline({
-          path: [last, first],
-          strokeColor: color,
-          strokeOpacity: 0.35,
-          strokeWeight: 1.5,
-          map,
-          zIndex: 49,
-        })
-        fillPreviewRef.current = new google.maps.Polygon({
-          paths: nextPoints,
-          strokeOpacity: 0,
-          fillColor: color,
-          fillOpacity: 0.15,
-          map,
-          zIndex: 48,
-          clickable: false,
-        })
-      }
     },
-    [clearPreviewLines, color, map, syncPointMarkers],
+    [clearPreviewLines, clearShapePolygon, color, map, mountShapePolygon, syncPointMarkers],
   )
-
-  const stopListeners = useCallback(() => {
-    setIsDrawing(false)
-    clickListenerRef.current?.remove()
-    clickListenerRef.current = null
-  }, [])
 
   const reset = useCallback(() => {
     stopListeners()
+    clearShapePolygon()
     setPoints([])
     clearPreviewLines()
     clearPointMarkers()
-  }, [clearPointMarkers, clearPreviewLines, stopListeners])
+  }, [clearPointMarkers, clearPreviewLines, clearShapePolygon, stopListeners])
 
   const startDrawing = useCallback(() => {
     if (!map) return
@@ -146,20 +215,47 @@ export function usePolygonDraw({ map, color }: UsePolygonDrawOptions) {
     })
   }, [map, reset, updatePreview])
 
-  useEffect(() => {
-    if (points.length > 0) {
-      updatePreview(points)
+  const getCurrentPoints = useCallback((): LatLng[] => {
+    if (shapePolyRef.current) {
+      return readPathsFromPolygon(shapePolyRef.current)
     }
-  }, [color, points, updatePreview])
+    return points
+  }, [points])
+
+  useEffect(() => {
+    if (shapeEditActive && shapePolyRef.current) {
+      shapePolyRef.current.setOptions({
+        strokeColor: color,
+        fillColor: color,
+      })
+      return
+    }
+    if (points.length > 0 && points.length < 3) {
+      syncPointMarkers(points)
+      polylineRef.current?.setOptions({ strokeColor: color })
+    }
+  }, [color, points, shapeEditActive, syncPointMarkers])
 
   useEffect(() => () => reset(), [reset])
+
+  const applyPoints = useCallback(
+    (nextPoints: LatLng[]) => {
+      mountShapePolygon(nextPoints)
+    },
+    [mountShapePolygon],
+  )
 
   return {
     points,
     isDrawing,
+    shapeEditActive,
+    /** @deprecated use shapeEditActive */
+    vertexEditActive: shapeEditActive,
     startDrawing,
     stopDrawing: stopListeners,
     reset,
     setPoints,
+    applyPoints,
+    getCurrentPoints,
   }
 }
