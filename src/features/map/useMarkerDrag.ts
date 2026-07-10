@@ -7,11 +7,23 @@ import {
 import { beginGroupDrag, endGroupDrag } from '@/lib/mapGroupDragSession'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { showToastSuccess } from '@/lib/toast'
-import type { Building, Polygon, Utility } from '@/types/domain'
+import type { Building, Polygon, SuiteEntrance, Utility } from '@/types/domain'
 
 export function useMarkerDrag(
-  portfolioRef: MutableRefObject<{ buildings: Building[]; utilities: Utility[]; polygons: Polygon[] }>,
-  onGroupMoved: ((portfolio: { buildings: Building[]; utilities: Utility[]; polygons: Polygon[] }) => void) | undefined,
+  portfolioRef: MutableRefObject<{
+    buildings: Building[]
+    utilities: Utility[]
+    polygons: Polygon[]
+    suiteEntrances: SuiteEntrance[]
+  }>,
+  onGroupMoved:
+    | ((portfolio: {
+        buildings: Building[]
+        utilities: Utility[]
+        polygons: Polygon[]
+        suiteEntrances: SuiteEntrance[]
+      }) => void)
+    | undefined,
   setLastDragUndo: (fn: (() => void) | null) => void,
 ) {
   const resolveGroupKeys = useCallback((anchorKey: string) => {

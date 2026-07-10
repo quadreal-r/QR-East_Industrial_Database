@@ -17,6 +17,7 @@ const samplePortfolio: PortfolioData = {
     },
   ],
   utilities: [],
+  suiteEntrances: [],
   polygons: [],
 }
 

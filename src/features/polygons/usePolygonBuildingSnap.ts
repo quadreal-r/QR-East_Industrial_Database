@@ -33,6 +33,7 @@ export function usePolygonBuildingSnap({
 
     const container = map.getDiv()
     container.style.userSelect = 'none'
+    container.style.cursor = 'crosshair'
 
     const box = document.createElement('div')
     box.className = styles.marqueeBox ?? 'map-marquee-box'

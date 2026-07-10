@@ -31,6 +31,7 @@ const bristol2320: PortfolioData = {
     },
   ],
   utilities: [],
+  suiteEntrances: [],
   polygons: [],
 }
 

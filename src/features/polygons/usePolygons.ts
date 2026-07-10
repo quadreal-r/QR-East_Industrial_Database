@@ -19,16 +19,22 @@ import { bindPolygonVertexDelete } from '@/lib/polygonVertexEdit'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { useLayerStore } from '@/stores/layerStore'
 import { useSelectionStore } from '@/stores/selectionStore'
-import type { Building, Polygon, Utility } from '@/types/domain'
+import type { Building, Polygon, SuiteEntrance, Utility } from '@/types/domain'
 
 export interface UsePolygonsOptions {
   map: google.maps.Map | null
   buildings: Building[]
   utilities: Utility[]
+  suiteEntrances: SuiteEntrance[]
   polygons: Polygon[]
   onPolygonUpdated?: (polygon: Polygon) => void
   onPolygonDeleted?: (polygon: Polygon) => void
-  onGroupMoved?: (data: { buildings: Building[]; utilities: Utility[]; polygons: Polygon[] }) => void
+  onGroupMoved?: (data: {
+    buildings: Building[]
+    utilities: Utility[]
+    suiteEntrances: SuiteEntrance[]
+    polygons: Polygon[]
+  }) => void
 }
 
 interface RenderedPolygon {
@@ -61,6 +67,7 @@ export function usePolygons({
   map,
   buildings,
   utilities,
+  suiteEntrances,
   polygons,
   onPolygonUpdated,
   onPolygonDeleted,
@@ -71,11 +78,11 @@ export function usePolygons({
   const polygonsLayerVisible = useLayerStore((s) => s.layers.polygons)
   const setLastDragUndo = useSelectionStore((s) => s.setLastDragUndo)
 
-  const portfolioRef = useRef({ buildings, utilities, polygons })
+  const portfolioRef = useRef({ buildings, utilities, suiteEntrances, polygons })
 
   useEffect(() => {
-    portfolioRef.current = { buildings, utilities, polygons }
-  }, [buildings, utilities, polygons])
+    portfolioRef.current = { buildings, utilities, suiteEntrances, polygons }
+  }, [buildings, utilities, suiteEntrances, polygons])
   const renderedRef = useRef<RenderedPolygon[]>([])
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
   const infoPolyRef = useRef<google.maps.Polygon | null>(null)

@@ -1,5 +1,6 @@
 import type { LayerKey, PortfolioData, Rtu, Utility, UtilityType } from '@/types/domain'
 import { UTILITY_LAYER_MAP } from '@/lib/constants'
+import { findSuiteEntrance, matchesSuiteEntrance } from '@/lib/suiteEntrances'
 
 export type DragItemKind = 'building' | 'detail' | 'polygon' | 'utility'
 
@@ -147,6 +148,36 @@ export function buildGroupDragSnapshot(
     }
 
     const [layerKey, name, buildingAddress] = parsed.parts as [LayerKey, string, string]
+    if (layerKey === 'inspection360') {
+      const building = buildingAddress
+        ? portfolio.buildings.find((b) => b.address === buildingAddress)
+        : undefined
+      const entrance =
+        findSuiteEntrance(portfolio.suiteEntrances ?? [], {
+          name,
+          building_id: building?.id,
+        }) ??
+        (portfolio.suiteEntrances ?? []).find((item) =>
+          matchesSuiteEntrance(item, { name, building_id: item.building_id }),
+        )
+      if (entrance) {
+        const resolvedBuilding =
+          building ??
+          (entrance.building_id != null
+            ? portfolio.buildings.find((b) => b.id === entrance.building_id)
+            : undefined)
+        snapshot.details.push({
+          key,
+          layerKey,
+          name: entrance.name,
+          buildingAddress: resolvedBuilding?.address ?? buildingAddress,
+          lat: entrance.lat,
+          lng: entrance.lng,
+        })
+      }
+      continue
+    }
+
     if (layerKey === 'rtu' && buildingAddress) {
       const building = portfolio.buildings.find((b) => b.address === buildingAddress)
       const rtu = building?.rtus?.find((r) => r.name === name)
@@ -200,6 +231,7 @@ export function applySnapshotToPortfolio(
   let buildings = portfolio.buildings
   let utilities = portfolio.utilities
   let polygons = portfolio.polygons
+  let suiteEntrances = portfolio.suiteEntrances ?? []
 
   if (Object.keys(snapshot.buildings).length > 0) {
     buildings = buildings.map((b) => {
@@ -220,6 +252,25 @@ export function applySnapshotToPortfolio(
             ),
           }
         })
+      } else if (item.layerKey === 'inspection360') {
+        const building = item.buildingAddress
+          ? portfolio.buildings.find((b) => b.address === item.buildingAddress)
+          : undefined
+        const target =
+          findSuiteEntrance(suiteEntrances, {
+            name: item.name,
+            building_id: building?.id,
+          }) ??
+          suiteEntrances.find((entrance) =>
+            matchesSuiteEntrance(entrance, { name: item.name, building_id: entrance.building_id }),
+          )
+        if (target) {
+          suiteEntrances = suiteEntrances.map((entrance) =>
+            matchesSuiteEntrance(entrance, target)
+              ? { ...entrance, lat: item.lat, lng: item.lng, auto_placed: false }
+              : entrance,
+          )
+        }
       } else if (item.utilityType != null) {
         utilities = utilities.map((u) =>
           matchesUtility(u, {
@@ -242,7 +293,7 @@ export function applySnapshotToPortfolio(
     })
   }
 
-  return { ...portfolio, buildings, utilities, polygons }
+  return { ...portfolio, buildings, utilities, polygons, suiteEntrances }
 }
 
 export function cloneSnapshot(snapshot: GroupDragSnapshot): GroupDragSnapshot {

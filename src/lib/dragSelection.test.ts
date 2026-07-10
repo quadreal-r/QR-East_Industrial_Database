@@ -50,6 +50,18 @@ const portfolio: PortfolioData = {
       lng: -79.2,
     },
   ],
+  suiteEntrances: [
+    {
+      id: 10,
+      building_id: 1,
+      polygon_id: 1,
+      name: 'Suite 7',
+      description: 'Tenant A',
+      lat: 43.6505,
+      lng: -79.6205,
+      inspection_url: null,
+    },
+  ],
   polygons: [
     {
       name: 'Tenant A',
@@ -93,5 +105,19 @@ describe('dragSelection group drag', () => {
     expect(next.utilities[1]!.lng).toBeCloseTo(-79.08)
     expect(next.utilities[2]!.lat).toBe(43.2)
     expect(next.utilities[2]!.lng).toBe(-79.2)
+  })
+
+  it('moves a selected 360° gate with the group snapshot', () => {
+    const portfolioWithBuildingId = {
+      ...portfolio,
+      buildings: [{ ...portfolio.buildings[0]!, id: 1 }],
+    }
+    const keys = [detailDragKey('inspection360', 'Suite 7', '100 Main')]
+    const snapshot = buildGroupDragSnapshot(portfolioWithBuildingId, keys)
+    const moved = applyDeltaToSnapshot(snapshot, 0.002, -0.001)
+    const next = applySnapshotToPortfolio(portfolioWithBuildingId, moved)
+
+    expect(next.suiteEntrances[0]!.lat).toBeCloseTo(43.6525)
+    expect(next.suiteEntrances[0]!.lng).toBeCloseTo(-79.6215)
   })
 })

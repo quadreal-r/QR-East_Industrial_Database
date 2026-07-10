@@ -7,6 +7,7 @@ import type { EditSummary } from '@/features/edit-mode/diffPortfolio'
 import { diffPortfolio } from '@/features/edit-mode/diffPortfolio'
 import { MapPanel } from '@/features/map/MapPanel'
 import { RtuPictureViewer } from '@/features/rtu-pictures/RtuPictureViewer'
+import { Inspection360Viewer } from '@/features/inspection360/Inspection360Viewer'
 import { SettingsModal } from '@/features/settings/SettingsModal'
 import { Sidebar } from '@/features/sidebar/Sidebar'
 import { LoginModal } from '@/features/auth/LoginModal'
@@ -22,8 +23,10 @@ import {
   useSavePendingPortfolio,
   type PortfolioData,
 } from '@/hooks/usePortfolioData'
+import { normalizePortfolioData } from '@/types/domain'
 import { clearRtuPictureManifestCache } from '@/lib/rtuPictures'
 import { showToastError, showToastSuccess } from '@/lib/toast'
+import { errorMessage } from '@/lib/errorMessage'
 import { confirm } from '@/stores/confirmStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
@@ -37,6 +40,7 @@ const EMPTY_PORTFOLIO: PortfolioData = {
   buildings: [],
   utilities: [],
   polygons: [],
+  suiteEntrances: [],
   portfolioMapViews: {},
 }
 const SAVE_SUCCESS_DISPLAY_MS = 1000
@@ -83,10 +87,13 @@ export function AppShell() {
   const openPolygonDraw = useUiStore((s) => s.openModal)
   const closePolygonDraw = useUiStore((s) => s.closeModal)
   const addMarkerOpen = useUiStore((s) => s.isModalOpen('addMarker'))
+  const addInspection360Open = useUiStore((s) => s.isModalOpen('addInspection360'))
   const openAddMarker = useUiStore((s) => s.openModal)
   const closeAddMarker = useUiStore((s) => s.closeModal)
   const rtuPictureViewer = useUiStore((s) => s.rtuPictureViewer)
+  const inspection360Viewer = useUiStore((s) => s.inspection360Viewer)
   const closeRtuPictureViewer = useUiStore((s) => s.closeRtuPictureViewer)
+  const closeInspection360Viewer = useUiStore((s) => s.closeInspection360Viewer)
   const setRtuPictureViewerIndex = useUiStore((s) => s.setRtuPictureViewerIndex)
   const updateRtuPictureViewerPictures = useUiStore((s) => s.updateRtuPictureViewerPictures)
 
@@ -134,8 +141,9 @@ export function AppShell() {
 
   const stagePortfolioChange = useCallback((next: PortfolioData) => {
     if (suppressStagingRef.current) return
-    setPortfolioOverride(next)
-    usePortfolioStore.getState().patchPortfolio(next)
+    const merged = normalizePortfolioData(next)
+    setPortfolioOverride(merged)
+    usePortfolioStore.getState().patchPortfolio(merged)
   }, [])
 
   const handleSave = useCallback(async () => {
@@ -160,7 +168,7 @@ export function AppShell() {
       }, SAVE_SUCCESS_DISPLAY_MS)
     } catch (error) {
       finishSaveFlow()
-      showToastError(error instanceof Error ? error.message : 'Could not save portfolio')
+      showToastError(errorMessage(error, 'Could not save portfolio'))
     }
   }, [clearSaveDismissTimer, editSummary, finishSaveFlow, persistPortfolioChange, portfolioOverride, baseline])
 
@@ -181,6 +189,10 @@ export function AppShell() {
 
   const handleAddMarkerClose = useCallback(() => {
     closeAddMarker('addMarker')
+  }, [closeAddMarker])
+
+  const handleAddInspection360Close = useCallback(() => {
+    closeAddMarker('addInspection360')
   }, [closeAddMarker])
 
   const handlePolygonDrawClose = useCallback(() => {
@@ -224,6 +236,8 @@ export function AppShell() {
           onPolygonDrawClose={handlePolygonDrawClose}
           addMarkerOpen={addMarkerOpen}
           onAddMarkerClose={handleAddMarkerClose}
+          addInspection360Open={addInspection360Open}
+          onAddInspection360Close={handleAddInspection360Close}
         />
         <CostBanner buildings={costScopeBuildings} />
         {showEditBar && barSummary ? (
@@ -251,6 +265,10 @@ export function AppShell() {
           closeSettings()
           openAddMarker('addMarker')
         }}
+        onOpenAddInspection360={() => {
+          closeSettings()
+          openAddMarker('addInspection360')
+        }}
         isAuthenticated={isAuthenticated}
         onSignIn={() => setLoginOpen(true)}
       />
@@ -264,6 +282,17 @@ export function AppShell() {
           onClose={closeRtuPictureViewer}
           onIndexChange={setRtuPictureViewerIndex}
           onPicturesUpdated={updateRtuPictureViewerPictures}
+        />
+      ) : null}
+      {inspection360Viewer ? (
+        <Inspection360Viewer
+          open
+          title={inspection360Viewer.title}
+          buildingAddress={inspection360Viewer.buildingAddress}
+          suiteName={inspection360Viewer.suiteName}
+          projectUrl={inspection360Viewer.projectUrl}
+          scene={inspection360Viewer.scene}
+          onClose={closeInspection360Viewer}
         />
       ) : null}
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />

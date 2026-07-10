@@ -29,6 +29,7 @@ const portfolio: PortfolioData = {
     ]),
   ],
   utilities: [],
+  suiteEntrances: [],
   polygons: [],
 }
 

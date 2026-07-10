@@ -36,6 +36,7 @@ const baseline: PortfolioData = {
       lng: -75.002,
     },
   ],
+  suiteEntrances: [],
   polygons: [
     {
       id: 30,
@@ -76,6 +77,7 @@ describe('diffPortfolio', () => {
         },
       ],
       utilities: baseline.utilities,
+      suiteEntrances: [],
       polygons: [
         {
           ...baseline.polygons[0]!,
@@ -119,6 +121,7 @@ describe('diffPortfolio', () => {
         },
       ],
       utilities: [],
+      suiteEntrances: [],
       polygons: [],
     }
 
@@ -144,6 +147,7 @@ describe('diffPortfolio', () => {
         },
       ],
       utilities: baseline.utilities,
+      suiteEntrances: baseline.suiteEntrances,
       polygons: baseline.polygons,
     }
 
@@ -178,5 +182,56 @@ describe('diffPortfolio', () => {
     expect(changes.polygonsToUpsert).toHaveLength(1)
     expect(changes.polygonsToUpsert[0]?.id).toBeUndefined()
     expect(changes.polygonIdsToDelete).toHaveLength(0)
+  })
+
+  it('does not upsert unchanged in-memory 360° gates', () => {
+    const suiteEntrances = [
+      {
+        building_id: 1,
+        polygon_id: 30,
+        name: 'Zone A',
+        description: 'Parking',
+        lat: 40,
+        lng: -75,
+        inspection_url: null,
+      },
+    ]
+    const portfolio = { ...baseline, suiteEntrances }
+    const changes = computePortfolioChanges(portfolio, portfolio)
+    expect(changes.suiteEntrancesToUpsert).toHaveLength(0)
+  })
+
+  it('upserts moved 360° gates with existing tenant ids', () => {
+    const baselineWithGate = {
+      ...baseline,
+      suiteEntrances: [
+        {
+          id: 99,
+          building_id: 1,
+          polygon_id: 30,
+          name: 'Zone A',
+          description: 'Parking',
+          lat: 40,
+          lng: -75,
+          inspection_url: null,
+        },
+      ],
+    }
+    const pending = {
+      ...baselineWithGate,
+      suiteEntrances: [
+        {
+          ...baselineWithGate.suiteEntrances[0]!,
+          lat: 40.01,
+          lng: -75.01,
+        },
+      ],
+    }
+
+    const changes = computePortfolioChanges(baselineWithGate, pending)
+
+    expect(changes.suiteEntrancesToUpsert).toHaveLength(1)
+    expect(changes.suiteEntrancesToUpsert[0]?.id).toBe(99)
+    expect(changes.suiteEntrancesToUpsert[0]?.lat).toBeCloseTo(40.01)
   })
 })

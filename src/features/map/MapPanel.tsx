@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AddMarkerPanel } from '@/features/map/AddMarkerPanel'
+import { AddInspection360Panel } from '@/features/map/AddInspection360Panel'
 import { VersionStamp } from '@/components/VersionStamp/VersionStamp'
 import { PolygonDrawPanel } from '@/features/polygons/PolygonDrawPanel'
 import { useMapMarkers } from '@/features/map/useMapMarkers'
@@ -29,7 +30,8 @@ import {
   migrateRtuAssociatedData,
 } from '@/lib/rtuPortfolioEdit'
 import { notifyRtuPicturesChanged } from '@/lib/rtuPictures'
-import type { Building, LayerKey, Polygon, PortfolioData, Rtu, Utility } from '@/types/domain'
+import type { Building, LayerKey, Polygon, PortfolioData, Rtu, SuiteEntrance, Utility } from '@/types/domain'
+import { matchesSuiteEntrance } from '@/lib/suiteEntrances'
 import type { ImageryMode } from '@/types/domain'
 import { useFilterStore } from '@/stores/filterStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
@@ -56,6 +58,8 @@ export interface MapPanelProps {
   onPolygonDrawClose?: () => void
   addMarkerOpen?: boolean
   onAddMarkerClose?: () => void
+  addInspection360Open?: boolean
+  onAddInspection360Close?: () => void
 }
 
 export function MapPanel({
@@ -66,6 +70,8 @@ export function MapPanel({
   onPolygonDrawClose,
   addMarkerOpen = false,
   onAddMarkerClose,
+  addInspection360Open = false,
+  onAddInspection360Close,
 }: MapPanelProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const hardRefreshMapAppliedRef = useRef(false)
@@ -117,11 +123,21 @@ export function MapPanel({
   const handleDetailMoved = useCallback(
     (
       layerKey: LayerKey,
-      data: Rtu | Utility,
+      data: Rtu | Utility | SuiteEntrance,
       lat: number,
       lng: number,
       building: Building | null,
     ) => {
+      if (layerKey === 'inspection360' && !('utility_type' in data)) {
+        const entrance = data as SuiteEntrance
+        onPortfolioPatch({
+          ...portfolio,
+          suiteEntrances: portfolio.suiteEntrances.map((item) =>
+            matchesSuiteEntrance(item, entrance) ? { ...item, lat, lng, auto_placed: false } : item,
+          ),
+        })
+        return
+      }
       if (layerKey === 'rtu' && building) {
         onPortfolioPatch({
           ...portfolio,
@@ -149,7 +165,17 @@ export function MapPanel({
   )
 
   const handleDeleteDetail = useCallback(
-    (layerKey: LayerKey, data: Rtu | Utility, building: Building | null) => {
+    (layerKey: LayerKey, data: Rtu | Utility | SuiteEntrance, building: Building | null) => {
+      if (layerKey === 'inspection360' && !('utility_type' in data)) {
+        const entrance = data as SuiteEntrance
+        onPortfolioPatch({
+          ...portfolio,
+          suiteEntrances: portfolio.suiteEntrances.filter(
+            (item) => !matchesSuiteEntrance(item, entrance),
+          ),
+        })
+        return
+      }
       if (layerKey === 'rtu' && building) {
         onPortfolioPatch({
           ...portfolio,
@@ -246,6 +272,10 @@ export function MapPanel({
     onAddMarkerClose?.()
   }, [onAddMarkerClose])
 
+  const handleAddInspection360Close = useCallback(() => {
+    onAddInspection360Close?.()
+  }, [onAddInspection360Close])
+
   const handlePolygonDrawClose = useCallback(() => {
     onPolygonDrawClose?.()
   }, [onPolygonDrawClose])
@@ -255,6 +285,7 @@ export function MapPanel({
     buildings: portfolio.buildings,
     mapBuildings,
     utilities: portfolio.utilities,
+    suiteEntrances: portfolio.suiteEntrances,
     polygons: portfolio.polygons,
     portfolioMapViews: portfolio.portfolioMapViews ?? {},
     onSelectBuilding: handleSelectBuilding,
@@ -438,6 +469,7 @@ export function MapPanel({
     map,
     buildings: portfolio.buildings,
     utilities: portfolio.utilities,
+    suiteEntrances: portfolio.suiteEntrances,
     polygons: portfolio.polygons,
     onPolygonUpdated: handlePolygonUpdated,
     onPolygonDeleted: handlePolygonDeleted,
@@ -762,6 +794,14 @@ export function MapPanel({
       <AddMarkerPanel
         open={addMarkerOpen}
         onClose={handleAddMarkerClose}
+        portfolio={portfolio}
+        map={map}
+        onAdded={onPortfolioPatch}
+        defaultBuildingAddress={currentBuilding?.address}
+      />
+      <AddInspection360Panel
+        open={addInspection360Open}
+        onClose={handleAddInspection360Close}
         portfolio={portfolio}
         map={map}
         onAdded={onPortfolioPatch}

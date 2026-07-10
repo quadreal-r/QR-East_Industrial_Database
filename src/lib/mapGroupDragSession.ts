@@ -1,5 +1,6 @@
 import {
   applyDeltaToSnapshot,
+  buildingDragKey,
   cloneSnapshot,
   type GroupDragSnapshot,
 } from '@/lib/dragSelection'
@@ -17,7 +18,8 @@ interface ActiveGroupDrag {
 }
 
 let activeDrag: ActiveGroupDrag | null = null
-let nativeDragPolygonKey: string | null = null
+/** Item being dragged natively by Maps — skip programmatic position updates for it during group drag. */
+let nativeDragKey: string | null = null
 const visualsStore: Partial<GroupDragVisuals> = {}
 
 function getVisuals(): GroupDragVisuals | null {
@@ -58,8 +60,13 @@ export function isGroupDragActive(): boolean {
   return activeDrag != null
 }
 
+export function setNativeDragKey(key: string | null): void {
+  nativeDragKey = key
+}
+
+/** @deprecated Use setNativeDragKey */
 export function setNativeDragPolygonKey(key: string | null): void {
-  nativeDragPolygonKey = key
+  setNativeDragKey(key)
 }
 
 export function applyGroupDragDelta(currentAnchor: { lat: number; lng: number }): GroupDragSnapshot | null {
@@ -74,13 +81,15 @@ export function applyGroupDragDelta(currentAnchor: { lat: number; lng: number })
   const visuals = getVisuals()
   if (visuals) {
     for (const [address, pos] of Object.entries(nextSnapshot.buildings)) {
+      if (nativeDragKey != null && nativeDragKey === buildingDragKey(address)) continue
       visuals.setBuildingPosition(address, pos.lat, pos.lng)
     }
     for (const item of nextSnapshot.details) {
+      if (item.key === nativeDragKey) continue
       visuals.setDetailPosition(item.key, item.lat, item.lng)
     }
     for (const [key, poly] of Object.entries(nextSnapshot.polygons)) {
-      if (key === nativeDragPolygonKey) continue
+      if (key === nativeDragKey) continue
       visuals.setPolygonPaths(key, poly.paths)
     }
   }
@@ -92,7 +101,7 @@ export function endGroupDrag(): GroupDragSnapshot | null {
   if (!activeDrag) return null
   const finalSnapshot = cloneSnapshot(activeDrag.currentSnapshot)
   activeDrag = null
-  nativeDragPolygonKey = null
+  nativeDragKey = null
   return finalSnapshot
 }
 
@@ -100,22 +109,24 @@ export function cancelGroupDrag(): void {
   const visuals = getVisuals()
   if (!activeDrag || !visuals) {
     activeDrag = null
-    nativeDragPolygonKey = null
+    nativeDragKey = null
     return
   }
   const snapshot = activeDrag.baseSnapshot
   for (const [address, pos] of Object.entries(snapshot.buildings)) {
+    if (nativeDragKey != null && nativeDragKey === `building:${address}`) continue
     visuals.setBuildingPosition(address, pos.lat, pos.lng)
   }
   for (const item of snapshot.details) {
+    if (item.key === nativeDragKey) continue
     visuals.setDetailPosition(item.key, item.lat, item.lng)
   }
   for (const [key, poly] of Object.entries(snapshot.polygons)) {
-    if (key === nativeDragPolygonKey) continue
+    if (key === nativeDragKey) continue
     visuals.setPolygonPaths(key, poly.paths)
   }
   activeDrag = null
-  nativeDragPolygonKey = null
+  nativeDragKey = null
 }
 
 export function getGroupDragSnapshot(): GroupDragSnapshot | null {

@@ -17,10 +17,11 @@ export function useMapMarqueeSelect(
   useEffect(() => {
     if (!map || !dragMode) return
 
-    map.setOptions({ draggable: false, draggableCursor: 'default', draggingCursor: 'grabbing' })
+    map.setOptions({ draggable: false, draggableCursor: 'crosshair', draggingCursor: 'crosshair' })
 
     const container = map.getDiv()
     container.style.userSelect = 'none'
+    container.style.cursor = 'crosshair'
 
     const box = document.createElement('div')
     box.className = styles.marqueeBox ?? 'map-marquee-box'
@@ -100,7 +101,7 @@ export function useMapMarqueeSelect(
     const onMouseUp = (e: MouseEvent): void => {
       if (e.button === 2 && panSession) {
         panSession = null
-        container.style.cursor = 'default'
+        container.style.cursor = 'crosshair'
         return
       }
 

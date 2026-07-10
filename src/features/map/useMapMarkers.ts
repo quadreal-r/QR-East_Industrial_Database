@@ -17,6 +17,7 @@ import {
   applyGroupDragDelta,
   isGroupDragActive,
   registerGroupDragVisuals,
+  setNativeDragKey,
 } from '@/lib/mapGroupDragSession'
 import {
   buildingDragKey,
@@ -84,25 +85,27 @@ import { useMarkerVisibility } from '@/features/map/useMarkerVisibility'
 import { useRtuPictureBadges } from '@/features/map/useRtuPictureBadges'
 import { useMarkerDrag } from '@/features/map/useMarkerDrag'
 import { useInfoWindowActions } from '@/features/map/useInfoWindowActions'
-import type { Building, ImageryMode, LayerKey, Polygon, PortfolioMapViewFields, Rtu, Utility } from '@/types/domain'
+import type { Building, ImageryMode, LayerKey, Polygon, PortfolioMapViewFields, Rtu, SuiteEntrance, Utility } from '@/types/domain'
+import { buildingForSuiteEntrance } from '@/lib/suiteEntrances'
 
 export interface UseMapMarkersOptions {
   map: google.maps.Map | null
   buildings: Building[]
   mapBuildings: Building[]
   utilities: Utility[]
+  suiteEntrances: SuiteEntrance[]
   polygons: Polygon[]
   portfolioMapViews: Record<string, PortfolioMapViewFields>
   onSelectBuilding: (building: Building) => void
   onBuildingMoved?: (building: Building, lat: number, lng: number) => void
   onDetailMoved?: (
     layerKey: LayerKey,
-    data: Rtu | Utility,
+    data: Rtu | Utility | SuiteEntrance,
     lat: number,
     lng: number,
     building: Building | null,
   ) => void
-  onDeleteDetail?: (layerKey: LayerKey, data: Rtu | Utility, building: Building | null) => void
+  onDeleteDetail?: (layerKey: LayerKey, data: Rtu | Utility | SuiteEntrance, building: Building | null) => void
   onEditDetail?: (
     layerKey: LayerKey,
     building: Building,
@@ -113,6 +116,7 @@ export interface UseMapMarkersOptions {
     buildings: Building[]
     utilities: Utility[]
     polygons: Polygon[]
+    suiteEntrances: SuiteEntrance[]
   }) => void
   onImageryModeChange?: (mode: ImageryMode) => void
 }
@@ -122,6 +126,7 @@ export function useMapMarkers({
   buildings,
   mapBuildings,
   utilities,
+  suiteEntrances,
   polygons,
   portfolioMapViews,
   onSelectBuilding,
@@ -143,7 +148,7 @@ export function useMapMarkers({
   const setLastDragUndo = useSelectionStore((s) => s.setLastDragUndo)
 
   // ------------------------------------------------------------
-  const portfolioRef = useRef({ buildings, utilities, polygons })
+  const portfolioRef = useRef({ buildings, utilities, polygons, suiteEntrances })
   const polygonIndexRef = useRef(buildPolygonBuildingIndex(buildings, polygons))
   const buildingMarkersRef = useRef<BuildingMarkerEntry[]>([])
   const detailMarkersRef = useRef<DetailMarkerEntry[]>([])
@@ -159,8 +164,8 @@ export function useMapMarkers({
   const prevDragModeRef = useRef(dragMode)
   const isDraggingMarkerRef = useRef(false)
   const markerStructureKey = useMemo(
-    () => buildMarkerStructureKey(buildings, utilities),
-    [buildings, utilities],
+    () => buildMarkerStructureKey(buildings, utilities, suiteEntrances),
+    [buildings, utilities, suiteEntrances],
   )
 
   const callbacksRef = useRef<MapMarkersCallbacks>({
@@ -172,9 +177,9 @@ export function useMapMarkers({
   })
 
   useEffect(() => {
-    portfolioRef.current = { buildings, utilities, polygons }
+    portfolioRef.current = { buildings, utilities, polygons, suiteEntrances }
     polygonIndexRef.current = buildPolygonBuildingIndex(buildings, polygons)
-  }, [buildings, utilities, polygons])
+  }, [buildings, utilities, polygons, suiteEntrances])
 
   useEffect(() => {
     callbacksRef.current = {
@@ -355,6 +360,9 @@ export function useMapMarkers({
         const startLng = startPos.lng()
         const anchorKey = buildingDragKey(b.address)
         beginDragSession(anchorKey, startLat, startLng)
+        if (isGroupDragActive()) {
+          setNativeDragKey(anchorKey)
+        }
         if (!isGroupDragActive()) {
           setLastDragUndo(() => {
             setAppMarkerPosition(marker, startLat, startLng)
@@ -372,6 +380,7 @@ export function useMapMarkers({
       })
 
       addAppMarkerListener(marker, 'dragend', () => {
+        setNativeDragKey(null)
         if (isGroupDragActive()) {
           const pos = getAppMarkerPosition(marker)
           if (pos) applyGroupDragDelta({ lat: pos.lat(), lng: pos.lng() })
@@ -409,7 +418,7 @@ export function useMapMarkers({
       data: DetailMarkerEntry['data'],
       building: Building | null,
     ) => {
-      if (!lat || !lng) return
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
       const dragKey =
         building != null
           ? detailDragKey(layerKey, data.name ?? '', building.address)
@@ -447,20 +456,25 @@ export function useMapMarkers({
 
       addAppMarkerListener(marker, 'dragstart', () => {
         isDraggingMarkerRef.current = true
+        if (soloMoveRef.current?.marker === marker) return
         const startPos = getAppMarkerPosition(marker)
         if (!startPos) return
         const startLat = startPos.lat()
         const startLng = startPos.lng()
         beginDragSession(dragKey, startLat, startLng)
+        if (isGroupDragActive()) {
+          setNativeDragKey(dragKey)
+        }
         if (!isGroupDragActive()) {
           setLastDragUndo(() => {
             syncDetailMarkerPositions(entry, startLat, startLng)
-            callbacksRef.current.onDetailMoved?.(layerKey, data, startLat, startLng, building)
+            callbacksRef.current.onDetailMoved?.(layerKey, entry.data, startLat, startLng, building)
           })
         }
       })
 
       addAppMarkerListener(marker, 'drag', () => {
+        if (soloMoveRef.current?.marker === marker) return
         if (!isGroupDragActive()) return
         const pos = getAppMarkerPosition(marker)
         if (!pos) return
@@ -468,6 +482,11 @@ export function useMapMarkers({
       })
 
       addAppMarkerListener(marker, 'dragend', () => {
+        setNativeDragKey(null)
+        if (soloMoveRef.current?.marker === marker) {
+          isDraggingMarkerRef.current = false
+          return
+        }
         if (isGroupDragActive()) {
           // Lock in the definitive final position before committing.
           const pos = getAppMarkerPosition(marker)
@@ -485,7 +504,7 @@ export function useMapMarkers({
         const lat = pos.lat()
         const lng = pos.lng()
         syncDetailMarkerPositions(entry, lat, lng)
-        callbacksRef.current.onDetailMoved?.(layerKey, data, lat, lng, building)
+        callbacksRef.current.onDetailMoved?.(layerKey, entry.data, lat, lng, building)
         isDraggingMarkerRef.current = false
         markMarkerDragJustEnded()
       })
@@ -510,6 +529,11 @@ export function useMapMarkers({
     for (const u of utilities) {
       const layerKey = UTILITY_LAYER_MAP[u.utility_type] ?? 'sprinkler'
       makeDetailMarker(u.lat, u.lng, layerKey, u, null)
+    }
+
+    for (const entrance of suiteEntrances) {
+      const building = buildingForSuiteEntrance(buildings, polygons, entrance) ?? null
+      makeDetailMarker(entrance.lat, entrance.lng, 'inspection360', entrance, building)
     }
 
     map.addListener('zoom_changed', refreshDetailVisibility)
@@ -584,15 +608,16 @@ export function useMapMarkers({
     syncMarkersFromPortfolio(
       buildings,
       utilities,
+      suiteEntrances,
       buildingMarkersRef.current,
       detailMarkersRef.current,
     )
-  }, [map, buildings, utilities])
+  }, [map, buildings, utilities, suiteEntrances])
 
   useEffect(() => {
     if (!map || detailMarkersRef.current.length === 0) return
     refreshDragSelectionStyles()
-  }, [map, buildings, polygons, utilities, refreshDragSelectionStyles])
+  }, [map, buildings, polygons, utilities, suiteEntrances, refreshDragSelectionStyles])
 
   // ------------------------------------------------------------
 
@@ -637,14 +662,24 @@ export function useMapMarkers({
       const detail = (
         e as CustomEvent<{ layerKey: LayerKey; name: string; buildingAddress?: string }>
       ).detail
-      const entry = detailMarkersRef.current.find(
-        (dm) =>
+      const entry = detailMarkersRef.current.find((dm) => {
+        if (detail.layerKey === 'inspection360') {
+          return (
+            dm.type === 'inspection360' &&
+            dm.data.name === detail.name &&
+            (detail.buildingAddress
+              ? dm.building?.address === detail.buildingAddress
+              : true)
+          )
+        }
+        return (
           dm.type === detail.layerKey &&
           dm.data.name === detail.name &&
           (detail.buildingAddress
             ? dm.building?.address === detail.buildingAddress
-            : !dm.building),
-      )
+            : !dm.building)
+        )
+      })
       if (!entry || !map) return
       panToPreserveRotation(map, { lat: entry.data.lat, lng: entry.data.lng }, MAP_DETAIL_ZOOM, {
         onlyZoomIn: true,
@@ -797,20 +832,26 @@ export function useMapMarkers({
   const polygonDrawMode = useUiStore((s) => s.polygonDrawMode)
   const blockMarkerClicks = addMarkerPickMode || polygonDrawMode
 
-  useEffect(() => {
+  const syncMarkerDragState = useCallback(() => {
+    const selected = new Set(useSelectionStore.getState().dragSelectedKeys)
     for (const entry of buildingMarkersRef.current) {
       const isSolo = soloMoveRef.current?.marker === entry.marker
-      setAppMarkerDraggable(entry.marker, dragMode || isSolo)
+      setAppMarkerDraggable(entry.marker, isSolo || dragMode)
       setAppMarkerClickable(entry.marker, !blockMarkerClicks)
       if (!isSolo) setAppMarkerCursor(entry.marker, dragMode ? 'grab' : null)
     }
     for (const entry of detailMarkersRef.current) {
       const isSolo = soloMoveRef.current?.marker === entry.marker
-      setAppMarkerDraggable(entry.marker, dragMode || isSolo)
+      const isSelected = selected.has(entry.dragKey)
+      setAppMarkerDraggable(entry.marker, isSolo || (dragMode && isSelected))
       setAppMarkerClickable(entry.marker, !blockMarkerClicks)
-      if (!isSolo) setAppMarkerCursor(entry.marker, dragMode ? 'grab' : null)
+      if (!isSolo) setAppMarkerCursor(entry.marker, dragMode && isSelected ? 'grab' : null)
     }
-  }, [dragMode, blockMarkerClicks])
+  }, [dragMode, blockMarkerClicks, soloMoveRef, buildingMarkersRef, detailMarkersRef])
+
+  useEffect(() => {
+    syncMarkerDragState()
+  }, [syncMarkerDragState, markerStructureKey, dragSelectedKeys])
 
   // ------------------------------------------------------------
   return {

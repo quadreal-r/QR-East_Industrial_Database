@@ -6,7 +6,7 @@ import { getRtuAge, getRtuYear } from '@/lib/rtu'
 import type { RtuDocument } from '@/lib/rtuDocuments'
 import type { RtuPicture } from '@/lib/rtuPictures'
 import { showToastSuccess } from '@/lib/toast'
-import type { Building, LayerKey, Polygon, Rtu, Utility } from '@/types/domain'
+import type { Building, LayerKey, Polygon, Rtu, SuiteEntrance, Utility } from '@/types/domain'
 import { LAYER_COLORS } from '@/lib/constants'
 
 const VACANT_RE = /^(vacant|no information)$/i
@@ -58,6 +58,14 @@ function editTextButton(): string {
 
 function assignPendingPictureButton(count: number): string {
   return `<button type="button" class="iw-pic-btn" data-iw-action="picture-assign-pending" title="Assign the closest pending photo within range">📎 Assign pending photo${count > 1 ? ` (${count} nearby)` : ''}</button>`
+}
+
+function inspection360TourButton(hasTour: boolean): string {
+  const label = hasTour ? 'Enter 360° tour' : 'Open 360° viewer'
+  const title = hasTour
+    ? 'Open the linked 360° inspection tour'
+    : 'Open the 360° viewer (link a tour file in Settings first)'
+  return `<button type="button" class="iw-pic-btn" data-iw-action="inspection360-open" title="${title}">🌐 ${label}</button>`
 }
 
 function buildRtuDocumentsBodyHtml(documents: RtuDocument[] | 'loading'): string {
@@ -219,12 +227,23 @@ export function buildBuildingInfoPlainText(
 
 export function buildDetailInfoPlainText(
   layerKey: LayerKey,
-  data: Rtu | Utility,
+  data: Rtu | Utility | SuiteEntrance,
   options?: { buildingAddress?: string },
 ): string {
   void options?.buildingAddress
   const name = data.name ?? ''
   const lines: string[] = [name]
+
+  if (layerKey === 'inspection360') {
+    lines.push('')
+    lines.push('360° inspection gate')
+    if (options?.buildingAddress) lines.push(`Building: ${options.buildingAddress}`)
+    const entrance = data as SuiteEntrance
+    if (entrance.description) lines.push(...plainDetailLines(entrance.description))
+    if (entrance.inspection_url) lines.push(`Tour URL: ${entrance.inspection_url}`)
+    else lines.push('Tour URL: not connected yet')
+    return lines.join('\n').trimEnd()
+  }
 
   if (layerKey === 'rtu') {
     const age = getRtuAge(data as Rtu)
@@ -334,7 +353,7 @@ export function buildBuildingInfoHtml(
 
 export function buildDetailInfoHtml(
   layerKey: LayerKey,
-  data: Rtu | Utility,
+  data: Rtu | Utility | SuiteEntrance,
   options?: {
     showDelete?: boolean
     buildingAddress?: string
@@ -344,6 +363,39 @@ export function buildDetailInfoHtml(
   const cfg = LAYER_COLORS[layerKey]
   const name = data.name ?? ''
   const desc = data.description ?? ''
+
+  if (layerKey === 'inspection360') {
+    const entrance = data as SuiteEntrance
+    const tenantLine = desc.split(/\r?\n/).filter(Boolean)[0] ?? ''
+    const tourStatus = entrance.inspection_url
+      ? `<div class="iw-row"><strong>Tour</strong><span class="iw-val">Connected</span></div>`
+      : `<div class="iw-row"><strong>Tour</strong><span class="iw-val" style="opacity:.75">Not connected yet</span></div>`
+    const buildingRow = options?.buildingAddress
+      ? `<div class="iw-row"><strong>Building</strong><span class="iw-val">${escapeHtml(options.buildingAddress)}</span></div>`
+      : ''
+    const moveBtn = moveButton({
+      'iw-kind': 'detail',
+      'iw-layer': layerKey,
+      'iw-name': name,
+      'iw-building': options?.buildingAddress ?? '',
+    })
+    const deleteBtn =
+      options?.showDelete === false
+        ? ''
+        : `<button class="iw-del-btn" data-iw-action="delete" data-iw-layer="${layerKey}" data-iw-name="${escapeHtml(name)}" data-iw-building="${escapeHtml(options?.buildingAddress ?? '')}" title="Delete this gate">🗑 Delete</button>`
+    const tourBtn = inspection360TourButton(Boolean(entrance.inspection_url?.trim()))
+    const plainText = buildDetailInfoPlainText(layerKey, data, options)
+    const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">360° GATE</span></div>`
+    const body = [
+      buildingRow,
+      tenantLine
+        ? `<div class="iw-row"><strong>Tenant</strong><span class="iw-val">${escapeHtml(tenantLine)}</span></div>`
+        : '',
+      tourStatus,
+    ].join('')
+    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${body}</div>${actionFooter(`${tourBtn}${moveBtn}${deleteBtn}`)}</div>`
+  }
+
   const lines = desc.split(/\r?\n/).filter(Boolean)
   const rows = lines
     .map((line) => {

@@ -30,7 +30,7 @@ const buildings: Building[] = [
   },
 ]
 
-const portfolio: PortfolioData = { buildings, utilities: [], polygons: [] }
+const portfolio: PortfolioData = { buildings, utilities: [], suiteEntrances: [], polygons: [] }
 
 describe('managerNames', () => {
   it('creates four fixed slots pre-filled from portfolio managers', () => {

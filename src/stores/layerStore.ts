@@ -6,6 +6,7 @@ export type LayerVisibility = Record<LayerKey, boolean>
 const DEFAULT_LAYERS: LayerVisibility = {
   rtu: true,
   polygons: true,
+  inspection360: true,
   sprinkler: true,
   electrical: true,
   hydrant: true,
@@ -15,6 +16,7 @@ const DEFAULT_LAYERS: LayerVisibility = {
 const ALL_LAYERS_OFF: LayerVisibility = {
   rtu: false,
   polygons: false,
+  inspection360: false,
   sprinkler: false,
   electrical: false,
   hydrant: false,

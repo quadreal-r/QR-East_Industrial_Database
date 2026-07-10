@@ -1,4 +1,5 @@
-import type { Building, LatLng, Polygon, PortfolioData, Rtu, Utility } from '@/types/domain'
+import type { Building, LatLng, Polygon, PortfolioData, Rtu, SuiteEntrance, Utility } from '@/types/domain'
+import { matchesSuiteEntrance } from '@/lib/suiteEntrances'
 
 export interface EditSummaryGroup {
   label: string
@@ -38,6 +39,48 @@ function utilityLabel(utility: Utility): string {
 
 function polygonLabel(polygon: Polygon): string {
   return polygon.name || 'Polygon'
+}
+
+function suiteEntranceLabel(entrance: SuiteEntrance, building?: Building): string {
+  const name = entrance.name || '360° gate'
+  return building ? `${name} (${buildingLabel(building)})` : name
+}
+
+function suiteEntranceTextFields(entrance: SuiteEntrance): Record<string, unknown> {
+  return {
+    building_id: entrance.building_id ?? null,
+    polygon_id: entrance.polygon_id ?? null,
+    name: entrance.name,
+    description: entrance.description,
+    inspection_url: entrance.inspection_url ?? null,
+  }
+}
+
+function findBaselineSuiteEntrance(
+  baseline: PortfolioData,
+  entrance: SuiteEntrance,
+): SuiteEntrance | undefined {
+  return (baseline.suiteEntrances ?? []).find((item) => matchesSuiteEntrance(item, entrance))
+}
+
+function suiteEntranceChanged(a: SuiteEntrance, b: SuiteEntrance): { moved: boolean; edited: boolean } {
+  const moved = !coordsEqual({ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng })
+  const edited = !recordsEqual(suiteEntranceTextFields(a), suiteEntranceTextFields(b))
+  return { moved, edited }
+}
+
+function pushSuiteEntranceUpsert(
+  changes: PortfolioChanges,
+  entrance: SuiteEntrance,
+  baselineMatch?: SuiteEntrance,
+): void {
+  if (entrance.building_id == null) return
+  const payload = {
+    ...entrance,
+    building_id: entrance.building_id,
+    id: entrance.id ?? baselineMatch?.id,
+  }
+  changes.suiteEntrancesToUpsert.push(payload as SuiteEntrance & { building_id: number })
 }
 
 function buildingTextFields(building: Building): Record<string, unknown> {
@@ -104,6 +147,10 @@ function finalizeGroups(groups: Map<string, string[]>): EditSummaryGroup[] {
     'Markers moved',
     'Markers edited',
     'Markers deleted',
+    '360° gates added',
+    '360° gates moved',
+    '360° gates edited',
+    '360° gates deleted',
     'Polygons added',
     'Polygons moved',
     'Polygons edited',
@@ -172,6 +219,8 @@ export interface PortfolioChanges {
   utilityIdsToDelete: number[]
   polygonsToUpsert: Polygon[]
   polygonIdsToDelete: number[]
+  suiteEntrancesToUpsert: Array<SuiteEntrance & { building_id: number }>
+  suiteEntranceIdsToDelete: number[]
 }
 
 export function countPortfolioChanges(changes: PortfolioChanges): number {
@@ -184,7 +233,9 @@ export function countPortfolioChanges(changes: PortfolioChanges): number {
     changes.utilitiesToUpsert.length +
     changes.utilityIdsToDelete.length +
     changes.polygonsToUpsert.length +
-    changes.polygonIdsToDelete.length
+    changes.polygonIdsToDelete.length +
+    changes.suiteEntrancesToUpsert.length +
+    changes.suiteEntranceIdsToDelete.length
   )
 }
 
@@ -242,6 +293,8 @@ export function computePortfolioChanges(
     utilityIdsToDelete: [],
     polygonsToUpsert: [],
     polygonIdsToDelete: [],
+    suiteEntrancesToUpsert: [],
+    suiteEntranceIdsToDelete: [],
   }
 
   const baselineBuildings = new Map(
@@ -345,6 +398,45 @@ export function computePortfolioChanges(
 
   for (const polygon of baselinePolygons.values()) {
     if (polygon.id != null) changes.polygonIdsToDelete.push(polygon.id)
+  }
+
+  const baselineEntrances = new Map(
+    (baseline.suiteEntrances ?? [])
+      .filter((entrance) => entrance.id != null)
+      .map((entrance) => [entrance.id!, entrance]),
+  )
+
+  for (const entrance of pending.suiteEntrances ?? []) {
+    if (entrance.id == null) {
+      const baselineMatch = findBaselineSuiteEntrance(baseline, entrance)
+      if (!baselineMatch) {
+        pushSuiteEntranceUpsert(changes, entrance)
+        continue
+      }
+      const { moved, edited } = suiteEntranceChanged(baselineMatch, entrance)
+      if (moved || edited) {
+        pushSuiteEntranceUpsert(changes, entrance, baselineMatch)
+      }
+      continue
+    }
+
+    const baselineEntrance = baselineEntrances.get(entrance.id)
+    if (!baselineEntrance) {
+      pushSuiteEntranceUpsert(changes, entrance)
+      continue
+    }
+
+    const { moved, edited } = suiteEntranceChanged(baselineEntrance, entrance)
+
+    if ((moved || edited) && entrance.building_id != null) {
+      pushSuiteEntranceUpsert(changes, entrance)
+    }
+
+    baselineEntrances.delete(entrance.id)
+  }
+
+  for (const entrance of baselineEntrances.values()) {
+    if (entrance.id != null) changes.suiteEntranceIdsToDelete.push(entrance.id)
   }
 
   return changes
@@ -451,6 +543,49 @@ export function diffPortfolio(baseline: PortfolioData, pending: PortfolioData): 
 
   for (const polygon of baselinePolygons.values()) {
     pushItem(groups, 'Polygons deleted', polygonLabel(polygon))
+  }
+
+  const baselineEntrances = new Map(
+    (baseline.suiteEntrances ?? [])
+      .filter((entrance) => entrance.id != null)
+      .map((entrance) => [entrance.id!, entrance]),
+  )
+  const buildingById = new Map(
+    pending.buildings.filter((b) => b.id != null).map((b) => [b.id!, b]),
+  )
+
+  for (const entrance of pending.suiteEntrances ?? []) {
+    const building = entrance.building_id != null ? buildingById.get(entrance.building_id) : undefined
+    if (entrance.id == null) {
+      const baselineMatch = findBaselineSuiteEntrance(baseline, entrance)
+      if (!baselineMatch) {
+        pushItem(groups, '360° gates added', suiteEntranceLabel(entrance, building))
+        continue
+      }
+      const { moved, edited } = suiteEntranceChanged(baselineMatch, entrance)
+      if (moved) pushItem(groups, '360° gates moved', suiteEntranceLabel(entrance, building))
+      if (edited) pushItem(groups, '360° gates edited', suiteEntranceLabel(entrance, building))
+      continue
+    }
+
+    const baselineEntrance = baselineEntrances.get(entrance.id)
+    if (!baselineEntrance) {
+      pushItem(groups, '360° gates added', suiteEntranceLabel(entrance, building))
+      continue
+    }
+
+    const { moved, edited } = suiteEntranceChanged(baselineEntrance, entrance)
+
+    if (moved) pushItem(groups, '360° gates moved', suiteEntranceLabel(entrance, building))
+    if (edited) pushItem(groups, '360° gates edited', suiteEntranceLabel(entrance, building))
+
+    baselineEntrances.delete(entrance.id)
+  }
+
+  for (const entrance of baselineEntrances.values()) {
+    const building =
+      entrance.building_id != null ? buildingById.get(entrance.building_id) : undefined
+    pushItem(groups, '360° gates deleted', suiteEntranceLabel(entrance, building))
   }
 
   const summaryGroups = finalizeGroups(groups)

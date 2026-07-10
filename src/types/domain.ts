@@ -1,10 +1,12 @@
 /** Application domain types (normalized from DB rows or legacy JSON). */
 
 import { isLegacySuiteMarkerName } from '@/lib/legacySuiteMarkers'
+import { mergePortfolioSuiteEntrances } from '@/lib/suiteEntrances'
 
 export type LayerKey =
   | 'rtu'
   | 'polygons'
+  | 'inspection360'
   | 'sprinkler'
   | 'electrical'
   | 'hydrant'
@@ -88,6 +90,26 @@ export interface Polygon {
   paths: LatLng[]
 }
 
+/** Suite entrance gate for QR-360°-Inspections virtual tours (stored in `tenants` table). */
+export interface SuiteEntrance {
+  id?: number
+  building_id?: number
+  polygon_id?: number | null
+  name: string
+  description: string
+  lat: number
+  lng: number
+  /** QR-360°-Inspections tour URL — connected in a future session. */
+  inspection_url?: string | null
+  /**
+   * True only while this gate still sits at its auto-computed facade
+   * position and has never been manually dragged or placed. Cleared to
+   * false the moment a user moves it, so later portfolio updates never
+   * snap a manual placement back to the default spot.
+   */
+  auto_placed?: boolean
+}
+
 export interface LayerStyle {
   fill: string
   stroke: string
@@ -135,6 +157,7 @@ export interface PortfolioData {
   buildings: Building[]
   utilities: Utility[]
   polygons: Polygon[]
+  suiteEntrances: SuiteEntrance[]
   /** Saved map cameras keyed by `${park}|${cluster}|${manager}`. */
   portfolioMapViews?: Record<string, PortfolioMapViewFields>
 }
@@ -190,11 +213,12 @@ export function normalizeBuilding(building: Building): Building {
 }
 
 export function normalizePortfolioData(portfolio: PortfolioData): PortfolioData {
-  return {
+  return mergePortfolioSuiteEntrances({
     ...portfolio,
     portfolioMapViews: portfolio.portfolioMapViews ?? {},
+    suiteEntrances: portfolio.suiteEntrances ?? [],
     buildings: portfolio.buildings.map(normalizeBuilding),
-  }
+  })
 }
 
 export function normalizeLegacyBuilding(raw: LegacyBuildingJson): Building {

@@ -7,6 +7,7 @@ import {
 
 export type ModalId =
   | 'addMarker'
+  | 'addInspection360'
   | 'polygonDraw'
   | 'import'
   | 'notes'
@@ -29,6 +30,14 @@ export interface RtuPictureViewerState {
   rtuName: string
 }
 
+export interface Inspection360ViewerState {
+  buildingAddress: string
+  suiteName: string
+  title: string
+  projectUrl: string | null
+  scene: string | null
+}
+
 interface UiState {
   modals: Partial<Record<ModalId, boolean>>
   settingsOpen: boolean
@@ -36,6 +45,7 @@ interface UiState {
   addMarkerClickHandler: AddMarkerClickHandler | null
   polygonDrawMode: boolean
   rtuPictureViewer: RtuPictureViewerState | null
+  inspection360Viewer: Inspection360ViewerState | null
   pictureCountModalOpen: boolean
   openModal: (id: ModalId) => void
   closeModal: (id: ModalId) => void
@@ -53,6 +63,8 @@ interface UiState {
   closeRtuPictureViewer: (fromPopState?: boolean) => void
   setRtuPictureViewerIndex: (index: number) => void
   updateRtuPictureViewerPictures: (pictures: RtuPictureViewerItem[], index?: number) => void
+  openInspection360Viewer: (state: Inspection360ViewerState) => void
+  closeInspection360Viewer: () => void
   openPictureCountModal: () => void
   closePictureCountModal: () => void
 }
@@ -64,6 +76,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   addMarkerClickHandler: null,
   polygonDrawMode: false,
   rtuPictureViewer: null,
+  inspection360Viewer: null,
   pictureCountModalOpen: false,
 
   openModal: (id) =>
@@ -124,6 +137,8 @@ export const useUiStore = create<UiState>((set, get) => ({
           }
         : {},
     ),
+  openInspection360Viewer: (state) => set({ inspection360Viewer: state }),
+  closeInspection360Viewer: () => set({ inspection360Viewer: null }),
   openPictureCountModal: () => set({ pictureCountModalOpen: true }),
   closePictureCountModal: () => set({ pictureCountModalOpen: false }),
 }))

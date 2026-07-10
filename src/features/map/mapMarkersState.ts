@@ -5,18 +5,20 @@ import {
   getAppMarkerPosition,
   setBuildingMarkerContent,
   setDetailMarkerContent,
+  setInspection360MarkerContent,
   setAppMarkerPosition,
   type AppMapMarker,
 } from '@/lib/appMapMarker'
 import { matchesUtility } from '@/lib/dragSelection'
+import { matchesSuiteEntrance } from '@/lib/suiteEntrances'
 import { isLegacySuiteMarkerName } from '@/lib/legacySuiteMarkers'
-import { LAYER_COLORS } from '@/lib/constants'
+import { INSPECTION360_MARKER_PX, INSPECTION360_MARKER_PX_SELECTED, LAYER_COLORS } from '@/lib/constants'
 import { getColor } from '@/lib/colors'
 import { getDetailMarkerIcon, getMarkerIcon } from '@/lib/markerStyles'
 import { registerRtuDropTarget, rtuDropTargetKey } from '@/features/map/rtuDropTargetHighlight'
 import { fitBoundsPreserveRotation } from '@/lib/mapRotation'
 import type { buildPolygonBuildingIndex } from '@/lib/polygonBuildings'
-import type { Building, LayerKey, Rtu, Utility } from '@/types/domain'
+import type { Building, LayerKey, Rtu, SuiteEntrance, Utility } from '@/types/domain'
 
 // --- Types --------------------------------------------------------------------
 
@@ -29,12 +31,16 @@ export interface MapMarkersCallbacks {
   onBuildingMoved?: (building: Building, lat: number, lng: number) => void
   onDetailMoved?: (
     layerKey: LayerKey,
-    data: Rtu | Utility,
+    data: Rtu | Utility | SuiteEntrance,
     lat: number,
     lng: number,
     building: Building | null,
   ) => void
-  onDeleteDetail?: (layerKey: LayerKey, data: Rtu | Utility, building: Building | null) => void
+  onDeleteDetail?: (
+    layerKey: LayerKey,
+    data: Rtu | Utility | SuiteEntrance,
+    building: Building | null,
+  ) => void
   onEditDetail?: (
     layerKey: LayerKey,
     building: Building,
@@ -52,7 +58,7 @@ export interface BuildingMarkerEntry {
 export interface DetailMarkerEntry {
   type: LayerKey
   building: Building | null
-  data: Rtu | Utility
+  data: Rtu | Utility | SuiteEntrance
   marker: AppMapMarker
   pictureCount?: number
   dragKey: string
@@ -104,6 +110,17 @@ export function syncBuildingMarkerAppearance(
 export function detailLabelFor(entry: DetailMarkerEntry): google.maps.MarkerLabel | undefined {
   const { type: layerKey, data } = entry
   if (!data.name) return undefined
+  if (layerKey === 'inspection360') {
+    const cfg = LAYER_COLORS.inspection360
+    return {
+      text: data.name,
+      color: cfg.fill,
+      fontSize: '10px',
+      fontWeight: '700',
+      fontFamily: 'Inter,sans-serif',
+      className: 'rtu-label',
+    }
+  }
   const cfg = LAYER_COLORS[layerKey]
   const text =
     layerKey === 'hydrant' ? 'Hydrant' : layerKey === 'gas' ? 'Gas Meter' : data.name
@@ -121,6 +138,17 @@ export function detailIconFor(
   entry: DetailMarkerEntry,
   isSelected: boolean,
 ): google.maps.Symbol {
+  if (entry.type === 'inspection360') {
+    const cfg = LAYER_COLORS.inspection360
+    return {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: cfg.fill,
+      fillOpacity: 0.9,
+      strokeColor: isSelected ? '#ffffff' : cfg.stroke,
+      strokeWeight: isSelected ? 3 : 1,
+      scale: isSelected ? cfg.scale + 2 : cfg.scale,
+    }
+  }
   const cfg = LAYER_COLORS[entry.type]
   if (isSelected) {
     return {
@@ -133,8 +161,8 @@ export function detailIconFor(
     }
   }
   return getDetailMarkerIcon(cfg.fill, cfg.stroke, {
-    shapeIndex: entry.data.marker_shape,
-    scale: entry.data.marker_scale,
+    shapeIndex: 'marker_shape' in entry.data ? entry.data.marker_shape : undefined,
+    scale: 'marker_scale' in entry.data ? entry.data.marker_scale : undefined,
     defaultScale: cfg.scale,
   })
 }
@@ -151,6 +179,19 @@ export function syncDetailMarkerAppearance(
   isSelected = false,
   showPictureCount = true,
 ): void {
+  if (entry.type === 'inspection360') {
+    const cfg = LAYER_COLORS.inspection360
+    setInspection360MarkerContent(entry.marker, {
+      fillColor: cfg.fill,
+      strokeColor: cfg.stroke,
+      sizePx: isSelected ? INSPECTION360_MARKER_PX_SELECTED : INSPECTION360_MARKER_PX,
+      label: detailLabelFor(entry),
+      labelOffsetY: -10,
+      selected: isSelected,
+    })
+    return
+  }
+
   setDetailMarkerContent(entry.marker, {
     icon: detailIconFor(entry, isSelected),
     label: detailLabelFor(entry),
@@ -172,16 +213,24 @@ export function syncDetailMarkerPositions(
   lng: number,
 ): void {
   setAppMarkerPosition(entry.marker, lat, lng)
+  if ('utility_type' in entry.data) {
+    entry.data = { ...entry.data, lat, lng }
+  } else if (entry.type === 'inspection360') {
+    entry.data = { ...(entry.data as SuiteEntrance), lat, lng }
+  } else if (entry.type === 'rtu') {
+    entry.data = { ...entry.data, lat, lng }
+  }
 }
 
 /** Apply map marker positions that differ from portfolio (e.g. before leaving edit mode). */
 export function applyPendingMarkerPositions(
-  portfolio: { buildings: Building[]; utilities: Utility[] },
+  portfolio: { buildings: Building[]; utilities: Utility[]; suiteEntrances?: SuiteEntrance[] },
   buildingMarkers: BuildingMarkerEntry[],
   detailMarkers: DetailMarkerEntry[],
-): { buildings: Building[]; utilities: Utility[] } | null {
+): { buildings: Building[]; utilities: Utility[]; suiteEntrances: SuiteEntrance[] } | null {
   let buildings = portfolio.buildings
   let utilities = portfolio.utilities
+  let suiteEntrances = portfolio.suiteEntrances ?? []
   let changed = false
 
   for (const entry of buildingMarkers) {
@@ -225,16 +274,29 @@ export function applyPendingMarkerPositions(
         matchesUtility(u, entry.data as Utility) ? { ...u, lat, lng } : u,
       )
       changed = true
+      continue
+    }
+    if (entry.type === 'inspection360' && !('utility_type' in entry.data) && !('model' in entry.data)) {
+      const entrance = entry.data as SuiteEntrance
+      const stored = suiteEntrances.find((item) => matchesSuiteEntrance(item, entrance))
+      if (stored && stored.lat === lat && stored.lng === lng) continue
+      // Clear auto_placed so ensureSuiteEntrances does not snap the sphere back
+      // to the polygon facade on the next normalize pass.
+      suiteEntrances = suiteEntrances.map((item) =>
+        matchesSuiteEntrance(item, entrance) ? { ...item, lat, lng, auto_placed: false } : item,
+      )
+      changed = true
     }
   }
 
-  return changed ? { buildings, utilities } : null
+  return changed ? { buildings, utilities, suiteEntrances } : null
 }
 
 /** Rebuild markers only when portfolio structure changes, not on coordinate edits. */
 export function buildMarkerStructureKey(
   buildings: Building[],
   utilities: Utility[],
+  suiteEntrances: SuiteEntrance[] = [],
 ): string {
   const buildingPart = buildings
     .map((b) => {
@@ -251,13 +313,18 @@ export function buildMarkerStructureKey(
     .map((u) => `${u.utility_type}\0${u.name ?? ''}\0${u.description ?? ''}`)
     .sort()
     .join('\n')
-  return `${buildingPart}||${utilityPart}`
+  const entrancePart = suiteEntrances
+    .map((e) => `${e.id ?? ''}\0${e.building_id ?? ''}\0${e.name}\0${e.polygon_id ?? ''}`)
+    .sort()
+    .join('\n')
+  return `${buildingPart}||${utilityPart}||${entrancePart}`
 }
 
 /** Keep live markers aligned with portfolio after moves without tearing down the map layer. */
 export function syncMarkersFromPortfolio(
   buildings: Building[],
   utilities: Utility[],
+  suiteEntrances: SuiteEntrance[],
   buildingMarkers: BuildingMarkerEntry[],
   detailMarkers: DetailMarkerEntry[],
 ): void {
@@ -299,6 +366,18 @@ export function syncMarkersFromPortfolio(
       const pos = getAppMarkerPosition(entry.marker)
       if (!pos || pos.lat() !== u.lat || pos.lng() !== u.lng) {
         syncDetailMarkerPositions(entry, u.lat, u.lng)
+      }
+      continue
+    }
+    if (entry.type === 'inspection360') {
+      const entrance = suiteEntrances.find((item) =>
+        matchesSuiteEntrance(item, entry.data as SuiteEntrance),
+      )
+      if (!entrance) continue
+      entry.data = entrance
+      const pos = getAppMarkerPosition(entry.marker)
+      if (!pos || pos.lat() !== entrance.lat || pos.lng() !== entrance.lng) {
+        syncDetailMarkerPositions(entry, entrance.lat, entrance.lng)
       }
     }
   }

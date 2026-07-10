@@ -22,6 +22,7 @@ import styles from './Sidebar.module.css'
 const LAYER_LABELS: Partial<Record<LayerKey, string>> = {
   rtu: 'RTUs',
   polygons: 'Polygons',
+  inspection360: '360° Gates',
   sprinkler: 'Sprinkler',
   electrical: 'Electrical',
   hydrant: 'Hydrants',

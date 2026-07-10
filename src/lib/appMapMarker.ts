@@ -2,6 +2,8 @@
  * Google Maps AdvancedMarkerElement wrapper (replaces deprecated google.maps.Marker).
  */
 
+import { INSPECTION360_MARKER_PX } from '@/lib/constants'
+
 export type AppMapMarker = google.maps.marker.AdvancedMarkerElement
 
 type MarkerListenerEvent = 'click' | 'dragstart' | 'drag' | 'dragend'
@@ -258,6 +260,112 @@ export function setDetailMarkerContent(
   options: DetailMarkerContentOptions,
 ): void {
   marker.content = buildDetailMarkerContent(options)
+  marker.anchorLeft = PIN_CENTER_ANCHOR_LEFT
+  marker.anchorTop = PIN_CENTER_ANCHOR_TOP
+  marker.gmpClickable = true
+}
+
+export interface Inspection360MarkerContentOptions {
+  fillColor: string
+  strokeColor: string
+  sizePx?: number
+  label?: google.maps.MarkerLabel
+  labelOffsetY?: number
+  selected?: boolean
+}
+
+/** 3D-style sphere marker for QR-360° suite entrance gates. */
+export function buildSphereMarkerContent(options: Inspection360MarkerContentOptions): HTMLElement {
+  const size = options.sizePx ?? INSPECTION360_MARKER_PX
+  const labelOffset = options.labelOffsetY ?? -10
+  const fill = options.fillColor
+  const stroke = options.strokeColor
+  const highlight = options.selected ? '#ffffff' : '#e0f2fe'
+
+  const root = document.createElement('div')
+  root.style.position = 'relative'
+  root.style.width = `${size}px`
+  root.style.height = `${size}px`
+  root.style.display = 'flex'
+  root.style.alignItems = 'center'
+  root.style.justifyContent = 'center'
+  root.style.pointerEvents = 'auto'
+  root.style.cursor = 'pointer'
+  root.style.lineHeight = '0'
+  root.style.overflow = 'visible'
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('width', String(size))
+  svg.setAttribute('height', String(size))
+  svg.style.display = 'block'
+  svg.style.overflow = 'visible'
+  svg.style.filter = options.selected
+    ? 'drop-shadow(0 0 6px rgba(56, 189, 248, 0.85))'
+    : 'drop-shadow(0 1px 2px rgba(0,0,0,0.45))'
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient')
+  grad.setAttribute('id', `sphere-grad-${Math.random().toString(36).slice(2, 9)}`)
+  grad.setAttribute('cx', '35%')
+  grad.setAttribute('cy', '30%')
+  grad.setAttribute('r', '65%')
+
+  const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+  stop1.setAttribute('offset', '0%')
+  stop1.setAttribute('stop-color', highlight)
+  stop1.setAttribute('stop-opacity', '0.95')
+  const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+  stop2.setAttribute('offset', '55%')
+  stop2.setAttribute('stop-color', fill)
+  stop2.setAttribute('stop-opacity', '0.95')
+  const stop3 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+  stop3.setAttribute('offset', '100%')
+  stop3.setAttribute('stop-color', stroke)
+  stop3.setAttribute('stop-opacity', '1')
+
+  grad.appendChild(stop1)
+  grad.appendChild(stop2)
+  grad.appendChild(stop3)
+  defs.appendChild(grad)
+  svg.appendChild(defs)
+
+  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+  circle.setAttribute('cx', '12')
+  circle.setAttribute('cy', '12')
+  circle.setAttribute('r', options.selected ? '10.5' : '9.5')
+  circle.setAttribute('fill', `url(#${grad.id})`)
+  circle.setAttribute('stroke', options.selected ? '#ffffff' : stroke)
+  circle.setAttribute('stroke-width', options.selected ? '2' : '1.2')
+  svg.appendChild(circle)
+  root.appendChild(svg)
+
+  if (options.label?.text) {
+    const span = document.createElement('span')
+    span.textContent = options.label.text
+    span.style.color = options.label.color ?? fill
+    span.style.fontSize = options.label.fontSize ?? '10px'
+    span.style.fontWeight = options.label.fontWeight ?? '700'
+    span.style.fontFamily = options.label.fontFamily ?? 'Inter,sans-serif'
+    span.style.whiteSpace = 'nowrap'
+    span.style.lineHeight = '1.2'
+    span.style.position = 'absolute'
+    span.style.left = '50%'
+    span.style.top = '50%'
+    span.style.transform = `translate(-50%, calc(-100% + ${labelOffset}px))`
+    span.style.pointerEvents = 'none'
+    if (options.label.className) span.className = options.label.className
+    root.appendChild(span)
+  }
+
+  return root
+}
+
+export function setInspection360MarkerContent(
+  marker: AppMapMarker,
+  options: Inspection360MarkerContentOptions,
+): void {
+  marker.content = buildSphereMarkerContent(options)
   marker.anchorLeft = PIN_CENTER_ANCHOR_LEFT
   marker.anchorTop = PIN_CENTER_ANCHOR_TOP
   marker.gmpClickable = true

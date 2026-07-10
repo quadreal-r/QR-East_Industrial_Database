@@ -659,7 +659,7 @@ export function importPortfolioExcel(buffer: ArrayBuffer): PortfolioData {
     }),
   )
 
-  return { buildings, utilities, polygons }
+  return { buildings, utilities, polygons, suiteEntrances: [] }
 }
 
 /** Export RTU replacement cost estimate (RCB) to Excel. */

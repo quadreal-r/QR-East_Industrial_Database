@@ -7,6 +7,7 @@ import type {
   PortfolioData,
   PortfolioMapViewFields,
   Rtu,
+  SuiteEntrance,
   Utility,
   UtilityType,
 } from '@/types/domain'
@@ -19,6 +20,7 @@ type RtuRow = Tables<'rtus'>
 type UtilityRow = Tables<'utilities'>
 type PolygonRow = Tables<'polygons'>
 type PortfolioMapViewRow = Tables<'portfolio_map_views'>
+type TenantRow = Tables<'tenants'>
 
 function rowToRtu(row: RtuRow): Rtu {
   return {
@@ -103,6 +105,19 @@ function rowToPolygon(row: PolygonRow): Polygon {
   }
 }
 
+function rowToSuiteEntrance(row: TenantRow): SuiteEntrance {
+  return {
+    id: row.id,
+    building_id: row.building_id,
+    polygon_id: row.polygon_id,
+    name: row.name,
+    description: row.description ?? '',
+    lat: row.lat,
+    lng: row.lng,
+    inspection_url: row.inspection_url,
+  }
+}
+
 function rowToPortfolioMapView(row: PortfolioMapViewRow): [string, PortfolioMapViewFields] {
   return [
     row.filter_key,
@@ -118,11 +133,12 @@ function rowToPortfolioMapView(row: PortfolioMapViewRow): [string, PortfolioMapV
 }
 
 export async function fetchPortfolio(): Promise<PortfolioData> {
-  const [buildingsRes, rtusRes, utilitiesRes, polygonsRes, mapViewsRes] = await Promise.all([
+  const [buildingsRes, rtusRes, utilitiesRes, polygonsRes, tenantsRes, mapViewsRes] = await Promise.all([
     supabase.from('buildings').select('*').order('address'),
     supabase.from('rtus').select('*'),
     supabase.from('utilities').select('*').order('name'),
     supabase.from('polygons').select('*').order('name'),
+    supabase.from('tenants').select('*'),
     supabase.from('portfolio_map_views').select('*'),
   ])
 
@@ -130,6 +146,7 @@ export async function fetchPortfolio(): Promise<PortfolioData> {
   if (rtusRes.error) throw rtusRes.error
   if (utilitiesRes.error) throw utilitiesRes.error
   if (polygonsRes.error) throw polygonsRes.error
+  if (tenantsRes.error) throw tenantsRes.error
   if (mapViewsRes.error) throw mapViewsRes.error
 
   const rtusByBuilding = new Map<number, RtuRow[]>()
@@ -148,11 +165,12 @@ export async function fetchPortfolio(): Promise<PortfolioData> {
   )
 
   return normalizePortfolioData({
-    buildings,
-    utilities: (utilitiesRes.data ?? []).map(rowToUtility),
-    polygons: (polygonsRes.data ?? []).map(rowToPolygon),
-    portfolioMapViews,
-  })
+      buildings,
+      utilities: (utilitiesRes.data ?? []).map(rowToUtility),
+      polygons: (polygonsRes.data ?? []).map(rowToPolygon),
+      suiteEntrances: (tenantsRes.data ?? []).map(rowToSuiteEntrance),
+      portfolioMapViews,
+    })
 }
 
 export async function upsertBuilding(building: Building): Promise<Building> {
@@ -371,6 +389,40 @@ export async function deletePolygon(id: number): Promise<void> {
   if (error) throw error
 }
 
+export async function upsertSuiteEntrance(
+  entrance: SuiteEntrance & { building_id: number },
+): Promise<SuiteEntrance> {
+  const payload = {
+    building_id: entrance.building_id,
+    polygon_id: entrance.polygon_id ?? null,
+    name: entrance.name,
+    description: entrance.description || null,
+    lat: entrance.lat,
+    lng: entrance.lng,
+    inspection_url: entrance.inspection_url ?? null,
+  }
+
+  if (entrance.id) {
+    const { data, error } = await supabase
+      .from('tenants')
+      .update(payload)
+      .eq('id', entrance.id)
+      .select('*')
+      .single()
+    if (error) throw error
+    return rowToSuiteEntrance(data)
+  }
+
+  const { data, error } = await supabase.from('tenants').insert(payload).select('*').single()
+  if (error) throw error
+  return rowToSuiteEntrance(data)
+}
+
+export async function deleteSuiteEntrance(id: number): Promise<void> {
+  const { error } = await supabase.from('tenants').delete().eq('id', id)
+  if (error) throw error
+}
+
 /** Replace the full portfolio in Supabase (used by Excel import and bulk edits). */
 export async function savePortfolio(portfolio: PortfolioData): Promise<PortfolioData> {
   const normalized = normalizePortfolioData(portfolio)
@@ -422,6 +474,21 @@ export async function savePortfolio(portfolio: PortfolioData): Promise<Portfolio
     await upsertPolygon(polygon)
   }
 
+  const existingEntrances = await supabase.from('tenants').select('id')
+  if (existingEntrances.error) throw existingEntrances.error
+  const nextEntranceIds = new Set(
+    normalized.suiteEntrances.map((e) => e.id).filter((id): id is number => id != null),
+  )
+  for (const row of existingEntrances.data ?? []) {
+    if (!nextEntranceIds.has(row.id)) {
+      await deleteSuiteEntrance(row.id)
+    }
+  }
+  for (const entrance of normalized.suiteEntrances) {
+    if (entrance.building_id == null) continue
+    await upsertSuiteEntrance({ ...entrance, building_id: entrance.building_id })
+  }
+
   return fetchPortfolio()
 }
 
@@ -467,6 +534,14 @@ export async function savePortfolioChanges(
 
   for (const polygon of changes.polygonsToUpsert) {
     await upsertPolygon(polygon)
+  }
+
+  for (const id of changes.suiteEntranceIdsToDelete) {
+    await deleteSuiteEntrance(id)
+  }
+
+  for (const entrance of changes.suiteEntrancesToUpsert) {
+    await upsertSuiteEntrance(entrance)
   }
 
   return fetchPortfolio()

@@ -32,6 +32,7 @@ describe('buildRtuPictureExportBundle', () => {
         },
       ],
       utilities: [],
+      suiteEntrances: [],
       polygons: [],
     }
 

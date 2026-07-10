@@ -51,7 +51,7 @@ import {
   type MapMarkersCallbacks,
   type PolygonBuildingIndex,
 } from '@/features/map/mapMarkersState'
-import type { Building, LayerKey, Rtu } from '@/types/domain'
+import type { Building, LayerKey, Rtu, SuiteEntrance } from '@/types/domain'
 
 export function useInfoWindowActions(
   map: google.maps.Map | null,
@@ -399,6 +399,27 @@ export function useInfoWindowActions(
           ctx.view = 'pictures'
           ctx.pictureIndex = 0
           void refreshRtuPicturesView()
+        },
+        { signal },
+      )
+
+      container.querySelector('[data-iw-action="inspection360-open"]')?.addEventListener(
+        'click',
+        () => {
+          const ctx = activeDetailInfoRef.current
+          if (!ctx || ctx.entry.type !== 'inspection360') return
+          const entrance = ctx.entry.data as SuiteEntrance
+          const buildingAddress = ctx.entry.building?.address ?? ''
+          useUiStore.getState().openInspection360Viewer({
+            buildingAddress,
+            suiteName: entrance.name,
+            title: entrance.name,
+            projectUrl: entrance.inspection_url?.trim() || null,
+            scene: null,
+          })
+          iw.close()
+          activeInfoMarkerRef.current = null
+          activeDetailInfoRef.current = null
         },
         { signal },
       )

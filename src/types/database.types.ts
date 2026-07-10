@@ -410,9 +410,11 @@ export type Database = {
           created_at: string
           description: string | null
           id: number
+          inspection_url: string | null
           lat: number
           lng: number
           name: string
+          polygon_id: number | null
           updated_at: string
         }
         Insert: {
@@ -420,9 +422,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: number
+          inspection_url?: string | null
           lat: number
           lng: number
           name: string
+          polygon_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -430,9 +434,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: number
+          inspection_url?: string | null
           lat?: number
           lng?: number
           name?: string
+          polygon_id?: number | null
           updated_at?: string
         }
         Relationships: [

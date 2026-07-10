@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.8.0] - 2026-07-10
+
+### Added
+
+- Inspection 360° suite entrance markers on the map with a full-screen tour viewer
+- Add Inspection 360 panel and editor settings to place and link suite tours
+- Suite entrance data model with polygon linking and inspection URL fields (database migration)
+- Layer toggle and edit-mode save/diff support for Inspection 360 markers
+
+### Changed
+
+- Extend map markers, drag selection, and group drag so Inspection 360 markers move and select with other map items
+
 ## [1.7.2] - 2026-07-06
 
 ### Fixed

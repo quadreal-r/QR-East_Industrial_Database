@@ -3,6 +3,7 @@ import { ImportExportButtons } from '@/features/import-export/ImportExportButton
 import { RtuPictureGpsAssign } from '@/features/settings/RtuPictureGpsAssign'
 import { RtuPricingSettings } from '@/features/settings/RtuPricingSettings'
 import { PolygonEditorSettings } from '@/features/settings/PolygonEditorSettings'
+import { Inspection360EditorSettings } from '@/features/settings/Inspection360EditorSettings'
 import { SettingsAccountPage } from '@/features/settings/SettingsAccountPage'
 import { RtuEditorSettings } from '@/features/settings/RtuEditorSettings'
 import { SettingsSectionLabel } from '@/features/settings/SettingsSectionLabel'
@@ -33,6 +34,7 @@ export interface SettingsModalProps {
   onPortfolioPatch: (data: PortfolioData) => void
   onOpenPolygonDraw: () => void
   onOpenAddMarker: () => void
+  onOpenAddInspection360: () => void
   onSaved?: () => void
   isAuthenticated: boolean
   onSignIn: () => void
@@ -149,6 +151,7 @@ function SettingsForm({
   onPortfolioPatch,
   onOpenPolygonDraw,
   onOpenAddMarker,
+  onOpenAddInspection360,
 }: SettingsFormProps) {
   const setThemeIndex = useSettingsStore((s) => s.setThemeIndex)
   const applyTheme = useSettingsStore((s) => s.applyTheme)
@@ -164,6 +167,7 @@ function SettingsForm({
   const [pricingOpen, setPricingOpen] = useState(false)
   const [rtuEditorOpen, setRtuEditorOpen] = useState(false)
   const [polygonEditorOpen, setPolygonEditorOpen] = useState(false)
+  const [inspection360EditorOpen, setInspection360EditorOpen] = useState(false)
   const [settingsView, setSettingsView] = useState<SettingsView>('main')
 
   const managerEditorKey = useMemo(() => {
@@ -292,6 +296,12 @@ function SettingsForm({
               </SettingsToolButton>
             ) : null}
             <SettingsToolButton
+              tooltip="Add, edit, move, or delete sky-blue sphere markers at suite entrances for 360° tours."
+              onClick={() => setInspection360EditorOpen(true)}
+            >
+              Edit 360° Gates
+            </SettingsToolButton>
+            <SettingsToolButton
               tooltip="Place a new building, RTU, or utility marker on the map."
               onClick={() => {
                 if (!isAuthenticated) {
@@ -361,6 +371,17 @@ function SettingsForm({
         onClose={() => setPolygonEditorOpen(false)}
         portfolio={portfolio}
         onPortfolioPatch={onPortfolioPatch}
+      />
+      <Inspection360EditorSettings
+        open={inspection360EditorOpen}
+        onClose={() => setInspection360EditorOpen(false)}
+        portfolio={portfolio}
+        onPortfolioPatch={onPortfolioPatch}
+        onOpenAddInspection360={() => {
+          setInspection360EditorOpen(false)
+          handleClose()
+          onOpenAddInspection360()
+        }}
       />
     </Modal>
   )
