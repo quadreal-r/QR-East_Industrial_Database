@@ -36,7 +36,7 @@ export function useMarkerDrag(
     const finalSnapshot = endGroupDrag()
     if (!finalSnapshot || !onGroupMoved) return
     onGroupMoved(applySnapshotToPortfolio(portfolioRef.current, finalSnapshot))
-    showToastSuccess('- Positions updated - save to HTML to keep changes.')
+    showToastSuccess('Positions updated — save to keep changes.')
   }, [onGroupMoved, portfolioRef])
 
   const beginDragSession = useCallback(

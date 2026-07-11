@@ -233,5 +233,9 @@ describe('diffPortfolio', () => {
     expect(changes.suiteEntrancesToUpsert).toHaveLength(1)
     expect(changes.suiteEntrancesToUpsert[0]?.id).toBe(99)
     expect(changes.suiteEntrancesToUpsert[0]?.lat).toBeCloseTo(40.01)
+
+    const summary = diffPortfolio(baselineWithGate, pending)
+    expect(summary.total).toBeGreaterThanOrEqual(1)
+    expect(summary.groups.some((group) => group.label === '360° gates moved')).toBe(true)
   })
 })

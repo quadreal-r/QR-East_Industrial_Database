@@ -61,10 +61,10 @@ function assignPendingPictureButton(count: number): string {
 }
 
 function inspection360TourButton(hasTour: boolean): string {
-  const label = hasTour ? 'Enter 360° tour' : 'Open 360° viewer'
+  const label = hasTour ? 'Enter QR-360° tour' : 'Open QR-360° viewer'
   const title = hasTour
-    ? 'Open the linked 360° inspection tour'
-    : 'Open the 360° viewer (link a tour file in Settings first)'
+    ? 'Open the linked QR-360° inspection tour'
+    : 'Open the QR-360° viewer (link a tour file in Settings first)'
   return `<button type="button" class="iw-pic-btn" data-iw-action="inspection360-open" title="${title}">🌐 ${label}</button>`
 }
 
@@ -347,8 +347,12 @@ export function buildBuildingInfoHtml(
   }
 
   const plainText = buildBuildingInfoPlainText(building, tenantPolygons, managerRenames)
+  const moveBtn = moveButton({
+    'iw-kind': 'building',
+    'iw-building': building.address,
+  })
 
-  return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(building.address)}</div><div class="iw-badges">${badges}</div>${closeButton()}</div><div class="iw-body">${stats}${rtuHtml}${tenantHtml}</div>${actionFooter(copyButton())}</div>`
+  return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(building.address)}</div><div class="iw-badges">${badges}</div>${closeButton()}</div><div class="iw-body">${stats}${rtuHtml}${tenantHtml}</div>${actionFooter(`${copyButton()}${moveBtn}`)}</div>`
 }
 
 export function buildDetailInfoHtml(
@@ -379,10 +383,6 @@ export function buildDetailInfoHtml(
       'iw-name': name,
       'iw-building': options?.buildingAddress ?? '',
     })
-    const deleteBtn =
-      options?.showDelete === false
-        ? ''
-        : `<button class="iw-del-btn" data-iw-action="delete" data-iw-layer="${layerKey}" data-iw-name="${escapeHtml(name)}" data-iw-building="${escapeHtml(options?.buildingAddress ?? '')}" title="Delete this gate">🗑 Delete</button>`
     const tourBtn = inspection360TourButton(Boolean(entrance.inspection_url?.trim()))
     const plainText = buildDetailInfoPlainText(layerKey, data, options)
     const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">360° GATE</span></div>`
@@ -393,7 +393,7 @@ export function buildDetailInfoHtml(
         : '',
       tourStatus,
     ].join('')
-    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${body}</div>${actionFooter(`${tourBtn}${moveBtn}${deleteBtn}`)}</div>`
+    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${body}</div>${actionFooter(`${tourBtn}${moveBtn}`)}</div>`
   }
 
   const lines = desc.split(/\r?\n/).filter(Boolean)

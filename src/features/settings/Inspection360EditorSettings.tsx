@@ -183,7 +183,7 @@ function Inspection360EditorForm({
         style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12 }}
       >
         Sky-blue sphere markers at suite entrances. Use Show on map, then Move in the popup to
-        reposition. Tour links connect to QR-360°-Inspections in a future update.
+        reposition. Paste a Tour URL to open that suite’s QR-360° project from the map popup.
       </p>
 
       <label className={styles.mgrFieldLabel} htmlFor="inspection360-editor-search">

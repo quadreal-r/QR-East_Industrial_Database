@@ -1,7 +1,7 @@
 {
   "name": "building-map-explorer",
   "private": true,
-  "version": "1.8.0",
+  "version": "1.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +20,7 @@
     "test:coverage": "vitest run --coverage",
     "extract": "tsx scripts/extract.ts",
     "migrate-json-to-supabase": "node scripts/migrate-json-to-supabase.mjs",
+    "import-portfolio-excel": "vite-node scripts/import-portfolio-excel-to-supabase.ts",
     "supabase:link": "supabase link --project-ref wyiymdtlncperqpwriuk",
     "db:push": "node scripts/supabase-db-push.mjs",
     "db:push:dry-run": "node scripts/supabase-db-push.mjs --dry-run",

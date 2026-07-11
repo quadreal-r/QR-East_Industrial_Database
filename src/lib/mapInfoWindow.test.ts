@@ -81,11 +81,12 @@ describe('mapInfoWindow', () => {
     expect(html).not.toContain('yr RTU</span>')
     expect(html).toContain('VACANT</span>')
   })
-  it('includes Copy without Move in building popup', () => {
+  it('includes Copy and Move in building popup', () => {
     const html = buildBuildingInfoHtml(building, tenantPolygons)
     expect(html).toContain('data-iw-action="copy-all"')
-    expect(html).not.toContain('data-iw-action="move"')
-    expect(html).not.toContain('↔ Move')
+    expect(html).toContain('data-iw-action="move"')
+    expect(html).toContain('data-iw-kind="building"')
+    expect(html).toContain('↔ Move')
     expect(html).toContain('class="iw-copy-source"')
     expect(html).not.toContain('Open in Google Maps')
     expect(html).not.toContain('<strong>GPS</strong>')
@@ -150,6 +151,26 @@ describe('mapInfoWindow', () => {
     const html = buildRtuDocumentsPageHtml(rtu, building.address, [])
     expect(html).not.toContain('data-iw-action="documents-download"')
     expect(html).toContain('No documents on Cloudflare')
+  })
+
+  it('includes Open viewer and Move but not Delete in 360° gate popup', () => {
+    const entrance = {
+      id: 8,
+      building_id: 1,
+      name: 'Suite # 8',
+      description: 'KMX Technologies, Inc.',
+      lat: 43.65,
+      lng: -79.62,
+      inspection_url: null,
+    }
+    const html = buildDetailInfoHtml('inspection360', entrance, {
+      buildingAddress: '6150 Kennedy Road',
+    })
+    expect(html).toContain('360° GATE')
+    expect(html).toContain('data-iw-action="inspection360-open"')
+    expect(html).toContain('↔ Move')
+    expect(html).not.toContain('🗑 Delete')
+    expect(html).not.toContain('data-iw-action="delete"')
   })
 
   it('includes Copy, Move, and Delete in utility detail popup footer', () => {

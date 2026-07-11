@@ -130,11 +130,24 @@ export function MapPanel({
     ) => {
       if (layerKey === 'inspection360' && !('utility_type' in data)) {
         const entrance = data as SuiteEntrance
+        let matched = false
+        const suiteEntrances = portfolio.suiteEntrances.map((item) => {
+          if (!matchesSuiteEntrance(item, entrance)) return item
+          matched = true
+          return { ...item, lat, lng, auto_placed: false }
+        })
+        if (!matched) {
+          suiteEntrances.push({
+            ...entrance,
+            building_id: entrance.building_id ?? building?.id,
+            lat,
+            lng,
+            auto_placed: false,
+          })
+        }
         onPortfolioPatch({
           ...portfolio,
-          suiteEntrances: portfolio.suiteEntrances.map((item) =>
-            matchesSuiteEntrance(item, entrance) ? { ...item, lat, lng, auto_placed: false } : item,
-          ),
+          suiteEntrances,
         })
         return
       }

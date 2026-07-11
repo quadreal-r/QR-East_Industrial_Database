@@ -22,7 +22,7 @@ export function Inspection360Viewer({
   onClose,
 }: Inspection360ViewerProps) {
   const iframeSrc = useMemo(() => {
-    if (!open || !projectUrl) return null
+    if (!open) return null
     return buildInspection360ViewerPageUrl({
       projectUrl,
       scene,
@@ -42,11 +42,14 @@ export function Inspection360Viewer({
   if (!open) return null
 
   return (
-    <div className={styles.inspection360Overlay} role="dialog" aria-label="360 degree tour viewer">
+    <div className={styles.inspection360Overlay} role="dialog" aria-label="QR-360 degree tour viewer">
       <header className={styles.header}>
         <div className={styles.headerText}>
           <div className={styles.title}>{title || suiteName || '360° tour'}</div>
-          <div className={styles.subtitle}>{buildingAddress}</div>
+          <div className={styles.subtitle}>
+            {buildingAddress}
+            {!projectUrl ? ' · Open a .insp360 project below, or link a Tour URL in Settings' : ''}
+          </div>
         </div>
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close 360 tour">
           ✕
@@ -58,21 +61,11 @@ export function Inspection360Viewer({
           <iframe
             className={styles.frame}
             src={iframeSrc}
-            title={`360 degree tour — ${suiteName}`}
+            title={`QR-360° tour — ${suiteName}`}
             allow="fullscreen"
           />
         </div>
-      ) : (
-        <div className={styles.noTour}>
-          <p>
-            <strong>No tour file linked yet.</strong>
-          </p>
-          <p>
-            Open Settings → Edit 360° Gates, select this suite, and paste the path or URL to your
-            `.insp360` project file in the Tour URL field. Then save your map changes.
-          </p>
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }

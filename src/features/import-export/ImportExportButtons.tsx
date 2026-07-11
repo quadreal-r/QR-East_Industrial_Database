@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx'
 import { importCapitalRtuWorkbook } from '@/lib/capitalRtuWorkbook'
 import { detectExcelWorkbookKind } from '@/lib/excelWorkbookType'
 import { exportPortfolioExcel, importPortfolioExcel } from '@/lib/excel'
+import { mergePortfolioExcelImport } from '@/lib/portfolioExcelMerge'
 import { importEquipmentSchedule } from '@/lib/equipmentSheet'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { normalizePortfolioData } from '@/types/domain'
@@ -91,9 +92,10 @@ export function ImportExportButtons({
       )
 
       if (kind === 'portfolio') {
-        const data = normalizePortfolioData(importPortfolioExcel(buffer))
+        const imported = normalizePortfolioData(importPortfolioExcel(buffer))
+        const data = mergePortfolioExcelImport(portfolio, imported)
         onImport(data)
-        showToastSuccess('✓ Portfolio imported to Supabase')
+        showToastSuccess('✓ Portfolio staged from Excel — save to write to Supabase')
         return
       }
 

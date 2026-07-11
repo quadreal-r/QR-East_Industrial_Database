@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient'
+import { fetchAllPages } from '@/lib/supabasePager'
 import type { Tables } from '@/types/database.types'
 
 export interface RtuPictureManifest {
@@ -14,25 +15,6 @@ type DocumentRow = Tables<'rtu_documents'>
 
 function pictureKey(buildingAddress: string, rtuName: string): string {
   return `${buildingAddress}|${rtuName}`
-}
-
-/** PostgREST caps each response at 1000 rows; paginate for full manifests. */
-const SUPABASE_PAGE_SIZE = 1000
-
-async function fetchAllPages<T>(
-  fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: Error | null }>,
-): Promise<T[]> {
-  const rows: T[] = []
-  let from = 0
-  while (true) {
-    const { data, error } = await fetchPage(from, from + SUPABASE_PAGE_SIZE - 1)
-    if (error) throw error
-    if (!data?.length) break
-    rows.push(...data)
-    if (data.length < SUPABASE_PAGE_SIZE) break
-    from += SUPABASE_PAGE_SIZE
-  }
-  return rows
 }
 
 export async function fetchPictureManifest(): Promise<RtuPictureManifest> {

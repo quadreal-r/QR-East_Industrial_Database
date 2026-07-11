@@ -25,6 +25,9 @@ deploy-pictures-*.json
 Exported json for deploy/
 reports/
 supabase/data/deploy-bundle.json
+# Archived dormant Excel sheets (large snapshots; README stays)
+supabase/data/dormant/*.json
+!supabase/data/dormant/README.md
 # RTU images live on Cloudflare R2 — only manifest.json is committed
 public/database/rtu-pictures/*
 !public/database/rtu-pictures/manifest.json

@@ -64,6 +64,17 @@ export interface DetailMarkerEntry {
   dragKey: string
 }
 
+/** Popup "Move" one-marker drag session (not Edit-positions multi-select). */
+export interface SoloMoveSession {
+  marker: AppMapMarker
+  entry: DetailMarkerEntry
+  startLat: number
+  startLng: number
+  didDrag: boolean
+  committed: boolean
+  cleanupPointerUp?: () => void
+}
+
 export type ActiveDetailView = 'info' | 'pictures' | 'documents' | 'edit'
 
 export interface ActiveDetailInfo {

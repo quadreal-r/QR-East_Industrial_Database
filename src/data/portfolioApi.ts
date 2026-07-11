@@ -14,6 +14,7 @@ import type {
 import { normalizePortfolioData } from '@/types/domain'
 import { computePortfolioChanges } from '@/features/edit-mode/diffPortfolio'
 import { supabase } from '@/lib/supabaseClient'
+import { fetchAllPages } from '@/lib/supabasePager'
 
 type BuildingRow = Tables<'buildings'>
 type RtuRow = Tables<'rtus'>
@@ -133,44 +134,42 @@ function rowToPortfolioMapView(row: PortfolioMapViewRow): [string, PortfolioMapV
 }
 
 export async function fetchPortfolio(): Promise<PortfolioData> {
-  const [buildingsRes, rtusRes, utilitiesRes, polygonsRes, tenantsRes, mapViewsRes] = await Promise.all([
-    supabase.from('buildings').select('*').order('address'),
-    supabase.from('rtus').select('*'),
-    supabase.from('utilities').select('*').order('name'),
-    supabase.from('polygons').select('*').order('name'),
-    supabase.from('tenants').select('*'),
-    supabase.from('portfolio_map_views').select('*'),
-  ])
-
-  if (buildingsRes.error) throw buildingsRes.error
-  if (rtusRes.error) throw rtusRes.error
-  if (utilitiesRes.error) throw utilitiesRes.error
-  if (polygonsRes.error) throw polygonsRes.error
-  if (tenantsRes.error) throw tenantsRes.error
-  if (mapViewsRes.error) throw mapViewsRes.error
+  const [buildingsRows, rtusRows, utilitiesRows, polygonsRows, tenantsRows, mapViewsRows] =
+    await Promise.all([
+      fetchAllPages<BuildingRow>(async (from, to) =>
+        supabase.from('buildings').select('*').order('address').range(from, to),
+      ),
+      fetchAllPages<RtuRow>(async (from, to) => supabase.from('rtus').select('*').range(from, to)),
+      fetchAllPages<UtilityRow>(async (from, to) =>
+        supabase.from('utilities').select('*').order('name').range(from, to),
+      ),
+      fetchAllPages<PolygonRow>(async (from, to) =>
+        supabase.from('polygons').select('*').order('name').range(from, to),
+      ),
+      fetchAllPages<TenantRow>(async (from, to) => supabase.from('tenants').select('*').range(from, to)),
+      fetchAllPages<PortfolioMapViewRow>(async (from, to) =>
+        supabase.from('portfolio_map_views').select('*').range(from, to),
+      ),
+    ])
 
   const rtusByBuilding = new Map<number, RtuRow[]>()
-  for (const rtu of rtusRes.data ?? []) {
+  for (const rtu of rtusRows) {
     const list = rtusByBuilding.get(rtu.building_id) ?? []
     list.push(rtu)
     rtusByBuilding.set(rtu.building_id, list)
   }
 
-  const buildings = (buildingsRes.data ?? []).map((row) =>
-    rowToBuilding(row, rtusByBuilding.get(row.id) ?? []),
-  )
+  const buildings = buildingsRows.map((row) => rowToBuilding(row, rtusByBuilding.get(row.id) ?? []))
 
-  const portfolioMapViews = Object.fromEntries(
-    (mapViewsRes.data ?? []).map(rowToPortfolioMapView),
-  )
+  const portfolioMapViews = Object.fromEntries(mapViewsRows.map(rowToPortfolioMapView))
 
   return normalizePortfolioData({
-      buildings,
-      utilities: (utilitiesRes.data ?? []).map(rowToUtility),
-      polygons: (polygonsRes.data ?? []).map(rowToPolygon),
-      suiteEntrances: (tenantsRes.data ?? []).map(rowToSuiteEntrance),
-      portfolioMapViews,
-    })
+    buildings,
+    utilities: utilitiesRows.map(rowToUtility),
+    polygons: polygonsRows.map(rowToPolygon),
+    suiteEntrances: tenantsRows.map(rowToSuiteEntrance),
+    portfolioMapViews,
+  })
 }
 
 export async function upsertBuilding(building: Building): Promise<Building> {

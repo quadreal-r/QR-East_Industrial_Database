@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.9.0] - 2026-07-11
+
+### Added
+
+- Move button on building address popups so you can reposition building pins and save
+- Portfolio Excel merge/import that updates the live database from workbook sheets (with dormant RTU Pictures archive support)
+- Supabase pager so portfolio and media loads fetch past the 1000-row API limit
+- Open Project in the 360° viewer when a suite gate has no tour URL linked yet
+
+### Changed
+
+- Route popup Move through Edit Positions so dragged markers stage the Save bar reliably
+- Raise Save bar stacking so it stays visible over the map
+
+### Fixed
+
+- Stage 360° gate moves (including clearing auto-placed snap-back) so Save appears after repositioning
+- Remove Delete from 360° gate popups (keep Open viewer and Move)
+
 ## [1.8.0] - 2026-07-10
 
 ### Added

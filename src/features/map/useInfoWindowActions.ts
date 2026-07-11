@@ -2,8 +2,6 @@ import { useCallback, useRef } from 'react'
 import type { MutableRefObject } from 'react'
 import { confirm } from '@/stores/confirmStore'
 import {
-  addAppMarkerListener,
-  getAppMarkerPosition,
   setAppMarkerCursor,
   setAppMarkerDraggable,
   setAppMarkerVisible,
@@ -16,6 +14,7 @@ import {
   buildRtuDocumentsPageHtml,
   copyPopupText,
 } from '@/lib/mapInfoWindow'
+import { buildingDragKey } from '@/lib/dragSelection'
 import { suppressMapClickClearOnce } from '@/lib/mapMarqueeSelect'
 import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScroll } from '@/lib/mapPopups'
 import { MAP_DETAIL_ZOOM } from '@/lib/constants'
@@ -44,24 +43,26 @@ import { usePendingRtuPictureStore } from '@/stores/pendingRtuPictureStore'
 import { useUiStore } from '@/stores/uiStore'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import {
-  markMarkerDragJustEnded,
-  syncDetailMarkerPositions,
   type ActiveDetailInfo,
+  type BuildingMarkerEntry,
   type DetailMarkerEntry,
   type MapMarkersCallbacks,
   type PolygonBuildingIndex,
+  type SoloMoveSession,
 } from '@/features/map/mapMarkersState'
 import type { Building, LayerKey, Rtu, SuiteEntrance } from '@/types/domain'
 
 export function useInfoWindowActions(
   map: google.maps.Map | null,
   detailMarkersRef: MutableRefObject<DetailMarkerEntry[]>,
+  buildingMarkersRef: MutableRefObject<BuildingMarkerEntry[]>,
   infoWindowRef: MutableRefObject<google.maps.InfoWindow | null>,
   activeInfoMarkerRef: MutableRefObject<AppMapMarker | null>,
   activeDetailInfoRef: MutableRefObject<ActiveDetailInfo | null>,
   activeRtuPicturesRef: MutableRefObject<RtuPicture[]>,
-  soloMoveRef: MutableRefObject<{ marker: AppMapMarker } | null>,
+  soloMoveRef: MutableRefObject<SoloMoveSession | null>,
   soloMoveListenerRef: MutableRefObject<google.maps.MapsEventListener | null>,
+  soloMoveDragStartListenerRef: MutableRefObject<google.maps.MapsEventListener | null>,
   callbacksRef: MutableRefObject<MapMarkersCallbacks>,
   polygonIndexRef: MutableRefObject<PolygonBuildingIndex>,
   clearActiveRtuPictures: () => void,
@@ -73,57 +74,51 @@ export function useInfoWindowActions(
   const stopSoloMove = useCallback(() => {
     const solo = soloMoveRef.current
     if (!solo) return
-    const globalDrag = useSelectionStore.getState().dragMode
-    setAppMarkerDraggable(solo.marker, globalDrag)
-    setAppMarkerCursor(solo.marker, globalDrag ? 'grab' : null)
+    solo.cleanupPointerUp?.()
     if (soloMoveListenerRef.current) {
       google.maps.event.removeListener(soloMoveListenerRef.current)
       soloMoveListenerRef.current = null
     }
+    if (soloMoveDragStartListenerRef.current) {
+      google.maps.event.removeListener(soloMoveDragStartListenerRef.current)
+      soloMoveDragStartListenerRef.current = null
+    }
     soloMoveRef.current = null
-  }, [soloMoveRef, soloMoveListenerRef])
+  }, [soloMoveRef, soloMoveListenerRef, soloMoveDragStartListenerRef])
 
-  const startSoloMove = useCallback(
-    (marker: AppMapMarker) => {
+  /** Popup Move: reuse Edit Positions (multi-drag) path — that path already stages Save. */
+  const startPopupMove = useCallback(
+    (marker: AppMapMarker, dragKey: string, label: string) => {
       stopSoloMove()
       infoWindowRef.current?.close()
       activeInfoMarkerRef.current = null
-      soloMoveRef.current = { marker }
+      activeDetailInfoRef.current = null
+
+      const store = useSelectionStore.getState()
+      store.setDragMode(true)
+      store.setDragSelect([dragKey])
       setAppMarkerDraggable(marker, true)
       setAppMarkerCursor(marker, 'grab')
-      showToastSuccess('- Drag marker to reposition.')
-      soloMoveListenerRef.current = addAppMarkerListener(marker, 'dragend', () => {
-        const pos = getAppMarkerPosition(marker)
-        if (pos) {
-          const lat = pos.lat()
-          const lng = pos.lng()
-          const detailEntry = detailMarkersRef.current.find((e) => e.marker === marker)
-          if (detailEntry) {
-            syncDetailMarkerPositions(detailEntry, lat, lng)
-            callbacksRef.current.onDetailMoved?.(
-              detailEntry.type,
-              detailEntry.data,
-              lat,
-              lng,
-              detailEntry.building,
-            )
-          }
-        }
-        stopSoloMove()
-        markMarkerDragJustEnded()
-        showToastSuccess('- Position updated - save to HTML to keep changes.')
-      })
+      showToastSuccess(`${label} highlighted — drag it now. Save appears when you release.`)
     },
-    [
-      infoWindowRef,
-      activeInfoMarkerRef,
-      detailMarkersRef,
-      callbacksRef,
-      soloMoveRef,
-      soloMoveListenerRef,
-      stopSoloMove,
-    ],
+    [infoWindowRef, activeInfoMarkerRef, activeDetailInfoRef, stopSoloMove],
   )
+
+  const startSoloMove = useCallback(
+    (entry: DetailMarkerEntry) => {
+      startPopupMove(entry.marker, entry.dragKey, entry.type === 'inspection360' ? 'Gate' : 'Marker')
+    },
+    [startPopupMove],
+  )
+
+  const startBuildingMove = useCallback(
+    (entry: BuildingMarkerEntry) => {
+      startPopupMove(entry.marker, buildingDragKey(entry.building.address), 'Building')
+    },
+    [startPopupMove],
+  )
+
+  const commitSoloMove = useCallback(() => false, [])
 
   const openBuildingInfo = useCallback(
     (building: Building, marker: AppMapMarker) => {
@@ -277,8 +272,30 @@ export function useInfoWindowActions(
       container.querySelector('[data-iw-action="move"]')?.addEventListener(
         'click',
         (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          suppressMapClickClearOnce()
           const btn = e.currentTarget as HTMLElement
           const kind = btn.getAttribute('data-iw-kind')
+
+          if (kind === 'building') {
+            const buildingAddr = btn.getAttribute('data-iw-building') ?? ''
+            const entry = buildingMarkersRef.current.find(
+              (bm) => bm.building.address === buildingAddr,
+            )
+            if (!entry) {
+              showToastError('Could not find that building to move.')
+              return
+            }
+            startBuildingMove(entry)
+            return
+          }
+
+          const fromPopup = activeDetailInfoRef.current?.entry
+          if (fromPopup) {
+            startSoloMove(fromPopup)
+            return
+          }
           if (kind !== 'detail') return
           const layerKey = btn.getAttribute('data-iw-layer') as LayerKey
           const name = btn.getAttribute('data-iw-name') ?? ''
@@ -289,8 +306,11 @@ export function useInfoWindowActions(
               dm.data.name === name &&
               (buildingAddr ? dm.building?.address === buildingAddr : !dm.building),
           )
-          if (!entry) return
-          startSoloMove(entry.marker)
+          if (!entry) {
+            showToastError('Could not find that marker to move.')
+            return
+          }
+          startSoloMove(entry)
         },
         { signal },
       )
@@ -701,13 +721,22 @@ export function useInfoWindowActions(
     activeDetailInfoRef,
     activeRtuPicturesRef,
     detailMarkersRef,
+    buildingMarkersRef,
     callbacksRef,
     startSoloMove,
+    startBuildingMove,
     clearActiveRtuPictures,
     refreshRtuPicturesView,
     refreshRtuDocumentsView,
     detailHtmlOptions,
   ])
 
-  return { stopSoloMove, startSoloMove, openBuildingInfo, openDetailInfo, attachInfoWindowActions }
+  return {
+    stopSoloMove,
+    commitSoloMove,
+    startSoloMove,
+    openBuildingInfo,
+    openDetailInfo,
+    attachInfoWindowActions,
+  }
 }

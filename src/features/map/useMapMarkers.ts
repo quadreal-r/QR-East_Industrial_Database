@@ -79,6 +79,7 @@ import type {
   BuildingMarkerEntry,
   DetailMarkerEntry,
   MapMarkersCallbacks,
+  SoloMoveSession,
 } from '@/features/map/mapMarkersState'
 import { useImageryMode } from '@/features/map/useImageryMode'
 import { useMarkerVisibility } from '@/features/map/useMarkerVisibility'
@@ -159,8 +160,9 @@ export function useMapMarkers({
   const activeRtuPicturesRef = useRef<RtuPicture[]>([])
   const imageryModeRef = useRef(0)
   const imageryOverlayRef = useRef<google.maps.ImageMapType | null>(null)
-  const soloMoveRef = useRef<{ marker: AppMapMarker } | null>(null)
+  const soloMoveRef = useRef<SoloMoveSession | null>(null)
   const soloMoveListenerRef = useRef<google.maps.MapsEventListener | null>(null)
+  const soloMoveDragStartListenerRef = useRef<google.maps.MapsEventListener | null>(null)
   const prevDragModeRef = useRef(dragMode)
   const isDraggingMarkerRef = useRef(false)
   const markerStructureKey = useMemo(
@@ -259,16 +261,18 @@ export function useMapMarkers({
     setLastDragUndo,
   )
 
-  const { stopSoloMove, openBuildingInfo, openDetailInfo, attachInfoWindowActions } =
+  const { stopSoloMove, commitSoloMove, openBuildingInfo, openDetailInfo, attachInfoWindowActions } =
     useInfoWindowActions(
       map,
       detailMarkersRef,
+      buildingMarkersRef,
       infoWindowRef,
       activeInfoMarkerRef,
       activeDetailInfoRef,
       activeRtuPicturesRef,
       soloMoveRef,
       soloMoveListenerRef,
+      soloMoveDragStartListenerRef,
       callbacksRef,
       polygonIndexRef,
       clearActiveRtuPictures,
@@ -456,7 +460,10 @@ export function useMapMarkers({
 
       addAppMarkerListener(marker, 'dragstart', () => {
         isDraggingMarkerRef.current = true
-        if (soloMoveRef.current?.marker === marker) return
+        if (soloMoveRef.current?.marker === marker) {
+          soloMoveRef.current.didDrag = true
+          return
+        }
         const startPos = getAppMarkerPosition(marker)
         if (!startPos) return
         const startLat = startPos.lat()
@@ -483,10 +490,16 @@ export function useMapMarkers({
 
       addAppMarkerListener(marker, 'dragend', () => {
         setNativeDragKey(null)
-        if (soloMoveRef.current?.marker === marker) {
+        const isSolo = soloMoveRef.current?.marker === marker
+
+        // Popup Move: commit through the shared solo-move helper (same path as
+        // its own dragend / pointerup fallback). Multi-select drag is unchanged.
+        if (isSolo) {
+          commitSoloMove()
           isDraggingMarkerRef.current = false
           return
         }
+
         if (isGroupDragActive()) {
           // Lock in the definitive final position before committing.
           const pos = getAppMarkerPosition(marker)
@@ -580,6 +593,7 @@ export function useMapMarkers({
     refreshDetailVisibility,
     refreshRtuPictureBadges,
     stopSoloMove,
+    commitSoloMove,
     beginDragSession,
     commitGroupDrag,
     refreshDragSelectionStyles,
@@ -637,17 +651,27 @@ export function useMapMarkers({
       activeInfoMarkerRef.current = null
       activeDetailInfoRef.current = null
       clearActiveRtuPictures()
-      stopSoloMove()
+      // Do not call stopSoloMove here. Map click after a sphere Move dragend
+      // also fires closePopups and was clearing solo state before the move
+      // could be committed — so the Save bar never appeared.
     }
     window.addEventListener(MAP_CLOSE_POPUPS_EVENT, closePopups)
     return () => window.removeEventListener(MAP_CLOSE_POPUPS_EVENT, closePopups)
-  }, [stopSoloMove, clearActiveRtuPictures])
+  }, [clearActiveRtuPictures])
 
   useEffect(() => {
     if (!map) return
     const listener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
       if (tryConsumeMapAddMarkerPick(e.latLng)) return
       if (consumeMapClickClearSuppression()) return
+      // Ignore the synthetic map click that follows marker dragend.
+      if (shouldSuppressMarkerClick()) return
+      // Cancel an unfinished Move (clicked away before dragging).
+      if (soloMoveRef.current) {
+        if (isDraggingMarkerRef.current) return
+        stopSoloMove()
+        return
+      }
       if (useSelectionStore.getState().dragMode) {
         useSelectionStore.getState().clearDragSelect()
         refreshDragSelectionStyles()
@@ -655,7 +679,7 @@ export function useMapMarkers({
       closeAllMapPopups()
     })
     return () => google.maps.event.removeListener(listener)
-  }, [map, refreshDragSelectionStyles])
+  }, [map, refreshDragSelectionStyles, stopSoloMove])
 
   useEffect(() => {
     const handler = (e: Event) => {

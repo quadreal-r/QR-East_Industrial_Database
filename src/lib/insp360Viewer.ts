@@ -1,4 +1,4 @@
-/** Build URLs for the embedded INSP 360 viewer (`public/insp360/viewer.html`). */
+/** Build URLs for the embedded QR-360° viewer (`public/insp360/viewer.html`). */
 
 export function resolveInspection360ProjectUrl(inspectionUrl: string): string {
   const trimmed = inspectionUrl.trim()

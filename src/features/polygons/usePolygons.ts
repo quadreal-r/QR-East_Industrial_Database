@@ -11,6 +11,7 @@ import {
 import { MAP_DETAIL_ZOOM } from '@/lib/constants'
 import { afterMapViewChange, panToPreserveRotation } from '@/lib/mapRotation'
 import { consumeMapClickClearSuppression, isSelectionAdditiveClick, registerMarqueeTarget, suppressMapClickClearOnce, unregisterMarqueeTarget } from '@/lib/mapMarqueeSelect'
+import { shouldSuppressMarkerClick } from '@/features/map/mapMarkersState'
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
 import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScrollFromInfoWindow, MAP_CLOSE_POPUPS_EVENT } from '@/lib/mapPopups'
 import { buildPolygonInfoHtml } from '@/lib/mapInfoWindow'
@@ -468,6 +469,7 @@ export function usePolygons({
     const listener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
       if (tryConsumeMapAddMarkerPick(e.latLng)) return
       if (consumeMapClickClearSuppression()) return
+      if (shouldSuppressMarkerClick()) return
       if (useSelectionStore.getState().dragMode) {
         useSelectionStore.getState().clearDragSelect()
         refreshPolygonSelectionStyles()
