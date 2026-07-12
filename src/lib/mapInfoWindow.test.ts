@@ -81,7 +81,7 @@ describe('mapInfoWindow', () => {
     expect(html).not.toContain('yr RTU</span>')
     expect(html).toContain('VACANT</span>')
   })
-  it('includes Copy and Move in building popup', () => {
+  it('includes Copy and Move in building popup when allowed', () => {
     const html = buildBuildingInfoHtml(building, tenantPolygons)
     expect(html).toContain('data-iw-action="copy-all"')
     expect(html).toContain('data-iw-action="move"')
@@ -90,6 +90,13 @@ describe('mapInfoWindow', () => {
     expect(html).toContain('class="iw-copy-source"')
     expect(html).not.toContain('Open in Google Maps')
     expect(html).not.toContain('<strong>GPS</strong>')
+  })
+
+  it('hides Move in building popup when showMove is false', () => {
+    const html = buildBuildingInfoHtml(building, tenantPolygons, {}, { showMove: false })
+    expect(html).toContain('data-iw-action="copy-all"')
+    expect(html).not.toContain('data-iw-action="move"')
+    expect(html).not.toContain('↔ Move')
   })
 
   it('always shows building details without collapse toggle', () => {
@@ -171,6 +178,66 @@ describe('mapInfoWindow', () => {
     expect(html).toContain('↔ Move')
     expect(html).not.toContain('🗑 Delete')
     expect(html).not.toContain('data-iw-action="delete"')
+  })
+
+  it('hides Move on 360° gate popup when showMove is false', () => {
+    const entrance = {
+      id: 8,
+      building_id: 1,
+      name: 'Suite # 8',
+      description: 'KMX Technologies, Inc.',
+      lat: 43.65,
+      lng: -79.62,
+      inspection_url: null,
+    }
+    const html = buildDetailInfoHtml('inspection360', entrance, {
+      buildingAddress: '6150 Kennedy Road',
+      showMove: false,
+    })
+    expect(html).toContain('data-iw-action="inspection360-open"')
+    expect(html).not.toContain('↔ Move')
+  })
+
+  it('hides Edit on RTU popup when showEdit is false', () => {
+    const html = buildDetailInfoHtml('rtu', rtu, {
+      buildingAddress: building.address,
+      showEdit: false,
+    })
+    expect(html).toContain('data-iw-action="pictures"')
+    expect(html).not.toContain('data-iw-action="edit-text"')
+  })
+
+  it('includes Open viewer and Move for electrical room sphere popup', () => {
+    const utility = {
+      id: 2,
+      utility_type: 'Electrical Rooms' as const,
+      name: 'Elec Room A',
+      description: 'Basement',
+      lat: 43.65,
+      lng: -79.62,
+      inspection_url: null,
+    }
+    const html = buildDetailInfoHtml('electrical', utility)
+    expect(html).toContain('ELECTRICAL 360°')
+    expect(html).toContain('data-iw-action="inspection360-open"')
+    expect(html).toContain('↔ Move')
+    expect(html).toContain('Not connected yet')
+  })
+
+  it('includes Open viewer for sprinkler room sphere with connected tour', () => {
+    const utility = {
+      id: 3,
+      utility_type: 'Sprinkler Rooms' as const,
+      name: 'Sprinkler A',
+      description: '',
+      lat: 43.65,
+      lng: -79.62,
+      inspection_url: 'insp360/projects/sprinkler-a.insp360',
+    }
+    const html = buildDetailInfoHtml('sprinkler', utility)
+    expect(html).toContain('SPRINKLER 360°')
+    expect(html).toContain('Connected')
+    expect(html).toContain('Enter QR-360° tour')
   })
 
   it('includes Copy, Move, and Delete in utility detail popup footer', () => {

@@ -37,15 +37,20 @@ export function ImportExportButtons({
   const applyEquipmentImport = useRtuScheduleStore((s) => s.applyEquipmentImport)
   const applyPricingImport = useRtuPricingStore((s) => s.applyPricingImport)
 
-  const requireAuth = () => {
+  const requireAuth = (action: 'import' | 'export') => {
     if (!isAuthenticated) {
-      showToastError('Sign in to import data to Supabase.')
+      showToastError(
+        action === 'export'
+          ? 'Sign in to export data.'
+          : 'Sign in to import data to Supabase.',
+      )
       return false
     }
     return true
   }
 
   const handleExport = async () => {
+    if (!requireAuth('export')) return
     setBusy(true)
     try {
       await exportPortfolioExcel(portfolio)
@@ -59,7 +64,7 @@ export function ImportExportButtons({
   }
 
   const handleCapitalImport = async (buffer: ArrayBuffer, file: File) => {
-    if (!requireAuth()) return
+    if (!requireAuth('import')) return
     const sheetNames = XLSX.read(buffer, { type: 'array', bookSheets: true }).SheetNames
     const hasPricing = sheetNames.some((name) => /^rtu pricing$/i.test(name.trim()))
 
@@ -83,7 +88,7 @@ export function ImportExportButtons({
   }
 
   const handleFile = async (file: File) => {
-    if (!requireAuth()) return
+    if (!requireAuth('import')) return
     setBusy(true)
     try {
       const buffer = await file.arrayBuffer()
@@ -108,8 +113,10 @@ export function ImportExportButtons({
     }
   }
 
-  const showExport = mode === 'both' || mode === 'export'
-  const showImport = mode === 'both' || mode === 'import'
+  const showExport = isAuthenticated && (mode === 'both' || mode === 'export')
+  const showImport = isAuthenticated && (mode === 'both' || mode === 'import')
+
+  if (!showExport && !showImport) return null
 
   return (
     <>

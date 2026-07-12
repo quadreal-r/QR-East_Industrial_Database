@@ -474,14 +474,17 @@
   .pe-actions .del{color:var(--danger); border-color:rgba(229,104,138,.4)}
   .pe-actions .done{color:var(--accent); border-color:var(--accent-dim)}
   /* Embed mode when opened from building-map-explorer sphere gateways.
-     Keep Open project + Recent projects so a suite gate can load a local
-     .insp360 when no tour URL is linked yet. Hide authoring-only actions. */
+     Show only Open project for this gate — no Recent projects list.
+     A local .insp360 opened here is remembered for this gate next time. */
   body.embed #empty #createProj,
   body.embed #empty #loadDbBtn,
   body.embed #empty #loadDbRing{display:none !important}
   body.embed #empty .hint{display:none !important}
+  body.embed #dash{display:none !important}
   body.embed #empty.has-dash{padding-left:24px}
   body.embed #projEmpty{display:none !important}
+  #openLinkedProj{display:none !important}
+  body.embed #empty.show-linked #openLinkedProj{display:inline-flex !important}
 </style>
 </head>
 <body>
@@ -528,6 +531,7 @@
   <div class="actions">
     <button class="btn" id="createProj" style="border-color:var(--accent); color:var(--accent)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create New Project</button>
     <button class="btn" id="loadDbBtn" title="Load the address database (Excel .xlsx / .csv or QuadReal DB JSON)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>Load database</button>
+    <button class="btn" id="openLinkedProj" type="button" title="Reopen the project linked to this 360° gate"><svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open linked project</button>
     <button class="btn" id="openProject2"><svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open project</button>
   </div>
   <div class="hint">drop equirectangular photos anywhere &nbsp;·&nbsp; <span class="kbd">drag</span> look &nbsp; <span class="kbd">scroll</span> zoom</div>
@@ -2306,10 +2310,17 @@ async function openProject(file, handle){
     for(let i=0;i<items.length;i++){ const it=items[i]; it.thumbUrl=await makeThumb(it.file); if(it.el&&it.thumbUrl) it.el.querySelector('img').src=it.thumbUrl; }
   }
   if(handle) requestAnimationFrame(()=>recordProject(handle, true)); setProjTitle();
+  // Remember this file for the map gateway that opened the embed viewer.
+  if(handle && typeof embedGateKey==='string' && embedGateKey){
+    try{ idbSet('gateProj:'+embedGateKey, handle); }catch(e){}
+    const emptyEl=document.getElementById('empty');
+    if(emptyEl) emptyEl.classList.remove('show-linked');
+  }
   toast(items.length
     ? ('Project opened \u2014 '+items.length+' photo'+(items.length===1?'':'s')+'.')
     : 'Project opened with no photos \u2014 add panoramas with Files or Folder.');
 }
+let embedGateKey=null;
 const projFile=document.getElementById('projFile');
 async function openProjectPicker(){
   if(hasFSAccess()){
@@ -2844,6 +2855,12 @@ async function openRecent(rec){
 async function renderDashboard(){
   const dash=document.getElementById('dash'), grid=document.getElementById('dashGrid');
   if(!dash||!grid) return;
+  // Gateway embed: never show Recent projects — only the gate-linked tour.
+  if(document.body.classList.contains('embed')){
+    dash.classList.remove('show');
+    emptyEl.classList.remove('has-dash');
+    return;
+  }
   let recs=await projectsAll(); if(!Array.isArray(recs)) recs=[];
   recs.sort((a,b)=>projOrderKey(a)-projOrderKey(b));
   grid.innerHTML='';
@@ -7007,38 +7024,101 @@ render();
     }
   }
 
-  // Gateway empty state: invite loading a local project when none is linked.
+  const gateKey=(params.get('gate')||'').trim();
+  embedGateKey=gateKey || null;
+
+  // Gateway empty state: only Open project for this gate (no Recent list).
   const emptyTitle=document.querySelector('#empty h1');
   const emptyCopy=document.querySelector('#empty > div > p');
   if(emptyTitle) emptyTitle.textContent='Open a QR-360\u00b0 project';
-  if(emptyCopy) emptyCopy.innerHTML='Choose a saved <b>.insp360</b> tour for this suite, or pick one from Recent projects.';
+  if(emptyCopy) emptyCopy.innerHTML=gateKey
+    ? 'Choose the <b>.insp360</b> tour for this gate. Next time you open this gateway, that project will load automatically.'
+    : 'Choose the <b>.insp360</b> tour for this gate.';
+
+  const dash=document.getElementById('dash');
+  const emptyRoot=document.getElementById('empty');
+  if(dash) dash.classList.remove('show');
+  if(emptyRoot) emptyRoot.classList.remove('has-dash');
+  void renderDashboard();
+
+  async function tryOpenGateHandle(handle, interactive){
+    if(!handle) return false;
+    try{
+      const opt={mode:'read'};
+      let perm=await handle.queryPermission(opt);
+      if(perm!=='granted'){
+        if(!interactive) return false;
+        perm=await handle.requestPermission(opt);
+      }
+      if(perm!=='granted'){
+        if(interactive) toast('Permission needed to open the linked project.');
+        return false;
+      }
+      await openProject(await handle.getFile(), handle);
+      return true;
+    }catch(e){
+      console.warn('gate-linked project open failed', e);
+      if(interactive) toast('Couldn\u2019t reopen the linked project \u2014 use Open project to pick it again.', true);
+      return false;
+    }
+  }
+
+  function showLinkedButton(handle){
+    const btn=document.getElementById('openLinkedProj');
+    const empty=document.getElementById('empty');
+    if(!btn||!empty||!handle) return;
+    const label=(handle.name||'linked project').replace(/\.(insp360|zip)$/i,'');
+    btn.title='Reopen '+(handle.name||'linked project');
+    btn.replaceChildren();
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 24 24');
+    const p1=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p1.setAttribute('d','M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z');
+    const p2=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p2.setAttribute('d','M3 11h18');
+    svg.appendChild(p1); svg.appendChild(p2);
+    btn.appendChild(svg);
+    btn.appendChild(document.createTextNode('Open '+label));
+    empty.classList.add('show-linked');
+    btn.onclick=()=>{ void tryOpenGateHandle(handle, true); };
+  }
 
   const projectUrl=params.get('project');
   const photoName=params.get('photo')||params.get('scene');
-  if(!projectUrl) return;
 
   void (async function(){
-    try{
-      toast('Loading QR-360\u00b0 tour\u2026');
-      const resp=await fetch(projectUrl);
-      if(!resp.ok) throw new Error('HTTP '+resp.status);
-      const blob=await resp.blob();
-      let fname='project.insp360';
+    // 1) Settings / Tour URL linked on the gate
+    if(projectUrl){
       try{
-        const u=new URL(projectUrl, location.href);
-        fname=u.pathname.split('/').pop()||fname;
-      }catch(_){}
-      const file=new File([blob], fname, {type:blob.type||'application/zip'});
-      await openProject(file);
-      if(photoName){
-        const needle=photoName.toLowerCase();
-        const idx=items.findIndex(it=>it.name===photoName || it.name.toLowerCase()===needle || it.name.toLowerCase().includes(needle));
-        if(idx>=0) selectImage(idx);
+        toast('Loading QR-360\u00b0 tour\u2026');
+        const resp=await fetch(projectUrl);
+        if(!resp.ok) throw new Error('HTTP '+resp.status);
+        const blob=await resp.blob();
+        let fname='project.insp360';
+        try{
+          const u=new URL(projectUrl, location.href);
+          fname=u.pathname.split('/').pop()||fname;
+        }catch(_){}
+        const file=new File([blob], fname, {type:blob.type||'application/zip'});
+        await openProject(file);
+        if(photoName){
+          const needle=photoName.toLowerCase();
+          const idx=items.findIndex(it=>it.name===photoName || it.name.toLowerCase()===needle || it.name.toLowerCase().includes(needle));
+          if(idx>=0) selectImage(idx);
+        }
+        return;
+      }catch(e){
+        console.error('embed project load failed', e);
+        toast('Could not load the linked tour — use Open project to pick a local .insp360 file.', true);
       }
-    }catch(e){
-      console.error('embed project load failed', e);
-      toast('Could not load the linked tour — use Open project to pick a local .insp360 file.', true);
     }
+
+    // 2) Local project previously opened through this same gateway
+    if(!gateKey) return;
+    const handle=await idbGet('gateProj:'+gateKey);
+    if(!handle) return;
+    const opened=await tryOpenGateHandle(handle, false);
+    if(!opened) showLinkedButton(handle);
   })();
 })();
 </script>

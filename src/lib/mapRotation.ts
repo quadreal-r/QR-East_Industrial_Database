@@ -50,6 +50,20 @@ export interface PanToOptions {
   onlyZoomIn?: boolean
 }
 
+/**
+ * Zoom for a building click when the map is far enough out.
+ * Returns undefined when already close in (do not zoom more).
+ * Zooms to detail − 1 only after zooming out at least 4 levels from detail.
+ */
+export function resolveBuildingClickZoom(
+  currentZoom: number,
+  detailZoom = 21,
+  zoomOutThreshold = 4,
+): number | undefined {
+  if (currentZoom <= detailZoom - zoomOutThreshold) return detailZoom - 1
+  return undefined
+}
+
 export function panToPreserveRotation(
   map: google.maps.Map,
   center: google.maps.LatLngLiteral,

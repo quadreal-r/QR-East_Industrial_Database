@@ -152,6 +152,7 @@ function SettingsForm({
   onOpenPolygonDraw,
   onOpenAddMarker,
   onOpenAddInspection360,
+  onSignIn,
 }: SettingsFormProps) {
   const setThemeIndex = useSettingsStore((s) => s.setThemeIndex)
   const applyTheme = useSettingsStore((s) => s.applyTheme)
@@ -204,6 +205,11 @@ function SettingsForm({
     handleClose()
   }
 
+  const handleSignInClick = () => {
+    handleClose()
+    onSignIn()
+  }
+
   return (
     <Modal
       open={open}
@@ -222,7 +228,9 @@ function SettingsForm({
         <section>
           {isAuthenticated ? (
             <p className={styles.authStatus}>Signed in as {user?.email}</p>
-          ) : null}
+          ) : (
+            <p className={styles.authStatus}>Signed out — sign in to edit, import, or export.</p>
+          )}
           <SettingsToolButton
             tooltip="Sign in, password, passkeys, and two-factor authentication."
             onClick={() => setSettingsView('account')}
@@ -247,116 +255,122 @@ function SettingsForm({
           </select>
         </section>
 
-        <section>
-          <SettingsSectionLabel
-            help="Buildings stay on Manager 1–4. Pick a slot, edit the display name, then apply."
-          >
-            Property managers
-          </SettingsSectionLabel>
-          <PropertyManagerNamesEditor
-            key={managerEditorKey}
-            portfolio={portfolio}
-            onPortfolioPatch={onPortfolioPatch}
-          />
-        </section>
-
-        <section>
-          <SettingsSectionLabel>Edits</SettingsSectionLabel>
-          <div className={styles.tools}>
-            <SettingsToolButton
-              tooltip="Pick an RTU to show on the map, move its pin, or delete it."
-              onClick={() => setRtuEditorOpen(true)}
-            >
-              Edit RTU
-            </SettingsToolButton>
-            <SettingsToolButton
-              tooltip="Edit supply, install, and other per-tonnage replacement costs used by the cost estimator."
-              onClick={() => setPricingOpen(true)}
-            >
-              Edit RTU&apos;s Pricing
-            </SettingsToolButton>
-            <SettingsToolButton
-              tooltip="Turn on map edit mode: drag a box to select markers and polygons, then drag any selected item to move the group."
-              onClick={handleEditPositions}
-            >
-              {dragMode
-                ? `✓ Edit Multiple Positions (on${dragSelectedCount ? ` · ${dragSelectedCount} selected` : ''})`
-                : 'Edit Multiple Positions'}
-            </SettingsToolButton>
-            {dragMode ? (
-              <SettingsToolButton
-                tooltip="Clear the current map selection without turning off edit mode."
-                onClick={() => {
-                  clearDragSelect()
-                  handleClose()
-                }}
-                disabled={dragSelectedCount === 0}
+        {isAuthenticated ? (
+          <>
+            <section>
+              <SettingsSectionLabel
+                help="Buildings stay on Manager 1–4. Pick a slot, edit the display name, then apply."
               >
-                Clear map selection
-              </SettingsToolButton>
-            ) : null}
-            <SettingsToolButton
-              tooltip="Add, edit, move, or delete sky-blue sphere markers at suite entrances for 360° tours."
-              onClick={() => setInspection360EditorOpen(true)}
-            >
-              Edit 360° Gates
-            </SettingsToolButton>
-            <SettingsToolButton
-              tooltip="Place a new building, RTU, or utility marker on the map."
-              onClick={() => {
-                if (!isAuthenticated) {
-                  showToastError('Sign in to add markers.')
-                  return
-                }
-                handleClose()
-                onOpenAddMarker()
-              }}
-            >
-              Add marker
-            </SettingsToolButton>
-            <SettingsToolButton
-              tooltip="Draw a new tenant polygon by clicking points on the map."
-              onClick={() => {
-                if (!isAuthenticated) {
-                  showToastError('Sign in to add polygons.')
-                  return
-                }
-                handleClose()
-                onOpenPolygonDraw()
-              }}
-            >
-              Add polygon
-            </SettingsToolButton>
-            <SettingsToolButton
-              tooltip="Edit vertex points, show a polygon on the map, or delete tenant polygons."
-              onClick={() => setPolygonEditorOpen(true)}
-            >
-              Edit Polygons
-            </SettingsToolButton>
-            <ImportExportButtons
-              portfolio={portfolio}
-              buildings={portfolio.buildings}
-              onImport={handleImport}
-              mode="import"
-              isAuthenticated={isAuthenticated}
-            />
-            <RtuPictureGpsAssign onBusyChange={setUploadBusy} />
-          </div>
-        </section>
+                Property managers
+              </SettingsSectionLabel>
+              <PropertyManagerNamesEditor
+                key={managerEditorKey}
+                portfolio={portfolio}
+                onPortfolioPatch={onPortfolioPatch}
+              />
+            </section>
 
-        <section>
-          <SettingsSectionLabel>Export</SettingsSectionLabel>
-          <div className={styles.tools}>
-            <ImportExportButtons
-              portfolio={portfolio}
-              buildings={portfolio.buildings}
-              onImport={handleImport}
-              onExportComplete={handleClose}
-              mode="export"
-              isAuthenticated={isAuthenticated}
-            />
-          </div>
-        </section>
+            <section>
+              <SettingsSectionLabel>Edits</SettingsSectionLabel>
+              <div className={styles.tools}>
+                <SettingsToolButton
+                  tooltip="Pick an RTU to show on the map, move its pin, or delete it."
+                  onClick={() => setRtuEditorOpen(true)}
+                >
+                  Edit RTU
+                </SettingsToolButton>
+                <SettingsToolButton
+                  tooltip="Edit supply, install, and other per-tonnage replacement costs used by the cost estimator."
+                  onClick={() => setPricingOpen(true)}
+                >
+                  Edit RTU&apos;s Pricing
+                </SettingsToolButton>
+                <SettingsToolButton
+                  tooltip="Turn on map edit mode: drag a box to select markers and polygons, then drag any selected item to move the group."
+                  onClick={handleEditPositions}
+                >
+                  {dragMode
+                    ? `✓ Edit Multiple Positions (on${dragSelectedCount ? ` · ${dragSelectedCount} selected` : ''})`
+                    : 'Edit Multiple Positions'}
+                </SettingsToolButton>
+                {dragMode ? (
+                  <SettingsToolButton
+                    tooltip="Clear the current map selection without turning off edit mode."
+                    onClick={() => {
+                      clearDragSelect()
+                      handleClose()
+                    }}
+                    disabled={dragSelectedCount === 0}
+                  >
+                    Clear map selection
+                  </SettingsToolButton>
+                ) : null}
+                <SettingsToolButton
+                  tooltip="Edit suite (sky blue), electrical (green), and sprinkler (yellow) 360° sphere gates — link tour URLs and rename."
+                  onClick={() => setInspection360EditorOpen(true)}
+                >
+                  Edit 360° Gates
+                </SettingsToolButton>
+                <SettingsToolButton
+                  tooltip="Place a new building, RTU, or utility marker on the map."
+                  onClick={() => {
+                    handleClose()
+                    onOpenAddMarker()
+                  }}
+                >
+                  Add marker
+                </SettingsToolButton>
+                <SettingsToolButton
+                  tooltip="Draw a new tenant polygon by clicking points on the map."
+                  onClick={() => {
+                    handleClose()
+                    onOpenPolygonDraw()
+                  }}
+                >
+                  Add polygon
+                </SettingsToolButton>
+                <SettingsToolButton
+                  tooltip="Edit vertex points, show a polygon on the map, or delete tenant polygons."
+                  onClick={() => setPolygonEditorOpen(true)}
+                >
+                  Edit Polygons
+                </SettingsToolButton>
+                <ImportExportButtons
+                  portfolio={portfolio}
+                  buildings={portfolio.buildings}
+                  onImport={handleImport}
+                  mode="import"
+                  isAuthenticated={isAuthenticated}
+                />
+                <RtuPictureGpsAssign onBusyChange={setUploadBusy} />
+              </div>
+            </section>
+
+            <section>
+              <SettingsSectionLabel>Export</SettingsSectionLabel>
+              <div className={styles.tools}>
+                <ImportExportButtons
+                  portfolio={portfolio}
+                  buildings={portfolio.buildings}
+                  onImport={handleImport}
+                  onExportComplete={handleClose}
+                  mode="export"
+                  isAuthenticated={isAuthenticated}
+                />
+              </div>
+            </section>
+          </>
+        ) : (
+          <section>
+            <SettingsSectionLabel>Edits &amp; export</SettingsSectionLabel>
+            <p className={styles.authLockedHint}>
+              Sign in to edit the map, add markers, import, or export data.
+            </p>
+            <SettingsToolButton tooltip="Open the sign-in form." onClick={handleSignInClick}>
+              Sign in to edit
+            </SettingsToolButton>
+          </section>
+        )}
       </div>
       )}
       <RtuPricingSettings open={pricingOpen} onClose={() => setPricingOpen(false)} />

@@ -118,6 +118,7 @@ function utilityTextFields(utility: Utility): Record<string, unknown> {
     utility_type: utility.utility_type,
     name: utility.name,
     description: utility.description,
+    inspection_url: utility.inspection_url ?? null,
     marker_shape: utility.marker_shape ?? null,
     marker_scale: utility.marker_scale ?? null,
   }

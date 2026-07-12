@@ -27,10 +27,20 @@ vi.mock('@/lib/mapRotation', () => ({
   fitBoundsPreserveRotation: () => {},
 }))
 
-import { applyPendingMarkerPositions } from '@/features/map/mapMarkersState'
+import { applyPendingMarkerPositions, isSphereDetailLayer } from '@/features/map/mapMarkersState'
 import type { DetailMarkerEntry } from '@/features/map/mapMarkersState'
 import { mergePortfolioSuiteEntrances } from '@/lib/suiteEntrances'
 import type { Building, PortfolioData, SuiteEntrance } from '@/types/domain'
+
+describe('isSphereDetailLayer', () => {
+  it('marks suite, electrical, and sprinkler as sphere layers', () => {
+    expect(isSphereDetailLayer('inspection360')).toBe(true)
+    expect(isSphereDetailLayer('electrical')).toBe(true)
+    expect(isSphereDetailLayer('sprinkler')).toBe(true)
+    expect(isSphereDetailLayer('hydrant')).toBe(false)
+    expect(isSphereDetailLayer('rtu')).toBe(false)
+  })
+})
 
 function fakeMarkerAt(lat: number, lng: number): DetailMarkerEntry['marker'] {
   return { __position: { lat, lng } } as unknown as DetailMarkerEntry['marker']

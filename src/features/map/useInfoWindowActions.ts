@@ -18,7 +18,8 @@ import { buildingDragKey } from '@/lib/dragSelection'
 import { suppressMapClickClearOnce } from '@/lib/mapMarqueeSelect'
 import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScroll } from '@/lib/mapPopups'
 import { MAP_DETAIL_ZOOM } from '@/lib/constants'
-import { afterMapViewChange, panToPreserveRotation } from '@/lib/mapRotation'
+import { buildInspection360GateKey } from '@/lib/insp360Viewer'
+import { afterMapViewChange, panToPreserveRotation, resolveBuildingClickZoom } from '@/lib/mapRotation'
 import {
   addRtuPicturesFromFiles,
   deleteRtuPicture,
@@ -41,6 +42,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { usePendingRtuPictureStore } from '@/stores/pendingRtuPictureStore'
 import { useUiStore } from '@/stores/uiStore'
+import { useAuth } from '@/hooks/useAuth'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import {
   type ActiveDetailInfo,
@@ -50,7 +52,7 @@ import {
   type PolygonBuildingIndex,
   type SoloMoveSession,
 } from '@/features/map/mapMarkersState'
-import type { Building, LayerKey, Rtu, SuiteEntrance } from '@/types/domain'
+import type { Building, LayerKey, Rtu, SuiteEntrance, Utility } from '@/types/domain'
 
 export function useInfoWindowActions(
   map: google.maps.Map | null,
@@ -70,6 +72,13 @@ export function useInfoWindowActions(
 ) {
   /** Drop prior InfoWindow DOM listeners so repeated opens do not stack handlers. */
   const infoWindowActionsAbortRef = useRef<AbortController | null>(null)
+  const { isAuthenticated } = useAuth()
+
+  const requireEditAuth = useCallback(() => {
+    if (isAuthenticated) return true
+    showToastError('Sign in to edit the map.')
+    return false
+  }, [isAuthenticated])
 
   const stopSoloMove = useCallback(() => {
     const solo = soloMoveRef.current
@@ -89,6 +98,7 @@ export function useInfoWindowActions(
   /** Popup Move: reuse Edit Positions (multi-drag) path — that path already stages Save. */
   const startPopupMove = useCallback(
     (marker: AppMapMarker, dragKey: string, label: string) => {
+      if (!requireEditAuth()) return
       stopSoloMove()
       infoWindowRef.current?.close()
       activeInfoMarkerRef.current = null
@@ -101,7 +111,7 @@ export function useInfoWindowActions(
       setAppMarkerCursor(marker, 'grab')
       showToastSuccess(`${label} highlighted — drag it now. Save appears when you release.`)
     },
-    [infoWindowRef, activeInfoMarkerRef, activeDetailInfoRef, stopSoloMove],
+    [infoWindowRef, activeInfoMarkerRef, activeDetailInfoRef, stopSoloMove, requireEditAuth],
   )
 
   const startSoloMove = useCallback(
@@ -130,33 +140,37 @@ export function useInfoWindowActions(
       closeAllMapPopups()
       activeDetailInfoRef.current = null
       clearActiveRtuPictures()
-      if ((map.getZoom() ?? 0) < MAP_DETAIL_ZOOM) {
-        panToPreserveRotation(
-          map,
-          { lat: building.lat, lng: building.lng },
-          MAP_DETAIL_ZOOM,
-          { onlyZoomIn: true },
-        )
-      }
+      const currentZoom = map.getZoom() ?? 0
+      panToPreserveRotation(
+        map,
+        { lat: building.lat, lng: building.lng },
+        resolveBuildingClickZoom(currentZoom, MAP_DETAIL_ZOOM),
+        { onlyZoomIn: true },
+      )
       const tenantPolygons = polygonsForBuilding(polygonIndexRef.current, building.address)
       const managerRenames = useSettingsStore.getState().managerRenames
       infoWindowRef.current.setContent(
-        buildBuildingInfoHtml(building, tenantPolygons, managerRenames),
+        buildBuildingInfoHtml(building, tenantPolygons, managerRenames, {
+          showMove: isAuthenticated,
+        }),
       )
       infoWindowRef.current.open({ map, anchor: marker })
       ensureInfoWindowVisible(map, infoWindowRef.current)
       activeInfoMarkerRef.current = marker
       afterMapViewChange(map)
     },
-    [map, infoWindowRef, activeInfoMarkerRef, activeDetailInfoRef, polygonIndexRef, clearActiveRtuPictures],
+    [map, infoWindowRef, activeInfoMarkerRef, activeDetailInfoRef, polygonIndexRef, clearActiveRtuPictures, isAuthenticated],
   )
 
   const detailHtmlOptions = useCallback(
     (entry: DetailMarkerEntry, pendingPictureAssignCount = 0) => ({
       buildingAddress: entry.building?.address,
       pendingPictureAssignCount,
+      showMove: isAuthenticated,
+      showEdit: isAuthenticated,
+      showDelete: isAuthenticated,
     }),
-    [],
+    [isAuthenticated],
   )
 
   const refreshRtuDocumentsView = useCallback(async () => {
@@ -275,6 +289,7 @@ export function useInfoWindowActions(
           e.preventDefault()
           e.stopPropagation()
           suppressMapClickClearOnce()
+          if (!requireEditAuth()) return
           const btn = e.currentTarget as HTMLElement
           const kind = btn.getAttribute('data-iw-kind')
 
@@ -321,6 +336,7 @@ export function useInfoWindowActions(
           'click',
           () => {
             void (async () => {
+              if (!requireEditAuth()) return
               const layerKey = delBtn.getAttribute('data-iw-layer') as LayerKey
               const name = delBtn.getAttribute('data-iw-name') ?? ''
               const buildingAddr = delBtn.getAttribute('data-iw-building') ?? ''
@@ -344,6 +360,7 @@ export function useInfoWindowActions(
       container.querySelector('[data-iw-action="edit-text"]')?.addEventListener(
         'click',
         () => {
+          if (!requireEditAuth()) return
           const ctx = activeDetailInfoRef.current
           if (!ctx || ctx.entry.type !== 'rtu') return
           ctx.view = 'edit'
@@ -382,6 +399,7 @@ export function useInfoWindowActions(
         'click',
         () => {
           void (async () => {
+            if (!requireEditAuth()) return
             const ctx = activeDetailInfoRef.current
             if (!ctx || ctx.entry.type !== 'rtu' || ctx.view !== 'edit' || !ctx.entry.building) return
             const nameInput = container.querySelector('[data-iw-field="name"]') as HTMLInputElement | null
@@ -427,16 +445,39 @@ export function useInfoWindowActions(
         'click',
         () => {
           const ctx = activeDetailInfoRef.current
-          if (!ctx || ctx.entry.type !== 'inspection360') return
-          const entrance = ctx.entry.data as SuiteEntrance
-          const buildingAddress = ctx.entry.building?.address ?? ''
-          useUiStore.getState().openInspection360Viewer({
-            buildingAddress,
-            suiteName: entrance.name,
-            title: entrance.name,
-            projectUrl: entrance.inspection_url?.trim() || null,
-            scene: null,
-          })
+          if (!ctx) return
+          if (ctx.entry.type === 'inspection360') {
+            const entrance = ctx.entry.data as SuiteEntrance
+            const buildingAddress = ctx.entry.building?.address ?? ''
+            useUiStore.getState().openInspection360Viewer({
+              buildingAddress,
+              suiteName: entrance.name,
+              title: entrance.name,
+              projectUrl: entrance.inspection_url?.trim() || null,
+              scene: null,
+              gateKey: buildInspection360GateKey(
+                'suite',
+                entrance,
+                entrance.building_id ?? ctx.entry.building?.id,
+              ),
+            })
+          } else if (
+            (ctx.entry.type === 'electrical' || ctx.entry.type === 'sprinkler') &&
+            'utility_type' in ctx.entry.data
+          ) {
+            const utility = ctx.entry.data as Utility
+            const gateKind = ctx.entry.type === 'electrical' ? 'electrical' : 'sprinkler'
+            useUiStore.getState().openInspection360Viewer({
+              buildingAddress: ctx.entry.building?.address ?? utility.description ?? '',
+              suiteName: utility.name,
+              title: utility.name,
+              projectUrl: utility.inspection_url?.trim() || null,
+              scene: null,
+              gateKey: buildInspection360GateKey(gateKind, utility, ctx.entry.building?.id),
+            })
+          } else {
+            return
+          }
           iw.close()
           activeInfoMarkerRef.current = null
           activeDetailInfoRef.current = null
@@ -460,6 +501,7 @@ export function useInfoWindowActions(
         ?.addEventListener(
           'click',
           () => {
+            if (!requireEditAuth()) return
             const ctx = activeDetailInfoRef.current
             if (!ctx || ctx.entry.type !== 'rtu' || !ctx.entry.building) return
             const rtu = ctx.entry.data as Rtu
@@ -641,6 +683,7 @@ export function useInfoWindowActions(
         ?.addEventListener(
           'click',
           () => {
+            if (!requireEditAuth()) return
             const input = container.querySelector(
               '[data-iw-picture-input]',
             ) as HTMLInputElement | null
@@ -656,6 +699,7 @@ export function useInfoWindowActions(
         'change',
         () => {
           void (async () => {
+            if (!requireEditAuth()) return
             const ctx = activeDetailInfoRef.current
             if (!ctx || ctx.entry.type !== 'rtu' || ctx.view !== 'pictures') return
             const buildingAddress = ctx.entry.building?.address
@@ -682,6 +726,7 @@ export function useInfoWindowActions(
           'click',
           () => {
             void (async () => {
+              if (!requireEditAuth()) return
               const ctx = activeDetailInfoRef.current
               const btn = container.querySelector(
                 '[data-iw-action="picture-delete"]',
@@ -725,6 +770,7 @@ export function useInfoWindowActions(
     callbacksRef,
     startSoloMove,
     startBuildingMove,
+    requireEditAuth,
     clearActiveRtuPictures,
     refreshRtuPicturesView,
     refreshRtuDocumentsView,

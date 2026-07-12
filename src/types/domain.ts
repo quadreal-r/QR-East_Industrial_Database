@@ -78,6 +78,8 @@ export interface Utility {
   description: string
   lat: number
   lng: number
+  /** QR-360° tour URL for electrical / sprinkler room gates. */
+  inspection_url?: string | null
   marker_shape?: number
   marker_scale?: number
 }

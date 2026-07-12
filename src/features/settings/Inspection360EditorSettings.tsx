@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Modal } from '@/components/Modal/Modal'
 import { SearchInput } from '@/components/SearchInput/SearchInput'
 import { confirm } from '@/stores/confirmStore'
+import { matchesUtility } from '@/lib/dragSelection'
 import {
   buildingForEntrance,
   matchesSuiteEntrance,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/suiteEntrances'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { useSelectionStore } from '@/stores/selectionStore'
-import type { PortfolioData, SuiteEntrance } from '@/types/domain'
+import type { LayerKey, PortfolioData, SuiteEntrance, Utility, UtilityType } from '@/types/domain'
 import selectStyles from '@/components/Select/Select.module.css'
 import styles from './SettingsModal.module.css'
 
@@ -24,6 +25,36 @@ export interface Inspection360EditorSettingsProps {
   onOpenAddInspection360: () => void
 }
 
+type GateKind = 'suite' | 'electrical' | 'sprinkler'
+
+const GATE_KIND_OPTIONS: Array<{ value: GateKind; label: string; hint: string }> = [
+  {
+    value: 'suite',
+    label: 'Suite entrances (sky blue)',
+    hint: 'Sky-blue spheres at tenant suite entrances.',
+  },
+  {
+    value: 'electrical',
+    label: 'Electrical rooms (green)',
+    hint: 'Green spheres for electrical room 360° gates. Add rooms with Add marker first.',
+  },
+  {
+    value: 'sprinkler',
+    label: 'Sprinkler rooms (yellow)',
+    hint: 'Yellow spheres for sprinkler room 360° gates. Add rooms with Add marker first.',
+  },
+]
+
+const UTILITY_TYPE_BY_KIND: Record<'electrical' | 'sprinkler', UtilityType> = {
+  electrical: 'Electrical Rooms',
+  sprinkler: 'Sprinkler Rooms',
+}
+
+const LAYER_BY_KIND: Record<'electrical' | 'sprinkler', LayerKey> = {
+  electrical: 'electrical',
+  sprinkler: 'sprinkler',
+}
+
 function updateEntrance(
   entrances: SuiteEntrance[],
   target: SuiteEntrance,
@@ -31,6 +62,25 @@ function updateEntrance(
 ): SuiteEntrance[] {
   return entrances.map((entrance) =>
     matchesSuiteEntrance(entrance, target) ? { ...entrance, ...updates } : entrance,
+  )
+}
+
+function utilityOptionKey(utility: Utility): string {
+  return `${utility.utility_type}\0${utility.name}\0${utility.description}`
+}
+
+function utilityEditorLabel(utility: Utility): string {
+  const note = utility.description?.trim()
+  return note ? `${utility.name} — ${note}` : utility.name
+}
+
+function utilityMatchesSearch(utility: Utility, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    utility.name.toLowerCase().includes(q) ||
+    utility.description.toLowerCase().includes(q) ||
+    (utility.inspection_url ?? '').toLowerCase().includes(q)
   )
 }
 
@@ -49,7 +99,8 @@ function Inspection360EditorForm({
   onOpenAddInspection360,
   initialSelectedKey,
 }: Inspection360EditorFormProps) {
-  const { buildings, suiteEntrances } = portfolio
+  const { buildings, suiteEntrances, utilities } = portfolio
+  const [gateKind, setGateKind] = useState<GateKind>('suite')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedKey, setSelectedKey] = useState(initialSelectedKey)
 
@@ -70,111 +121,231 @@ function Inspection360EditorForm({
     )
   }, [sortedEntrances, buildings, searchQuery])
 
-  const visibleSelectedKey = filteredEntrances.some(
-    (entrance) =>
-      suiteEntranceOptionKey(entrance, buildingForEntrance(buildings, entrance)?.address ?? null) ===
-      selectedKey,
-  )
-    ? selectedKey
-    : filteredEntrances[0]
-      ? suiteEntranceOptionKey(
-          filteredEntrances[0],
-          buildingForEntrance(buildings, filteredEntrances[0])?.address ?? null,
-        )
-      : selectedKey
+  const utilityType = gateKind === 'suite' ? null : UTILITY_TYPE_BY_KIND[gateKind]
+
+  const sortedUtilities = useMemo(() => {
+    if (!utilityType) return [] as Utility[]
+    return [...utilities]
+      .filter((u) => u.utility_type === utilityType)
+      .sort((a, b) => utilityEditorLabel(a).localeCompare(utilityEditorLabel(b)))
+  }, [utilities, utilityType])
+
+  const filteredUtilities = useMemo(() => {
+    if (!searchQuery.trim()) return sortedUtilities
+    return sortedUtilities.filter((u) => utilityMatchesSearch(u, searchQuery))
+  }, [sortedUtilities, searchQuery])
 
   const selectedEntrance =
-    filteredEntrances.find(
-      (entrance) =>
-        suiteEntranceOptionKey(entrance, buildingForEntrance(buildings, entrance)?.address ?? null) ===
-        visibleSelectedKey,
-    ) ??
-    sortedEntrances.find(
-      (entrance) =>
-        suiteEntranceOptionKey(entrance, buildingForEntrance(buildings, entrance)?.address ?? null) ===
-        visibleSelectedKey,
-    )
+    gateKind === 'suite'
+      ? (filteredEntrances.find(
+          (entrance) =>
+            suiteEntranceOptionKey(
+              entrance,
+              buildingForEntrance(buildings, entrance)?.address ?? null,
+            ) === selectedKey,
+        ) ??
+        sortedEntrances.find(
+          (entrance) =>
+            suiteEntranceOptionKey(
+              entrance,
+              buildingForEntrance(buildings, entrance)?.address ?? null,
+            ) === selectedKey,
+        ) ??
+        filteredEntrances[0] ??
+        sortedEntrances[0])
+      : undefined
+
+  const selectedUtility =
+    gateKind !== 'suite'
+      ? (filteredUtilities.find((u) => utilityOptionKey(u) === selectedKey) ??
+        sortedUtilities.find((u) => utilityOptionKey(u) === selectedKey) ??
+        filteredUtilities[0] ??
+        sortedUtilities[0])
+      : undefined
 
   const assignedBuilding = selectedEntrance
     ? buildingForEntrance(buildings, selectedEntrance)
     : undefined
 
-  const [draftName, setDraftName] = useState(selectedEntrance?.name ?? '')
-  const [draftDescription, setDraftDescription] = useState(selectedEntrance?.description ?? '')
-  const [draftInspectionUrl, setDraftInspectionUrl] = useState(selectedEntrance?.inspection_url ?? '')
+  const visibleSelectedKey =
+    gateKind === 'suite'
+      ? selectedEntrance
+        ? suiteEntranceOptionKey(
+            selectedEntrance,
+            buildingForEntrance(buildings, selectedEntrance)?.address ?? null,
+          )
+        : ''
+      : selectedUtility
+        ? utilityOptionKey(selectedUtility)
+        : ''
 
-  const syncDraftFromSelection = (entrance: SuiteEntrance | undefined) => {
+  const [draftName, setDraftName] = useState(
+    selectedEntrance?.name ?? selectedUtility?.name ?? '',
+  )
+  const [draftDescription, setDraftDescription] = useState(
+    selectedEntrance?.description ?? selectedUtility?.description ?? '',
+  )
+  const [draftInspectionUrl, setDraftInspectionUrl] = useState(
+    selectedEntrance?.inspection_url ?? selectedUtility?.inspection_url ?? '',
+  )
+
+  const syncDraftFromSuite = (entrance: SuiteEntrance | undefined) => {
     setDraftName(entrance?.name ?? '')
     setDraftDescription(entrance?.description ?? '')
     setDraftInspectionUrl(entrance?.inspection_url ?? '')
   }
 
+  const syncDraftFromUtility = (utility: Utility | undefined) => {
+    setDraftName(utility?.name ?? '')
+    setDraftDescription(utility?.description ?? '')
+    setDraftInspectionUrl(utility?.inspection_url ?? '')
+  }
+
+  const handleGateKindChange = (next: GateKind) => {
+    setGateKind(next)
+    setSearchQuery('')
+    if (next === 'suite') {
+      const first = sortedEntrances[0]
+      const key = first
+        ? suiteEntranceOptionKey(first, buildingForEntrance(buildings, first)?.address ?? null)
+        : ''
+      setSelectedKey(key)
+      syncDraftFromSuite(first)
+      return
+    }
+    const type = UTILITY_TYPE_BY_KIND[next]
+    const first = utilities
+      .filter((u) => u.utility_type === type)
+      .sort((a, b) => utilityEditorLabel(a).localeCompare(utilityEditorLabel(b)))[0]
+    setSelectedKey(first ? utilityOptionKey(first) : '')
+    syncDraftFromUtility(first)
+  }
+
+  const kindMeta = GATE_KIND_OPTIONS.find((o) => o.value === gateKind)!
+
   const showOnMap = () => {
-    if (!selectedEntrance || !assignedBuilding) {
-      showToastError('Select a 360° gate first.')
+    if (gateKind === 'suite') {
+      if (!selectedEntrance || !assignedBuilding) {
+        showToastError('Select a 360° gate first.')
+        return
+      }
+      onClose()
+      window.dispatchEvent(
+        new CustomEvent('map:openDetail', {
+          detail: {
+            layerKey: 'inspection360',
+            name: selectedEntrance.name,
+            buildingAddress: assignedBuilding.address,
+          },
+        }),
+      )
+      return
+    }
+    if (!selectedUtility) {
+      showToastError('Select a room gate first.')
       return
     }
     onClose()
     window.dispatchEvent(
       new CustomEvent('map:openDetail', {
         detail: {
-          layerKey: 'inspection360',
-          name: selectedEntrance.name,
-          buildingAddress: assignedBuilding.address,
+          layerKey: LAYER_BY_KIND[gateKind],
+          name: selectedUtility.name,
         },
       }),
     )
   }
 
   const handleApplyEdits = () => {
-    if (!selectedEntrance) {
-      showToastError('Select a 360° gate first.')
+    if (gateKind === 'suite') {
+      if (!selectedEntrance) {
+        showToastError('Select a 360° gate first.')
+        return
+      }
+      const nextEntrances = updateEntrance(suiteEntrances, selectedEntrance, {
+        name: draftName.trim() || selectedEntrance.name,
+        description: draftDescription.trim(),
+        inspection_url: draftInspectionUrl.trim() || null,
+      })
+      onPortfolioPatch({ ...portfolio, suiteEntrances: nextEntrances })
+      showToastSuccess('✓ 360° gate updated — save to keep changes.')
       return
     }
-    const nextEntrances = updateEntrance(suiteEntrances, selectedEntrance, {
-      name: draftName.trim() || selectedEntrance.name,
-      description: draftDescription.trim(),
-      inspection_url: draftInspectionUrl.trim() || null,
-    })
-    onPortfolioPatch({ ...portfolio, suiteEntrances: nextEntrances })
-    showToastSuccess('✓ 360° gate updated — save to keep changes.')
+    if (!selectedUtility) {
+      showToastError('Select a room gate first.')
+      return
+    }
+    const nextUtilities = utilities.map((item) =>
+      matchesUtility(item, selectedUtility)
+        ? {
+            ...item,
+            name: draftName.trim() || selectedUtility.name,
+            description: draftDescription.trim(),
+            inspection_url: draftInspectionUrl.trim() || null,
+          }
+        : item,
+    )
+    onPortfolioPatch({ ...portfolio, utilities: nextUtilities })
+    showToastSuccess('✓ Room gate updated — save to keep changes.')
   }
 
   const handleDelete = () => {
-    if (!selectedEntrance) {
-      showToastError('Select a 360° gate first.')
+    if (gateKind === 'suite') {
+      if (!selectedEntrance) {
+        showToastError('Select a 360° gate first.')
+        return
+      }
+      const label = suiteEntranceEditorLabel(selectedEntrance, assignedBuilding?.address ?? null)
+      void confirm(`Delete 360° gate "${label}"?`).then((ok) => {
+        if (!ok || !selectedEntrance) return
+        const nextEntrances = suiteEntrances.filter(
+          (entrance) => !matchesSuiteEntrance(entrance, selectedEntrance),
+        )
+        onPortfolioPatch({ ...portfolio, suiteEntrances: nextEntrances })
+        const remaining = sortedEntrances.filter(
+          (entrance) => !matchesSuiteEntrance(entrance, selectedEntrance),
+        )
+        const nextKey = resolveSuiteEntranceEditorSelection(remaining, buildings, {
+          buildingAddress: assignedBuilding?.address ?? null,
+        })
+        setSelectedKey(nextKey)
+        syncDraftFromSuite(
+          remaining.find(
+            (entrance) =>
+              suiteEntranceOptionKey(
+                entrance,
+                buildingForEntrance(buildings, entrance)?.address ?? null,
+              ) === nextKey,
+          ),
+        )
+        showToastSuccess('✓ 360° gate deleted — save to keep changes.')
+      })
       return
     }
-    const label = suiteEntranceEditorLabel(selectedEntrance, assignedBuilding?.address ?? null)
-    void confirm(`Delete 360° gate "${label}"?`).then((ok) => {
-      if (!ok || !selectedEntrance) return
-      const nextEntrances = suiteEntrances.filter(
-        (entrance) => !matchesSuiteEntrance(entrance, selectedEntrance),
-      )
-      onPortfolioPatch({ ...portfolio, suiteEntrances: nextEntrances })
-      const remaining = sortedEntrances.filter(
-        (entrance) => !matchesSuiteEntrance(entrance, selectedEntrance),
-      )
-      setSelectedKey(
-        resolveSuiteEntranceEditorSelection(remaining, buildings, {
-          buildingAddress: assignedBuilding?.address ?? null,
-        }),
-      )
-      syncDraftFromSelection(
-        remaining.find(
-          (entrance) =>
-            suiteEntranceOptionKey(
-              entrance,
-              buildingForEntrance(buildings, entrance)?.address ?? null,
-            ) ===
-            resolveSuiteEntranceEditorSelection(remaining, buildings, {
-              buildingAddress: assignedBuilding?.address ?? null,
-            }),
-        ),
-      )
-      showToastSuccess('✓ 360° gate deleted — save to keep changes.')
+    if (!selectedUtility) {
+      showToastError('Select a room gate first.')
+      return
+    }
+    void confirm(`Delete "${utilityEditorLabel(selectedUtility)}"?`).then((ok) => {
+      if (!ok || !selectedUtility) return
+      const nextUtilities = utilities.filter((item) => !matchesUtility(item, selectedUtility))
+      onPortfolioPatch({ ...portfolio, utilities: nextUtilities })
+      const remaining = sortedUtilities.filter((item) => !matchesUtility(item, selectedUtility))
+      const next = remaining[0]
+      setSelectedKey(next ? utilityOptionKey(next) : '')
+      syncDraftFromUtility(next)
+      showToastSuccess('✓ Room gate deleted — save to keep changes.')
     })
   }
+
+  const listEmptyLabel =
+    gateKind === 'suite'
+      ? searchQuery.trim()
+        ? 'No gates match your search'
+        : 'No suite 360° gates yet'
+      : searchQuery.trim()
+        ? 'No rooms match your search'
+        : `No ${gateKind} rooms yet — add one with Add marker`
 
   return (
     <div className={styles.body}>
@@ -182,66 +353,102 @@ function Inspection360EditorForm({
         className={styles.mgrFieldLabel}
         style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12 }}
       >
-        Sky-blue sphere markers at suite entrances. Use Show on map, then Move in the popup to
-        reposition. Paste a Tour URL to open that suite’s QR-360° project from the map popup.
+        {kindMeta.hint} Paste a Tour URL to open that QR-360° project from the map popup.
       </p>
+
+      <label className={styles.mgrFieldLabel} htmlFor="inspection360-gate-kind">
+        Gate type
+      </label>
+      <select
+        id="inspection360-gate-kind"
+        className={selectStyles.select}
+        value={gateKind}
+        onChange={(e) => handleGateKindChange(e.target.value as GateKind)}
+      >
+        {GATE_KIND_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
 
       <label className={styles.mgrFieldLabel} htmlFor="inspection360-editor-search">
         Search
       </label>
       <SearchInput
         id="inspection360-editor-search"
-        placeholder="Search address, suite, or tenant…"
+        placeholder={
+          gateKind === 'suite'
+            ? 'Search address, suite, or tenant…'
+            : 'Search room name or notes…'
+        }
         value={searchQuery}
         onValueChange={setSearchQuery}
       />
 
       <label className={styles.mgrFieldLabel} htmlFor="inspection360-editor-select">
-        360° gate
+        {gateKind === 'suite' ? '360° gate' : 'Room'}
       </label>
       <select
         id="inspection360-editor-select"
         className={selectStyles.select}
         value={visibleSelectedKey}
-        disabled={!filteredEntrances.length}
+        disabled={gateKind === 'suite' ? !filteredEntrances.length : !filteredUtilities.length}
         onChange={(e) => {
           setSelectedKey(e.target.value)
-          const entrance = filteredEntrances.find(
-            (item) =>
-              suiteEntranceOptionKey(
-                item,
-                buildingForEntrance(buildings, item)?.address ?? null,
-              ) === e.target.value,
+          if (gateKind === 'suite') {
+            const entrance = filteredEntrances.find(
+              (item) =>
+                suiteEntranceOptionKey(
+                  item,
+                  buildingForEntrance(buildings, item)?.address ?? null,
+                ) === e.target.value,
+            )
+            syncDraftFromSuite(entrance)
+            return
+          }
+          syncDraftFromUtility(
+            filteredUtilities.find((item) => utilityOptionKey(item) === e.target.value),
           )
-          syncDraftFromSelection(entrance)
         }}
       >
-        {filteredEntrances.length ? (
-          filteredEntrances.map((entrance) => {
-            const key = suiteEntranceOptionKey(
-              entrance,
-              buildingForEntrance(buildings, entrance)?.address ?? null,
-            )
+        {gateKind === 'suite' ? (
+          filteredEntrances.length ? (
+            filteredEntrances.map((entrance) => {
+              const key = suiteEntranceOptionKey(
+                entrance,
+                buildingForEntrance(buildings, entrance)?.address ?? null,
+              )
+              return (
+                <option key={key} value={key}>
+                  {suiteEntranceEditorLabel(
+                    entrance,
+                    buildingForEntrance(buildings, entrance)?.address ?? null,
+                  )}
+                </option>
+              )
+            })
+          ) : (
+            <option value="">{listEmptyLabel}</option>
+          )
+        ) : filteredUtilities.length ? (
+          filteredUtilities.map((utility) => {
+            const key = utilityOptionKey(utility)
             return (
               <option key={key} value={key}>
-                {suiteEntranceEditorLabel(
-                  entrance,
-                  buildingForEntrance(buildings, entrance)?.address ?? null,
-                )}
+                {utilityEditorLabel(utility)}
               </option>
             )
           })
         ) : (
-          <option value="">
-            {searchQuery.trim() ? 'No gates match your search' : 'No 360° gates yet'}
-          </option>
+          <option value="">{listEmptyLabel}</option>
         )}
       </select>
 
-      {selectedEntrance ? (
+      {(gateKind === 'suite' ? selectedEntrance : selectedUtility) ? (
         <>
           <label className={styles.mgrFieldLabel} htmlFor="inspection360-name">
-            Suite label
+            {gateKind === 'suite' ? 'Suite label' : 'Room name'}
           </label>
           <input
             id="inspection360-name"
@@ -252,7 +459,7 @@ function Inspection360EditorForm({
           />
 
           <label className={styles.mgrFieldLabel} htmlFor="inspection360-desc">
-            Tenant / notes
+            {gateKind === 'suite' ? 'Tenant / notes' : 'Notes'}
           </label>
           <input
             id="inspection360-desc"
@@ -271,28 +478,30 @@ function Inspection360EditorForm({
             className={styles.mgrInput}
             value={draftInspectionUrl}
             onChange={(e) => setDraftInspectionUrl(e.target.value)}
-            placeholder="https://…/project.insp360 or insp360/projects/suite-7.insp360"
+            placeholder="https://…/project.insp360 or insp360/projects/room.insp360"
           />
         </>
       ) : null}
 
       <div className={styles.tools} style={{ marginTop: 12 }}>
+        {gateKind === 'suite' ? (
+          <button
+            type="button"
+            className="btn-action"
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => {
+              onClose()
+              onOpenAddInspection360()
+            }}
+          >
+            + Add 360° gate
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn-action"
           style={{ width: '100%', justifyContent: 'flex-start' }}
-          onClick={() => {
-            onClose()
-            onOpenAddInspection360()
-          }}
-        >
-          + Add 360° gate
-        </button>
-        <button
-          type="button"
-          className="btn-action"
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-          disabled={!selectedEntrance}
+          disabled={!(gateKind === 'suite' ? selectedEntrance : selectedUtility)}
           onClick={showOnMap}
         >
           Show on map
@@ -301,7 +510,7 @@ function Inspection360EditorForm({
           type="button"
           className="btn-action"
           style={{ width: '100%', justifyContent: 'flex-start' }}
-          disabled={!selectedEntrance}
+          disabled={!(gateKind === 'suite' ? selectedEntrance : selectedUtility)}
           onClick={handleApplyEdits}
         >
           ✎ Save edits
@@ -310,10 +519,10 @@ function Inspection360EditorForm({
           type="button"
           className="btn-action"
           style={{ width: '100%', justifyContent: 'flex-start', color: '#f87171' }}
-          disabled={!selectedEntrance}
+          disabled={!(gateKind === 'suite' ? selectedEntrance : selectedUtility)}
           onClick={handleDelete}
         >
-          🗑 Delete gate
+          🗑 Delete {gateKind === 'suite' ? 'gate' : 'room'}
         </button>
       </div>
     </div>
@@ -332,8 +541,10 @@ export function Inspection360EditorSettings({
 
   const editorSessionKey = useMemo(() => {
     if (!open) return 'closed'
-    return [currentBuilding?.address ?? '', suiteEntrances.length].join('|')
-  }, [open, currentBuilding?.address, suiteEntrances.length])
+    return [currentBuilding?.address ?? '', suiteEntrances.length, portfolio.utilities.length].join(
+      '|',
+    )
+  }, [open, currentBuilding?.address, suiteEntrances.length, portfolio.utilities.length])
 
   const initialSelectedKey = useMemo(
     () =>

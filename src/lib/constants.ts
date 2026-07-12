@@ -49,9 +49,12 @@ export function polygonColorLabel(color: string): string {
 export const LAYER_COLORS: Record<LayerKey, LayerStyle> = {
   rtu: { fill: '#fbbf24', stroke: '#92400e', scale: 9 },
   polygons: { fill: '#34d399', stroke: '#065f46', scale: 6 },
+  /** Tenant suite entrance gates — sky blue spheres. */
   inspection360: { fill: '#38bdf8', stroke: '#0c4a6e', scale: 10 },
-  sprinkler: { fill: '#60a5fa', stroke: '#1e3a5f', scale: 5 },
-  electrical: { fill: '#a78bfa', stroke: '#3b0764', scale: 5 },
+  /** Sprinkler room 360° gates — yellow spheres. */
+  sprinkler: { fill: '#eab308', stroke: '#854d0e', scale: 10 },
+  /** Electrical room 360° gates — green spheres. */
+  electrical: { fill: '#22c55e', stroke: '#14532d', scale: 10 },
   hydrant: { fill: '#f87171', stroke: '#7f1d1d', scale: 5 },
   gas: { fill: '#fb923c', stroke: '#7c2d12', scale: 5 },
 }
@@ -78,6 +81,9 @@ export const MAP_DETAIL_ZOOM = 21
 /** Pixel size for 360° gate sphere markers on the map. */
 export const INSPECTION360_MARKER_PX = 24
 export const INSPECTION360_MARKER_PX_SELECTED = 30
+/** Sprinkler / electrical spheres — 15% smaller than suite gates. */
+export const UTILITY_360_MARKER_PX = Math.round(INSPECTION360_MARKER_PX * 0.85)
+export const UTILITY_360_MARKER_PX_SELECTED = Math.round(INSPECTION360_MARKER_PX_SELECTED * 0.85)
 
 export const RTU_AGE_WARN = 19
 export const RTU_AGE_CRITICAL = 20

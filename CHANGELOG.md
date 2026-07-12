@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.10.0] - 2026-07-11
+
+### Added
+
+- Electrical and sprinkler room 360° sphere gates with tour URL linking in Edit 360° Gates
+- Per-gate memory in the 360° viewer so opening a gateway reopens that gate’s project (no Recent projects list)
+
+### Changed
+
+- Make sprinkler markers yellow and electrical markers green, and 15% smaller than suite gates
+- Soften building-click zoom: skip zoom when already close in; if zoomed out 4+ levels, zoom to detail − 1
+
 ## [1.9.0] - 2026-07-11
 
 ### Added

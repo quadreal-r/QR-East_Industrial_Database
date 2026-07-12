@@ -36,6 +36,8 @@ export interface Inspection360ViewerState {
   title: string
   projectUrl: string | null
   scene: string | null
+  /** Stable key for this 360° gate so the viewer can reopen its linked local project. */
+  gateKey: string | null
 }
 
 interface UiState {

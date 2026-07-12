@@ -23,8 +23,8 @@ const LAYER_LABELS: Partial<Record<LayerKey, string>> = {
   rtu: 'RTUs',
   polygons: 'Polygons',
   inspection360: '360° Gates',
-  sprinkler: 'Sprinkler',
-  electrical: 'Electrical',
+  sprinkler: 'Sprinkler 360°',
+  electrical: 'Electrical 360°',
   hydrant: 'Hydrants',
   gas: 'Gas',
 }

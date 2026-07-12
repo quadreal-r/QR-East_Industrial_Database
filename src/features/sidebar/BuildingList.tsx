@@ -3,9 +3,10 @@ import { RTU_AGE_CRITICAL, RTU_AGE_WARN } from '@/lib/constants'
 import { hasPlaceholderGps, hasVacant, mlCount } from '@/lib/dataQuality'
 import { formatSqft } from '@/lib/format'
 import { resolveManagerDisplayName } from '@/lib/managerNames'
-import { showToastSuccess } from '@/lib/toast'
+import { showToastError, showToastSuccess } from '@/lib/toast'
 import { oldestRtuAge } from '@/lib/rtu'
 import { Tag } from '@/components/Tag/Tag'
+import { useAuth } from '@/hooks/useAuth'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { buildPolygonBuildingIndex, polygonsForBuilding } from '@/lib/polygonBuildings'
@@ -32,9 +33,14 @@ export function BuildingList({
 }: BuildingListProps) {
   const currentBuilding = useSelectionStore((s) => s.currentBuilding)
   const managerRenames = useSettingsStore((s) => s.managerRenames)
+  const { isAuthenticated } = useAuth()
   const polygonIndex = buildPolygonBuildingIndex(portfolio.buildings, portfolio.polygons)
 
   const openNotesEditor = (address: string) => {
+    if (!isAuthenticated) {
+      showToastError('Sign in to edit building notes.')
+      return
+    }
     const building = portfolio.buildings.find((b) => b.address === address)
     if (!building) return
     const current = building.notes ?? ''
@@ -47,7 +53,7 @@ export function BuildingList({
       ...portfolio,
       buildings: nextBuildings,
     })
-    showToastSuccess('✓ Notes saved — save to HTML to keep them.')
+    showToastSuccess('✓ Notes saved — save to keep them.')
   }
 
   if (!buildings.length) {
@@ -153,16 +159,18 @@ export function BuildingList({
                     ) : null}
                     {sold ? <Tag variant="sold">SOLD</Tag> : null}
                   </div>
-                  <button
-                    type="button"
-                    className="bldg-notes-btn"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openNotesEditor(b.address)
-                    }}
-                  >
-                    {b.notes ? '📝 Notes' : '+ Notes'}
-                  </button>
+                  {isAuthenticated ? (
+                    <button
+                      type="button"
+                      className="bldg-notes-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openNotesEditor(b.address)
+                      }}
+                    >
+                      {b.notes ? '📝 Notes' : '+ Notes'}
+                    </button>
+                  ) : null}
                 </div>
               )
             })}

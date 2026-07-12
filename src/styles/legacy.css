@@ -35,8 +35,8 @@ select option{background:#1f2436}
 .layer-btn.active{border-color:currentColor}
 .layer-btn.active[data-layer=rtu]{color:#fbbf24;border-color:#fbbf24;background:rgba(251,191,36,.15)}
 .layer-btn.active[data-layer=polygons]{color:#34d399;border-color:#34d399;background:rgba(52,211,153,.08)}
-.layer-btn.active[data-layer=sprinkler]{color:#60a5fa;border-color:#60a5fa;background:rgba(96,165,250,.08)}
-.layer-btn.active[data-layer=electrical]{color:#a78bfa;border-color:#a78bfa;background:rgba(167,139,250,.08)}
+.layer-btn.active[data-layer=sprinkler]{color:#eab308;border-color:#eab308;background:rgba(234,179,8,.08)}
+.layer-btn.active[data-layer=electrical]{color:#22c55e;border-color:#22c55e;background:rgba(34,197,94,.08)}
 .layer-btn.active[data-layer=hydrant]{color:#f87171;border-color:#f87171;background:rgba(248,113,113,.08)}
 .layer-btn.active[data-layer=gas]{color:#fb923c;border-color:#fb923c;background:rgba(251,146,60,.08)}
 .layer-action-btn{display:flex;align-items:center;padding:4px 9px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);font-size:11px;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'Inter',sans-serif}

@@ -3,6 +3,7 @@ import {
   applyStoredRotation,
   panToPreserveRotation,
   resetMapRotationPreserveView,
+  resolveBuildingClickZoom,
 } from '@/lib/mapRotation'
 import { useMapRotationStore } from '@/stores/mapRotationStore'
 
@@ -57,6 +58,18 @@ describe('mapRotation', () => {
     panToPreserveRotation(map, { lat: 1, lng: 2 }, 21, { onlyZoomIn: true })
 
     expect(setZoom).toHaveBeenCalledWith(21)
+  })
+
+  it('resolveBuildingClickZoom skips zoom when already close in', () => {
+    expect(resolveBuildingClickZoom(21)).toBeUndefined()
+    expect(resolveBuildingClickZoom(20)).toBeUndefined()
+    expect(resolveBuildingClickZoom(18)).toBeUndefined()
+  })
+
+  it('resolveBuildingClickZoom zooms to detail−1 after 4+ levels out', () => {
+    expect(resolveBuildingClickZoom(17)).toBe(20)
+    expect(resolveBuildingClickZoom(14)).toBe(20)
+    expect(resolveBuildingClickZoom(10)).toBe(20)
   })
 
   it('resetMapRotationPreserveView clears rotation but keeps center and zoom', () => {

@@ -344,6 +344,7 @@ async function applyChanges(baseline: PortfolioData, pending: PortfolioData): Pr
       description: utility.description || null,
       lat: utility.lat,
       lng: utility.lng,
+      inspection_url: utility.inspection_url?.trim() || null,
     }
     if (utility.id) {
       const { error } = await supabase.from('utilities').update(payload).eq('id', utility.id)

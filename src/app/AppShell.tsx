@@ -32,6 +32,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { useUiStore } from '@/stores/uiStore'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import styles from './AppShell.module.css'
@@ -102,6 +103,18 @@ export function AppShell() {
     void loadRtuPricing()
     void loadRtuSchedule()
   }, [loadSettings, loadRtuPricing, loadRtuSchedule])
+
+  // Signed-out users must not stay in edit/add/draw modes.
+  useEffect(() => {
+    if (isAuthenticated) return
+    useSelectionStore.getState().setDragMode(false)
+    const ui = useUiStore.getState()
+    ui.clearAddMarkerPlacement()
+    ui.setPolygonDrawMode(false)
+    closeAddMarker('addMarker')
+    closeAddMarker('addInspection360')
+    closePolygonDraw('polygonDraw')
+  }, [isAuthenticated, closeAddMarker, closePolygonDraw])
 
   useEffect(() => {
     return () => {
@@ -292,6 +305,7 @@ export function AppShell() {
           suiteName={inspection360Viewer.suiteName}
           projectUrl={inspection360Viewer.projectUrl}
           scene={inspection360Viewer.scene}
+          gateKey={inspection360Viewer.gateKey}
           onClose={closeInspection360Viewer}
         />
       ) : null}

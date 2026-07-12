@@ -12,13 +12,18 @@ import {
 import { matchesUtility } from '@/lib/dragSelection'
 import { matchesSuiteEntrance } from '@/lib/suiteEntrances'
 import { isLegacySuiteMarkerName } from '@/lib/legacySuiteMarkers'
-import { INSPECTION360_MARKER_PX, INSPECTION360_MARKER_PX_SELECTED, LAYER_COLORS } from '@/lib/constants'
+import { INSPECTION360_MARKER_PX, INSPECTION360_MARKER_PX_SELECTED, LAYER_COLORS, UTILITY_360_MARKER_PX, UTILITY_360_MARKER_PX_SELECTED } from '@/lib/constants'
 import { getColor } from '@/lib/colors'
 import { getDetailMarkerIcon, getMarkerIcon } from '@/lib/markerStyles'
 import { registerRtuDropTarget, rtuDropTargetKey } from '@/features/map/rtuDropTargetHighlight'
 import { fitBoundsPreserveRotation } from '@/lib/mapRotation'
 import type { buildPolygonBuildingIndex } from '@/lib/polygonBuildings'
 import type { Building, LayerKey, Rtu, SuiteEntrance, Utility } from '@/types/domain'
+
+/** Suite, electrical, and sprinkler markers render as 360° spheres. */
+export function isSphereDetailLayer(layerKey: LayerKey): boolean {
+  return layerKey === 'inspection360' || layerKey === 'electrical' || layerKey === 'sprinkler'
+}
 
 // --- Types --------------------------------------------------------------------
 
@@ -121,8 +126,8 @@ export function syncBuildingMarkerAppearance(
 export function detailLabelFor(entry: DetailMarkerEntry): google.maps.MarkerLabel | undefined {
   const { type: layerKey, data } = entry
   if (!data.name) return undefined
-  if (layerKey === 'inspection360') {
-    const cfg = LAYER_COLORS.inspection360
+  if (isSphereDetailLayer(layerKey)) {
+    const cfg = LAYER_COLORS[layerKey]
     return {
       text: data.name,
       color: cfg.fill,
@@ -149,8 +154,8 @@ export function detailIconFor(
   entry: DetailMarkerEntry,
   isSelected: boolean,
 ): google.maps.Symbol {
-  if (entry.type === 'inspection360') {
-    const cfg = LAYER_COLORS.inspection360
+  if (isSphereDetailLayer(entry.type)) {
+    const cfg = LAYER_COLORS[entry.type]
     return {
       path: google.maps.SymbolPath.CIRCLE,
       fillColor: cfg.fill,
@@ -190,12 +195,19 @@ export function syncDetailMarkerAppearance(
   isSelected = false,
   showPictureCount = true,
 ): void {
-  if (entry.type === 'inspection360') {
-    const cfg = LAYER_COLORS.inspection360
+  if (isSphereDetailLayer(entry.type)) {
+    const cfg = LAYER_COLORS[entry.type]
+    const isUtilitySphere = entry.type === 'electrical' || entry.type === 'sprinkler'
     setInspection360MarkerContent(entry.marker, {
       fillColor: cfg.fill,
       strokeColor: cfg.stroke,
-      sizePx: isSelected ? INSPECTION360_MARKER_PX_SELECTED : INSPECTION360_MARKER_PX,
+      sizePx: isSelected
+        ? isUtilitySphere
+          ? UTILITY_360_MARKER_PX_SELECTED
+          : INSPECTION360_MARKER_PX_SELECTED
+        : isUtilitySphere
+          ? UTILITY_360_MARKER_PX
+          : INSPECTION360_MARKER_PX,
       label: detailLabelFor(entry),
       labelOffsetY: -10,
       selected: isSelected,

@@ -456,6 +456,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: number
+          inspection_url: string | null
           lat: number
           lng: number
           name: string
@@ -466,6 +467,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: number
+          inspection_url?: string | null
           lat: number
           lng: number
           name: string
@@ -476,6 +478,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: number
+          inspection_url?: string | null
           lat?: number
           lng?: number
           name?: string

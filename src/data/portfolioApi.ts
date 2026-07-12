@@ -93,6 +93,7 @@ function rowToUtility(row: UtilityRow): Utility {
     description: row.description ?? '',
     lat: row.lat,
     lng: row.lng,
+    inspection_url: row.inspection_url,
   }
 }
 
@@ -336,6 +337,7 @@ export async function upsertUtility(utility: Utility): Promise<Utility> {
     description: utility.description || null,
     lat: utility.lat,
     lng: utility.lng,
+    inspection_url: utility.inspection_url?.trim() || null,
   }
 
   if (utility.id) {

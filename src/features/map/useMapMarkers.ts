@@ -33,7 +33,7 @@ import {
   unregisterMarqueeTarget,
 } from '@/lib/mapMarqueeSelect'
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
-import { applySavedMapView, panToPreserveRotation } from '@/lib/mapRotation'
+import { applySavedMapView, panToPreserveRotation, resolveBuildingClickZoom } from '@/lib/mapRotation'
 import { getBuildingSavedView } from '@/lib/buildingMapView'
 import { getPortfolioSavedView } from '@/lib/portfolioMapView'
 import { imageryModeIndexFromId } from '@/lib/imageryMode'
@@ -731,10 +731,11 @@ export function useMapMarkers({
           if (applied) onImageryModeChange?.(applied)
         }
       } else {
+        const currentZoom = map.getZoom() ?? 0
         panToPreserveRotation(
           map,
           { lat: entry.building.lat, lng: entry.building.lng },
-          MAP_DETAIL_ZOOM,
+          resolveBuildingClickZoom(currentZoom, MAP_DETAIL_ZOOM),
           { onlyZoomIn: true },
         )
       }

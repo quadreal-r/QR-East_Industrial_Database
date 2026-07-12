@@ -386,6 +386,13 @@
   color: var(--text-muted, #90b8e0);
 }
 
+.authLockedHint {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text-secondary, #c8dff8);
+}
+
 .importDetailsWarning {
   background: rgba(220, 38, 38, 0.16);
   border-color: rgba(248, 113, 113, 0.55);

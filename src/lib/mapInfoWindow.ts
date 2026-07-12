@@ -68,6 +68,17 @@ function inspection360TourButton(hasTour: boolean): string {
   return `<button type="button" class="iw-pic-btn" data-iw-action="inspection360-open" title="${title}">🌐 ${label}</button>`
 }
 
+function sphereGateBadgeLabel(layerKey: LayerKey): string {
+  if (layerKey === 'inspection360') return '360° GATE'
+  if (layerKey === 'electrical') return 'ELECTRICAL 360°'
+  if (layerKey === 'sprinkler') return 'SPRINKLER 360°'
+  return layerKey.toUpperCase()
+}
+
+function isUtilitySphereGate(layerKey: LayerKey): boolean {
+  return layerKey === 'electrical' || layerKey === 'sprinkler'
+}
+
 function buildRtuDocumentsBodyHtml(documents: RtuDocument[] | 'loading'): string {
   if (documents === 'loading') {
     return '<div class="iw-documents-empty">Loading…</div>'
@@ -245,6 +256,19 @@ export function buildDetailInfoPlainText(
     return lines.join('\n').trimEnd()
   }
 
+  if (
+    (layerKey === 'electrical' || layerKey === 'sprinkler') &&
+    'utility_type' in data
+  ) {
+    const utility = data as Utility
+    lines.push('')
+    lines.push(layerKey === 'electrical' ? 'Electrical room 360° gate' : 'Sprinkler room 360° gate')
+    if (utility.description) lines.push(...plainDetailLines(utility.description))
+    if (utility.inspection_url) lines.push(`Tour URL: ${utility.inspection_url}`)
+    else lines.push('Tour URL: not connected yet')
+    return lines.join('\n').trimEnd()
+  }
+
   if (layerKey === 'rtu') {
     const age = getRtuAge(data as Rtu)
     if (age != null) {
@@ -279,6 +303,7 @@ export function buildBuildingInfoHtml(
   building: Building,
   tenantPolygons: Polygon[] = [],
   managerRenames: Record<string, string> = {},
+  options?: { showMove?: boolean },
 ): string {
   const bColor = getColor(building.park)
   const managerLabel = resolveManagerDisplayName(building.manager ?? '', managerRenames) || '—'
@@ -347,10 +372,13 @@ export function buildBuildingInfoHtml(
   }
 
   const plainText = buildBuildingInfoPlainText(building, tenantPolygons, managerRenames)
-  const moveBtn = moveButton({
-    'iw-kind': 'building',
-    'iw-building': building.address,
-  })
+  const showMove = options?.showMove !== false
+  const moveBtn = showMove
+    ? moveButton({
+        'iw-kind': 'building',
+        'iw-building': building.address,
+      })
+    : ''
 
   return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(building.address)}</div><div class="iw-badges">${badges}</div>${closeButton()}</div><div class="iw-body">${stats}${rtuHtml}${tenantHtml}</div>${actionFooter(`${copyButton()}${moveBtn}`)}</div>`
 }
@@ -360,6 +388,8 @@ export function buildDetailInfoHtml(
   data: Rtu | Utility | SuiteEntrance,
   options?: {
     showDelete?: boolean
+    showMove?: boolean
+    showEdit?: boolean
     buildingAddress?: string
     pendingPictureAssignCount?: number
   },
@@ -367,6 +397,8 @@ export function buildDetailInfoHtml(
   const cfg = LAYER_COLORS[layerKey]
   const name = data.name ?? ''
   const desc = data.description ?? ''
+  const showMove = options?.showMove !== false
+  const showEdit = options?.showEdit !== false
 
   if (layerKey === 'inspection360') {
     const entrance = data as SuiteEntrance
@@ -377,15 +409,17 @@ export function buildDetailInfoHtml(
     const buildingRow = options?.buildingAddress
       ? `<div class="iw-row"><strong>Building</strong><span class="iw-val">${escapeHtml(options.buildingAddress)}</span></div>`
       : ''
-    const moveBtn = moveButton({
-      'iw-kind': 'detail',
-      'iw-layer': layerKey,
-      'iw-name': name,
-      'iw-building': options?.buildingAddress ?? '',
-    })
+    const moveBtn = showMove
+      ? moveButton({
+          'iw-kind': 'detail',
+          'iw-layer': layerKey,
+          'iw-name': name,
+          'iw-building': options?.buildingAddress ?? '',
+        })
+      : ''
     const tourBtn = inspection360TourButton(Boolean(entrance.inspection_url?.trim()))
     const plainText = buildDetailInfoPlainText(layerKey, data, options)
-    const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">360° GATE</span></div>`
+    const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">${sphereGateBadgeLabel(layerKey)}</span></div>`
     const body = [
       buildingRow,
       tenantLine
@@ -394,6 +428,39 @@ export function buildDetailInfoHtml(
       tourStatus,
     ].join('')
     return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${body}</div>${actionFooter(`${tourBtn}${moveBtn}`)}</div>`
+  }
+
+  if (isUtilitySphereGate(layerKey) && 'utility_type' in data) {
+    const utility = data as Utility
+    const tourStatus = utility.inspection_url
+      ? `<div class="iw-row"><strong>Tour</strong><span class="iw-val">Connected</span></div>`
+      : `<div class="iw-row"><strong>Tour</strong><span class="iw-val" style="opacity:.75">Not connected yet</span></div>`
+    const lines = desc.split(/\r?\n/).filter(Boolean)
+    const noteRows = lines
+      .map((line) => {
+        const idx = line.indexOf(':')
+        if (idx > 0) {
+          return `<div class="iw-row"><strong>${escapeHtml(line.slice(0, idx).trim())}</strong><span class="iw-val">${escapeHtml(line.slice(idx + 1).trim())}</span></div>`
+        }
+        return `<div class="iw-row">${escapeHtml(line)}</div>`
+      })
+      .join('')
+    const moveBtn = showMove
+      ? moveButton({
+          'iw-kind': 'detail',
+          'iw-layer': layerKey,
+          'iw-name': name,
+          'iw-building': options?.buildingAddress ?? '',
+        })
+      : ''
+    const deleteBtn =
+      options?.showDelete === false || !showEdit
+        ? ''
+        : `<button class="iw-del-btn" data-iw-action="delete" data-iw-layer="${layerKey}" data-iw-name="${escapeHtml(name)}" data-iw-building="${escapeHtml(options?.buildingAddress ?? '')}" title="Delete this marker">🗑 Delete</button>`
+    const tourBtn = inspection360TourButton(Boolean(utility.inspection_url?.trim()))
+    const plainText = buildDetailInfoPlainText(layerKey, data, options)
+    const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">${sphereGateBadgeLabel(layerKey)}</span></div>`
+    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${noteRows}${tourStatus}</div>${actionFooter(`${copyButton()}${tourBtn}${moveBtn}${deleteBtn}`)}</div>`
   }
 
   const lines = desc.split(/\r?\n/).filter(Boolean)
@@ -425,7 +492,7 @@ export function buildDetailInfoHtml(
       : `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">${layerKey.toUpperCase()}</span></div>`
 
   const moveBtn =
-    layerKey === 'rtu'
+    layerKey === 'rtu' || !showMove
       ? ''
       : moveButton({
           'iw-kind': 'detail',
@@ -434,16 +501,16 @@ export function buildDetailInfoHtml(
           'iw-building': options?.buildingAddress ?? '',
         })
   const deleteBtn =
-    layerKey === 'rtu' || options?.showDelete === false
+    layerKey === 'rtu' || options?.showDelete === false || !showEdit
       ? ''
       : `<button class="iw-del-btn" data-iw-action="delete" data-iw-layer="${layerKey}" data-iw-name="${escapeHtml(name)}" data-iw-building="${escapeHtml(options?.buildingAddress ?? '')}" title="Delete this marker">🗑 Delete</button>`
   const plainText = buildDetailInfoPlainText(layerKey, data, options)
 
   const pictureBtn = layerKey === 'rtu' ? pictureButton() : ''
   const documentsBtn = layerKey === 'rtu' ? documentsButton() : ''
-  const editTextBtn = layerKey === 'rtu' ? editTextButton() : ''
+  const editTextBtn = layerKey === 'rtu' && showEdit ? editTextButton() : ''
   const assignPendingBtn =
-    layerKey === 'rtu' && (options?.pendingPictureAssignCount ?? 0) > 0
+    layerKey === 'rtu' && showEdit && (options?.pendingPictureAssignCount ?? 0) > 0
       ? assignPendingPictureButton(options!.pendingPictureAssignCount!)
       : ''
   const copyBtn = layerKey === 'rtu' ? '' : copyButton()

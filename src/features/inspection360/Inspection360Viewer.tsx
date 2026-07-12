@@ -9,6 +9,7 @@ export interface Inspection360ViewerProps {
   suiteName: string
   projectUrl: string | null
   scene: string | null
+  gateKey: string | null
   onClose: () => void
 }
 
@@ -19,6 +20,7 @@ export function Inspection360Viewer({
   suiteName,
   projectUrl,
   scene,
+  gateKey,
   onClose,
 }: Inspection360ViewerProps) {
   const iframeSrc = useMemo(() => {
@@ -27,8 +29,9 @@ export function Inspection360Viewer({
       projectUrl,
       scene,
       title: title || suiteName,
+      gateKey,
     })
-  }, [open, projectUrl, scene, title, suiteName])
+  }, [open, projectUrl, scene, title, suiteName, gateKey])
 
   useEffect(() => {
     if (!open) return
@@ -48,7 +51,9 @@ export function Inspection360Viewer({
           <div className={styles.title}>{title || suiteName || '360° tour'}</div>
           <div className={styles.subtitle}>
             {buildingAddress}
-            {!projectUrl ? ' · Open a .insp360 project below, or link a Tour URL in Settings' : ''}
+            {!projectUrl
+              ? ' · Open the .insp360 project for this gate (it will reopen next time)'
+              : ''}
           </div>
         </div>
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close 360 tour">

@@ -38,6 +38,7 @@ import { usePortfolioStore } from '@/stores/portfolioStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useUiStore } from '@/stores/uiStore'
 import { usePendingRtuPictureStore } from '@/stores/pendingRtuPictureStore'
+import { useAuth } from '@/hooks/useAuth'
 import { useMapViewStore } from '@/stores/mapViewStore'
 import { useMapRotationStore } from '@/stores/mapRotationStore'
 import { useMapSavePositionStore } from '@/stores/mapSavePositionStore'
@@ -85,6 +86,7 @@ export function MapPanel({
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const dragMode = useSelectionStore((s) => s.dragMode)
   const setDragMode = useSelectionStore((s) => s.setDragMode)
+  const { isAuthenticated } = useAuth()
   const resetFilters = useFilterStore((s) => s.resetFilters)
   const park = useFilterStore((s) => s.park)
   const cluster = useFilterStore((s) => s.cluster)
@@ -710,7 +712,7 @@ export function MapPanel({
             </button>
           </div>
         ) : null}
-        {savePromptBuilding ? (
+        {isAuthenticated && savePromptBuilding ? (
           <div className={styles.savePosNotice} role="status">
             <span className={styles.savePosNoticeText}>
               Save this rotation &amp; zoom as the default view for{' '}
@@ -745,7 +747,7 @@ export function MapPanel({
               {saveMapViewMutation.isPending ? 'Saving…' : 'Save map position'}
             </button>
           </div>
-        ) : savePromptPortfolioActive ? (
+        ) : isAuthenticated && savePromptPortfolioActive ? (
           <div className={styles.savePosNotice} role="status">
             <span className={styles.savePosNoticeText}>
               Save this rotation &amp; zoom as the default view for{' '}
