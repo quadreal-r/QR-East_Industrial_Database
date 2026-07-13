@@ -26,7 +26,7 @@ QR-360°_viewer_v1.1.3.html
 
 ## Sync (replace old with new)
 
-From `building-map-explorer`:
+From `QR-East_Industrial_Database`:
 
 ```powershell
 npm run sync:qr360-viewer

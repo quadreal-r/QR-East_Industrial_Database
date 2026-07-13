@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const ACTIONS_URL = 'https://github.com/quadreal-r/building-map-explorer/actions/workflows/deploy.yml'
+const ACTIONS_URL = 'https://github.com/quadreal-r/QR-East_Industrial_Database/actions/workflows/deploy.yml'
 
 const EXCLUDE_FROM_COMMIT = ['.env.local', 'nogps-list.txt', 'nogps-not-on-cdn.txt']
 

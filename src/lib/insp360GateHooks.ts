@@ -8,6 +8,7 @@ export const INSP360_OPEN_GATE_PROJECT_MSG = 'insp360:openGateProject'
 export const INSP360_OPEN_GATE_HANDLE_MSG = 'insp360:openGateHandle'
 export const INSP360_STALE_GATE_LINK_MSG = 'insp360:staleGateLink'
 export const INSP360_REQUEST_HOST_FILE_PICK_MSG = 'insp360:requestHostFilePick'
+export const INSP360_REQUEST_CHANGE_TOUR_MSG = 'insp360:requestChangeTour'
 export const INSP360_PREPARE_CLOSE_MSG = 'insp360:prepareClose'
 export const INSP360_READY_CLOSE_MSG = 'insp360:readyToClose'
 export const INSP360_LOCAL_PREFIX = 'insp360-local:'
@@ -44,9 +45,22 @@ export type Insp360ProjectOpenPayload = {
 }
 
 /** Confirm copy when closing an unlinked tour from a gateway. */
-export function insp360LinkGateConfirmMessage(projectName: string | null | undefined): string {
+export function insp360LinkGateConfirmMessage(
+  projectName: string | null | undefined,
+  options?: { fileName?: string | null },
+): string {
   const label = insp360ProjectDisplayName(projectName) || 'this tour'
+  const fileLabel = insp360ProjectDisplayName(options?.fileName)
+  if (fileLabel && fileLabel.toLowerCase() !== label.toLowerCase()) {
+    return `Link “${label}” to this gateway so it opens automatically next time?\n\nTour file: ${fileLabel}`
+  }
   return `Link “${label}” to this gateway so it opens automatically next time?`
+}
+
+/** Confirm copy when changing which tour is linked to a gateway. */
+export function insp360ChangeTourConfirmMessage(projectName: string | null | undefined): string {
+  const label = insp360ProjectDisplayName(projectName) || 'the current tour'
+  return `Unlink “${label}” from this gateway? You can open a different .insp360 and link it instead.`
 }
 
 export type Insp360GateHook = {
@@ -130,6 +144,16 @@ export function insp360ProjectDisplayName(nameOrUrl: string | null | undefined):
     s = s.split(/[\\/]/).pop() || s
   }
   return s.replace(/\.(insp360|zip)$/i, '') || s
+}
+
+/** True when two labels refer to the same .insp360 project file (ignore path/extension). */
+export function insp360SameProjectFile(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const left = insp360ProjectDisplayName(a).toLowerCase()
+  const right = insp360ProjectDisplayName(b).toLowerCase()
+  return Boolean(left && right && left === right)
 }
 
 /**

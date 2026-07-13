@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.0] - 2026-07-13
+
+### Added
+
+- Change tour for 360° gates (viewer gear and Edit 360° Gates) so you can unlink and attach a different `.insp360`
+
+### Changed
+
+- Point GitHub Pages base, docs, and package identity at renamed repo `QR-East_Industrial_Database`
+- Sync embedded QR-360° viewer to v1.1.17
+
+### Fixed
+
+- Make gate tour Link more reliable when host storage is full, with clearer retry guidance on failure
+
 ## [1.11.0] - 2026-07-13
 
 ### Added

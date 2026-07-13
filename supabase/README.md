@@ -76,8 +76,8 @@ Password-reset emails redirect to the app. In the [Supabase dashboard](https://s
 
 | Setting | Value |
 |---------|--------|
-| **Site URL** | `https://quadreal-r.github.io/building-map-explorer/` |
-| **Redirect URLs** | `http://127.0.0.1:5173`, `http://localhost:5173`, `https://quadreal-r.github.io/building-map-explorer/` |
+| **Site URL** | `https://quadreal-r.github.io/QR-East_Industrial_Database/` |
+| **Redirect URLs** | `http://127.0.0.1:5173`, `http://localhost:5173`, `https://quadreal-r.github.io/QR-East_Industrial_Database/` |
 
 Local dev runs on port **5173** (not 3000). If reset links point at the wrong host, the page will be blank.
 

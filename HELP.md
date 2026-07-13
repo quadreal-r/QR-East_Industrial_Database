@@ -20,7 +20,7 @@ Use this when `http://localhost:5173/` is blank, stuck, or the terminal shows er
 **Option A — restart script (recommended on Windows):**
 
 ```powershell
-cd C:\Users\Robert\Projects\building-map-explorer
+cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 npm run dev:restart
 ```
 
@@ -32,7 +32,7 @@ This stops whatever is using port 5173, then starts the dev server again.
 2. Start it again:
 
 ```powershell
-cd C:\Users\Robert\Projects\building-map-explorer
+cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 npm run dev
 ```
 
@@ -41,7 +41,7 @@ npm run dev
 **Keep server running in its own window (recommended):** opens a separate Command Prompt that stays up even if you close Cursor's terminal:
 
 ```powershell
-cd C:\Users\Robert\Projects\building-map-explorer
+cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 npm run dev:window
 ```
 
@@ -63,7 +63,7 @@ There is no `npm run commit` or `npm run push`. Use git from the project folder.
 ### Git workflow (code changes)
 
 ```powershell
-cd C:\Users\Robert\Projects\building-map-explorer
+cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 git pull origin main
 npm run typecheck
 npm run lint
@@ -134,7 +134,7 @@ Use this when local dev looks good and you want **online to match** your code.
 ### A. Code / UI changes
 
 ```powershell
-cd C:\Users\Robert\Projects\building-map-explorer
+cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 git pull origin main
 npm run lint
 npm run typecheck
@@ -161,8 +161,8 @@ Ensure document metadata rows exist in Supabase (via the app while signed in).
 
 ### D. After any deploy
 
-1. Watch Actions: https://github.com/quadreal-r/building-map-explorer/actions
-2. When green, open https://quadreal-r.github.io/building-map-explorer/
+1. Watch Actions: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
+2. When green, open https://quadreal-r.github.io/QR-East_Industrial_Database/
 3. Hard-refresh (Ctrl+Shift+R)
 
 ### Shortcut for the agent

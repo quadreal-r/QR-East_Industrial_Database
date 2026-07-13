@@ -1,14 +1,14 @@
 ---
-description: PowerShell command cheat sheet for building-map-explorer (dev, test, deploy)
+description: PowerShell command cheat sheet for QR-East_Industrial_Database (dev, test, deploy)
 alwaysApply: false
 ---
 
-# PowerShell commands — building-map-explorer
+# PowerShell commands — QR-East_Industrial_Database
 
 Project folder:
 
 ```powershell
-cd C:\Users\Robert\Projects\building-map-explorer
+cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 ```
 
 Local app URL after dev server starts: **http://127.0.0.1:5173/** (or http://localhost:5173/)
@@ -75,8 +75,8 @@ npm run migrate-json-to-supabase
 
 Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
 
-Live site: https://quadreal-r.github.io/building-map-explorer/  
-Actions: https://github.com/quadreal-r/building-map-explorer/actions
+Live site: https://quadreal-r.github.io/QR-East_Industrial_Database/  
+Actions: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
 
 ---
 

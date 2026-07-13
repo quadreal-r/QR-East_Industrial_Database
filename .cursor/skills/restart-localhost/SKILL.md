@@ -1,17 +1,17 @@
 ---
 name: restart-localhost
-description: Restarts the building-map-explorer Vite dev server on localhost port 5173. Use when the user asks to restart localhost, restart the dev server, fix a blank page, unstick port 5173, or says start/run dev after a stuck session.
+description: Restarts the QR-East_Industrial_Database Vite dev server on localhost port 5173. Use when the user asks to restart localhost, restart the dev server, fix a blank page, unstick port 5173, or says start/run dev after a stuck session.
 ---
 
 # Restart Localhost
 
-Restart the local dev server for **building-map-explorer**. Do not only tell the user what to run — execute it.
+Restart the local dev server for **QR-East_Industrial_Database**. Do not only tell the user what to run — execute it.
 
 ## Quick reference
 
 | Item | Value |
 |------|-------|
-| Project root | `C:\Users\Robert\Projects\building-map-explorer` |
+| Project root | `C:\Users\Robert\Projects\QR-East_Industrial_Database` |
 | Local URL | http://127.0.0.1:5173/ (or http://localhost:5173/) |
 | Default command | `npm run dev:restart` |
 
@@ -34,7 +34,7 @@ List the terminals folder. If a terminal is already running `npm run dev` or Vit
 From repo root:
 
 ```powershell
-cd C:\Users\Robert\Projects\building-map-explorer
+cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 npm run dev:restart
 ```
 

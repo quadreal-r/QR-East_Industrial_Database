@@ -100,7 +100,7 @@ export function buildInsp360GeoIndex(portfolio: PortfolioData): Insp360GeoIndex 
 
   return {
     source: 'Building Map Explorer (live Supabase portfolio)',
-    fileName: 'building-map-explorer-portfolio',
+    fileName: 'QR-East_Industrial_Database-portfolio',
     buildings,
     polys,
     rooms,

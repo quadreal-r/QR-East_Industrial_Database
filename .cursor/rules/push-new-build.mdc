@@ -3,7 +3,7 @@ description: Push local code to GitHub and deploy a new build to GitHub Pages
 alwaysApply: false
 ---
 
-# Push new build (building-map-explorer)
+# Push new build (QR-East_Industrial_Database)
 
 When the user asks to push, deploy, publish, or go live:
 
@@ -29,8 +29,8 @@ npm run push-live
 
 ## After push to main
 
-- Watch: https://github.com/quadreal-r/building-map-explorer/actions
-- Live: https://quadreal-r.github.io/building-map-explorer/
+- Watch: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
+- Live: https://quadreal-r.github.io/QR-East_Industrial_Database/
 - Hard-refresh when deploy finishes (~5–10 min)
 
 ## R2 media (when picture/document binaries changed)

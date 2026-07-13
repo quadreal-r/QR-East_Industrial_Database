@@ -5,7 +5,7 @@ description: Writes a commit message from chat work, bumps semver (1.0.2), updat
 
 # Release and Push
 
-End-of-session release workflow for building-map-explorer: summarize work, bump semver, update changelog, commit, push to `main` (triggers GitHub Pages deploy).
+End-of-session release workflow for QR-East_Industrial_Database: summarize work, bump semver, update changelog, commit, push to `main` (triggers GitHub Pages deploy).
 
 ## Prerequisites
 
@@ -155,8 +155,8 @@ Alternative: `npm run push-live -- "feat: your subject"` runs checks and push bu
 
 Tell the user:
 
-- Actions: https://github.com/quadreal-r/building-map-explorer/actions/workflows/deploy.yml
-- Live site: https://quadreal-r.github.io/building-map-explorer/
+- Actions: https://github.com/quadreal-r/QR-East_Industrial_Database/actions/workflows/deploy.yml
+- Live site: https://quadreal-r.github.io/QR-East_Industrial_Database/
 - New version label (from `BUILD_VERSION_LABEL`)
 - Deploy takes ~5–10 minutes; hard-refresh when done
 

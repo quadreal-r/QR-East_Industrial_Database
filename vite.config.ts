@@ -2,7 +2,7 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
-const GITHUB_PAGES_BASE = '/building-map-explorer/'
+const GITHUB_PAGES_BASE = '/QR-East_Industrial_Database/'
 
 /** Dev uses base `/`. Redirect GitHub Pages bookmarks so asset paths stay correct. */
 function devGithubPagesRedirect(): Plugin {

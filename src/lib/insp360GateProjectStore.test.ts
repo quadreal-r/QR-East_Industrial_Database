@@ -1,14 +1,24 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  INSP360_GATE_PROJECTS_LS,
+  getInsp360GateHook,
+  writeInsp360GateHook,
+} from '@/lib/insp360GateHooks'
 import {
   binaryToArrayBuffer,
   confirmGateProjectStored,
   loadHostGateProject,
   prepareViewerGateProject,
   saveHostGateProject,
+  unlinkInsp360GateTour,
   writeViewerGateProject,
 } from '@/lib/insp360GateProjectStore'
 
 describe('insp360GateProjectStore', () => {
+  afterEach(() => {
+    localStorage.removeItem(INSP360_GATE_PROJECTS_LS)
+  })
+
   it('rejects empty keys or empty payloads without writing', async () => {
     const bytes = new TextEncoder().encode('fake-insp360-bytes').buffer
     expect(await saveHostGateProject('', 'Room.insp360', bytes)).toBe(false)
@@ -38,5 +48,15 @@ describe('insp360GateProjectStore', () => {
     )
     expect(await prepareViewerGateProject('')).toBeNull()
     expect(await prepareViewerGateProject(`suite:missing-preload-${Date.now()}`)).toBeNull()
+  })
+
+  it('unlinks a hosted gate tour by clearing the local hook', async () => {
+    const gateKey = `electrical:unlink-${Date.now()}`
+    writeInsp360GateHook(gateKey, 'Wrong Tour.insp360', { hosted: true })
+    expect(getInsp360GateHook(gateKey)?.name).toBe('Wrong Tour.insp360')
+
+    await unlinkInsp360GateTour(gateKey)
+
+    expect(getInsp360GateHook(gateKey)).toBeNull()
   })
 })

@@ -4,6 +4,14 @@ import { SearchInput } from '@/components/SearchInput/SearchInput'
 import { confirm } from '@/stores/confirmStore'
 import { matchesUtility } from '@/lib/dragSelection'
 import {
+  getInsp360GateHook,
+  insp360ChangeTourConfirmMessage,
+  insp360ProjectDisplayName,
+  resolveInsp360TourLabel,
+} from '@/lib/insp360GateHooks'
+import { unlinkInsp360GateTour } from '@/lib/insp360GateProjectStore'
+import { buildInspection360GateKey } from '@/lib/insp360Viewer'
+import {
   buildingForEntrance,
   matchesSuiteEntrance,
   resolveSuiteEntranceEditorSelection,
@@ -188,6 +196,38 @@ function Inspection360EditorForm({
   const [draftInspectionUrl, setDraftInspectionUrl] = useState(
     selectedEntrance?.inspection_url ?? selectedUtility?.inspection_url ?? '',
   )
+  const [tourLinkTick, setTourLinkTick] = useState(0)
+
+  const selectedGateKey = useMemo(() => {
+    if (gateKind === 'suite' && selectedEntrance) {
+      return buildInspection360GateKey(
+        'suite',
+        selectedEntrance,
+        selectedEntrance.building_id ?? assignedBuilding?.id,
+      )
+    }
+    if ((gateKind === 'electrical' || gateKind === 'sprinkler') && selectedUtility) {
+      return buildInspection360GateKey(gateKind, selectedUtility)
+    }
+    return null
+  }, [assignedBuilding?.id, gateKind, selectedEntrance, selectedUtility])
+
+  const linkedLocalTour = useMemo(() => {
+    void tourLinkTick
+    if (!selectedGateKey) return null
+    const hook = getInsp360GateHook(selectedGateKey)
+    if (hook?.hosted === true && hook.name) {
+      return insp360ProjectDisplayName(hook.name) || hook.name
+    }
+    return null
+  }, [selectedGateKey, tourLinkTick])
+
+  const tourStatusLabel = useMemo(() => {
+    void tourLinkTick
+    const inspectionUrl =
+      selectedEntrance?.inspection_url ?? selectedUtility?.inspection_url ?? null
+    return resolveInsp360TourLabel(selectedGateKey, inspectionUrl)
+  }, [selectedEntrance?.inspection_url, selectedGateKey, selectedUtility?.inspection_url, tourLinkTick])
 
   const syncDraftFromSuite = (entrance: SuiteEntrance | undefined) => {
     setDraftName(entrance?.name ?? '')
@@ -338,6 +378,30 @@ function Inspection360EditorForm({
     })
   }
 
+  const handleChangeTour = () => {
+    if (!selectedGateKey) {
+      showToastError('Select a 360° gate first.')
+      return
+    }
+    if (!linkedLocalTour) {
+      showToastError(
+        'No local tour file is linked to this gate. Open the gate on the map and link a .insp360, or set a Tour URL above.',
+      )
+      return
+    }
+    void confirm(insp360ChangeTourConfirmMessage(linkedLocalTour), {
+      confirmLabel: 'Change tour',
+      cancelLabel: 'Keep linked',
+    }).then(async (ok) => {
+      if (!ok) return
+      await unlinkInsp360GateTour(selectedGateKey)
+      setTourLinkTick((n) => n + 1)
+      showToastSuccess(
+        '✓ Tour unlinked. Open this gate on the map, choose the correct .insp360, then Link when you close.',
+      )
+    })
+  }
+
   const listEmptyLabel =
     gateKind === 'suite'
       ? searchQuery.trim()
@@ -353,7 +417,8 @@ function Inspection360EditorForm({
         className={styles.mgrFieldLabel}
         style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12 }}
       >
-        {kindMeta.hint} Paste a Tour URL to open that QR-360° project from the map popup.
+        {kindMeta.hint} Paste a Tour URL to open that QR-360° project from the map popup. To switch
+        which local .insp360 is linked, use Change tour here or Gear → Change tour… inside the tour.
       </p>
 
       <label className={styles.mgrFieldLabel} htmlFor="inspection360-gate-kind">
@@ -480,6 +545,17 @@ function Inspection360EditorForm({
             onChange={(e) => setDraftInspectionUrl(e.target.value)}
             placeholder="https://…/project.insp360 or insp360/projects/room.insp360"
           />
+
+          <p
+            className={styles.mgrFieldLabel}
+            style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12, marginTop: 10 }}
+          >
+            {linkedLocalTour
+              ? `Linked local tour: ${linkedLocalTour}`
+              : tourStatusLabel.connected
+                ? `Connected via URL: ${tourStatusLabel.label}`
+                : 'No local tour linked yet'}
+          </p>
         </>
       ) : null}
 
@@ -505,6 +581,19 @@ function Inspection360EditorForm({
           onClick={showOnMap}
         >
           Show on map
+        </button>
+        <button
+          type="button"
+          className="btn-action"
+          style={{
+            width: '100%',
+            justifyContent: 'flex-start',
+            color: linkedLocalTour ? '#fbbf24' : undefined,
+          }}
+          disabled={!selectedGateKey || !linkedLocalTour}
+          onClick={handleChangeTour}
+        >
+          Change tour…
         </button>
         <button
           type="button"

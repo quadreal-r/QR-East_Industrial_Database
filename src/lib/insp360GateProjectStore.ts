@@ -1,5 +1,7 @@
 /** Parent-window storage for gateway .insp360 bytes (survives iframe storage quirks). */
 
+import { clearInsp360GateHook } from '@/lib/insp360GateHooks'
+
 const DB_NAME = 'insp360-gate-host'
 const DB_VERSION = 1
 const STORE = 'projects'
@@ -169,6 +171,14 @@ export async function importGateProjectFromViewerIdb(
 ): Promise<boolean> {
   const key = String(gateKey || '').trim()
   if (!key) return false
+
+  const persist = async (name: string, data: ArrayBuffer): Promise<boolean> => {
+    if (await saveHostGateProject(key, name, data)) return true
+    // Host IDB may be full; keep a viewer IDB copy so Link/confirm can still succeed.
+    return writeViewerGateProject(key, name, data)
+  }
+
+  let nameHint = String(fallbackName || '').trim() || 'project.insp360'
   try {
     const db = await openViewerDb()
     try {
@@ -176,23 +186,20 @@ export async function importGateProjectFromViewerIdb(
       const store = tx.objectStore(VIEWER_STORE)
       const blob = await idbReq(store.get(`gateProjBlob:${key}`))
       const rawName = await idbReq(store.get(`gateProjName:${key}`))
+      if (rawName) nameHint = String(rawName).trim() || nameHint
       const data = await binaryToArrayBuffer(blob)
-      if (data) {
-        const name =
-          String(rawName || fallbackName || '').trim() || 'project.insp360'
-        return saveHostGateProject(key, name, data)
-      }
+      if (data) return persist(nameHint, data)
     } finally {
       db.close()
     }
   } catch (error) {
     console.warn('importGateProjectFromViewerIdb failed', error)
   }
-  const fromCache = await readGateProjectFromViewerCache(key, fallbackName)
-  if (fromCache) return saveHostGateProject(key, fromCache.name, fromCache.data)
-  const fromOpfs = await readGateProjectFromViewerOpfs(key, fallbackName)
+  const fromCache = await readGateProjectFromViewerCache(key, nameHint)
+  if (fromCache) return persist(fromCache.name, fromCache.data)
+  const fromOpfs = await readGateProjectFromViewerOpfs(key, nameHint)
   if (!fromOpfs) return false
-  return saveHostGateProject(key, fromOpfs.name, fromOpfs.data)
+  return persist(fromOpfs.name, fromOpfs.data)
 }
 
 /** Byte length of the viewer IndexedDB gate blob only (ignores Cache/OPFS stubs). */
@@ -225,27 +232,27 @@ export async function hasViewerGateProject(gateKey: string): Promise<boolean> {
 /** Wait until tour bytes exist in viewer or host storage; optionally copy viewer → host. */
 export async function confirmGateProjectStored(
   gateKey: string,
-  options?: { importToHost?: boolean; maxWaitMs?: number },
+  options?: { importToHost?: boolean; maxWaitMs?: number; fallbackName?: string },
 ): Promise<boolean> {
   const key = String(gateKey || '').trim()
   if (!key) return false
   const maxWaitMs = options?.maxWaitMs ?? 12000
   const importToHost = options?.importToHost !== false
+  const fallbackName = options?.fallbackName
   const start = Date.now()
   while (Date.now() - start < maxWaitMs) {
     if (await hasHostGateProject(key)) return true
-    if (await hasViewerGateProject(key)) {
-      if (importToHost) await importGateProjectFromViewerIdb(key)
-      if ((await hasHostGateProject(key)) || (await hasViewerGateProject(key))) return true
+    if (importToHost) {
+      // Always try IDB → Cache → OPFS. Large tours often land only in Cache/OPFS.
+      await importGateProjectFromViewerIdb(key, fallbackName)
+      if (await hasHostGateProject(key)) return true
     }
-    await new Promise((r) => window.setTimeout(r, 100))
+    if (await hasViewerGateProject(key)) return true
+    await new Promise((r) => window.setTimeout(r, 150))
   }
   if (await hasHostGateProject(key)) return true
-  if (await hasViewerGateProject(key)) {
-    if (importToHost) await importGateProjectFromViewerIdb(key)
-    return (await hasHostGateProject(key)) || (await hasViewerGateProject(key))
-  }
-  return false
+  if (importToHost) await importGateProjectFromViewerIdb(key, fallbackName)
+  return (await hasHostGateProject(key)) || (await hasViewerGateProject(key))
 }
 
 export async function loadHostGateProject(gateKey: string): Promise<HostGateProject | null> {
@@ -284,6 +291,55 @@ export async function deleteHostGateProject(gateKey: string): Promise<void> {
   } catch {
     /* ignore */
   }
+}
+
+/** Remove viewer IndexedDB + cache + OPFS copies for a gate so a new tour can be linked. */
+export async function clearViewerGateProject(gateKey: string): Promise<void> {
+  const key = String(gateKey || '').trim()
+  if (!key) return
+  try {
+    const db = await openViewerDb()
+    try {
+      const tx = db.transaction(VIEWER_STORE, 'readwrite')
+      const done = idbTxDone(tx)
+      const store = tx.objectStore(VIEWER_STORE)
+      await idbReq(store.delete(`gateProjBlob:${key}`))
+      await idbReq(store.delete(`gateProjName:${key}`))
+      await idbReq(store.delete(`gateProjBound:${key}`))
+      await idbReq(store.delete(`gateProj:${key}`))
+      await done
+    } finally {
+      db.close()
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (typeof caches !== 'undefined') {
+      const cache = await caches.open('insp360-gate-projects')
+      await cache.delete(`https://insp360.local/gate/${encodeURIComponent(key)}`)
+    }
+  } catch {
+    /* optional */
+  }
+  try {
+    if (navigator.storage?.getDirectory) {
+      const root = await navigator.storage.getDirectory()
+      const dir = await root.getDirectoryHandle('gateProjects')
+      await dir.removeEntry(gateOpfsFileName(key))
+    }
+  } catch {
+    /* optional — OPFS may be empty */
+  }
+}
+
+/** Clear the saved gateway↔tour link (localStorage hook + host/viewer copies). */
+export async function unlinkInsp360GateTour(gateKey: string): Promise<void> {
+  const key = String(gateKey || '').trim()
+  if (!key) return
+  clearInsp360GateHook(key)
+  await deleteHostGateProject(key)
+  await clearViewerGateProject(key)
 }
 
 export async function hasHostGateProject(gateKey: string): Promise<boolean> {

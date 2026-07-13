@@ -11,10 +11,13 @@ import {
   INSP360_PREPARE_CLOSE_MSG,
   INSP360_PROJECT_OPEN_MSG,
   INSP360_READY_CLOSE_MSG,
+  INSP360_REQUEST_CHANGE_TOUR_MSG,
   INSP360_REQUEST_HOST_FILE_PICK_MSG,
   INSP360_STALE_GATE_LINK_MSG,
+  insp360ChangeTourConfirmMessage,
   insp360LinkGateConfirmMessage,
   insp360ProjectDisplayName,
+  insp360SameProjectFile,
   shouldPromptLinkGate,
   writeInsp360GateHook,
 } from '@/lib/insp360GateHooks'
@@ -23,6 +26,7 @@ import {
   loadHostGateProject,
   prepareViewerGateProject,
   saveHostGateProject,
+  unlinkInsp360GateTour,
   writeViewerGateFileHandle,
   writeViewerGateProject,
 } from '@/lib/insp360GateProjectStore'
@@ -31,6 +35,7 @@ import {
   INSP360_GEO_REQUEST,
   INSP360_GEO_RESPONSE,
 } from '@/lib/insp360GeoIndex'
+import { confirm } from '@/stores/confirmStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
 import styles from './Inspection360Viewer.module.css'
 
@@ -45,33 +50,39 @@ export interface Inspection360ViewerProps {
   onClose: () => void
 }
 
-function flushViewerClose(frame: Window, linkGate: boolean): Promise<void> {
+function flushViewerClose(frame: Window, linkGate: boolean): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false
-    const finish = () => {
+    const finish = (ok: boolean) => {
       if (settled) return
       settled = true
       window.clearTimeout(timer)
       window.removeEventListener('message', onMessage)
-      resolve()
+      resolve(ok)
     }
     const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === INSP360_READY_CLOSE_MSG) finish()
+      if (event.data?.type !== INSP360_READY_CLOSE_MSG) return
+      // Older viewers omit ok; treat missing as success. Explicit false means mirror failed.
+      finish(event.data?.ok !== false)
     }
     // Large .insp360 tours can take minutes to zip and copy into gate storage.
     const timeoutMs = linkGate ? 300000 : 2500
-    const timer = window.setTimeout(() => finish(), timeoutMs)
+    const timer = window.setTimeout(() => finish(true), timeoutMs)
     window.addEventListener('message', onMessage)
     try {
       frame.postMessage({ type: INSP360_PREPARE_CLOSE_MSG, linkGate }, '*')
     } catch {
-      finish()
+      finish(false)
     }
   })
 }
 
-async function waitForLinkedGateProject(gateKey: string, timeoutMs = 15000): Promise<boolean> {
-  return confirmGateProjectStored(gateKey, { maxWaitMs: timeoutMs })
+async function waitForLinkedGateProject(
+  gateKey: string,
+  timeoutMs = 120000,
+  fallbackName?: string,
+): Promise<boolean> {
+  return confirmGateProjectStored(gateKey, { maxWaitMs: timeoutMs, fallbackName })
 }
 
 export function Inspection360Viewer({
@@ -93,23 +104,26 @@ export function Inspection360Viewer({
   const pushInFlightRef = useRef(false)
   const projectOpenRef = useRef(false)
   const openRequestedRef = useRef(false)
-  // Freeze launch name at open — updating it mid-session changes iframe src and wipes the open tour.
-  const [launchBoundName] = useState<string | null>(() => {
+  // Launch name is frozen for normal opens; Change tour clears it and remounts the iframe.
+  const [launchBoundName, setLaunchBoundName] = useState<string | null>(() => {
     if (!gateKey) return null
     const hook = getInsp360GateHook(gateKey)
     return hook?.hosted === true ? hook.name : null
   })
+  const [viewerEpoch, setViewerEpoch] = useState(0)
 
   const [closing, setClosing] = useState(false)
   const [closingMode, setClosingMode] = useState<'idle' | 'linking' | 'closing'>('idle')
   const [boundName, setBoundName] = useState<string | null>(launchBoundName)
   const [projectOpen, setProjectOpen] = useState(false)
   const [projectName, setProjectName] = useState<string | null>(null)
+  const [projectDisplayName, setProjectDisplayName] = useState<string | null>(null)
   const [alreadyLinked, setAlreadyLinked] = useState(() => Boolean(launchBoundName))
   const [linkPromptOpen, setLinkPromptOpen] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
   const [needsRestore, setNeedsRestore] = useState(false)
   const [restoring, setRestoring] = useState(false)
+  const [changingTour, setChangingTour] = useState(false)
   const [awaitingLinkedOpen, setAwaitingLinkedOpen] = useState(() => Boolean(launchBoundName))
   /** When a linked tour exists, seed IndexedDB before mounting the iframe so Enter opens photos. */
   const [iframeAllowed, setIframeAllowed] = useState(() => !launchBoundName)
@@ -349,6 +363,7 @@ export function Inspection360Viewer({
           writeInsp360GateHook(gateKey, name, { hosted: true })
           setBoundName(name)
           setProjectName(name)
+          setProjectDisplayName(insp360ProjectDisplayName(name) || name)
           setAlreadyLinked(true)
           setAwaitingLinkedOpen(true)
           setNeedsRestore(false)
@@ -391,6 +406,7 @@ export function Inspection360Viewer({
         writeInsp360GateHook(gateKey, name, { hosted: true })
         setBoundName(name)
         setProjectName(name)
+        setProjectDisplayName(insp360ProjectDisplayName(name) || name)
         setAlreadyLinked(true)
         setAwaitingLinkedOpen(true)
         setNeedsRestore(false)
@@ -469,6 +485,37 @@ export function Inspection360Viewer({
     input.click()
   }, [restoreTourFromFile])
 
+  const requestChangeTour = useCallback(async () => {
+    if (!gateKey || closingRef.current || changingTour) return
+    const currentName = projectDisplayName || projectName || boundName || launchBoundName
+    const ok = await confirm(insp360ChangeTourConfirmMessage(currentName), {
+      confirmLabel: 'Change tour',
+      cancelLabel: 'Keep linked',
+    })
+    if (!ok) return
+    setChangingTour(true)
+    setLinkPromptOpen(false)
+    setLinkError(null)
+    try {
+      await unlinkInsp360GateTour(gateKey)
+      projectOpenRef.current = false
+      openRequestedRef.current = false
+      pushInFlightRef.current = false
+      setLaunchBoundName(null)
+      setBoundName(null)
+      setProjectName(null)
+      setProjectDisplayName(null)
+      setProjectOpen(false)
+      setAlreadyLinked(false)
+      setNeedsRestore(false)
+      setAwaitingLinkedOpen(false)
+      setIframeAllowed(true)
+      setViewerEpoch((n) => n + 1)
+    } finally {
+      setChangingTour(false)
+    }
+  }, [boundName, changingTour, gateKey, launchBoundName, projectDisplayName, projectName])
+
   const finishClose = useCallback(
     async (linkGate: boolean) => {
       if (closingRef.current) return
@@ -478,11 +525,26 @@ export function Inspection360Viewer({
       setClosing(true)
       setClosingMode(linkGate ? 'linking' : 'closing')
       const frame = iframeRef.current?.contentWindow
+      const linkedName =
+        String(projectName || boundName || launchBoundName || 'project.insp360').trim() ||
+        'project.insp360'
       try {
-        if (frame) await flushViewerClose(frame, linkGate)
+        let mirrorOk = true
+        if (frame) mirrorOk = await flushViewerClose(frame, linkGate)
         if (linkGate && gateKey) {
+          if (!mirrorOk) {
+            closingRef.current = false
+            setClosing(false)
+            setClosingMode('idle')
+            setAlreadyLinked(false)
+            setLinkError(
+              'Could not store this tour for the gateway. Click Save in the tour toolbar first (disk icon), keep the tour open, then choose Link again. Or use “Pick .insp360 to link…”.',
+            )
+            setLinkPromptOpen(true)
+            return
+          }
           await hostSaveChainRef.current
-          const saved = await waitForLinkedGateProject(gateKey, 60000)
+          const saved = await waitForLinkedGateProject(gateKey, 180000, linkedName)
           if (!saved) {
             // Keep the overlay open so the user can retry — otherwise they think Link worked.
             closingRef.current = false
@@ -495,9 +557,6 @@ export function Inspection360Viewer({
             setLinkPromptOpen(true)
             return
           }
-          const linkedName =
-            String(projectName || boundName || launchBoundName || 'project.insp360').trim() ||
-            'project.insp360'
           writeInsp360GateHook(gateKey, linkedName, { hosted: true })
           // Make sure the iframe's storage has a copy so the next Enter can preload instantly.
           await prepareViewerGateProject(gateKey, linkedName)
@@ -553,19 +612,25 @@ export function Inspection360Viewer({
       if (event.data?.type === INSP360_PROJECT_OPEN_MSG && typeof event.data.gateKey === 'string') {
         if (gateKey && event.data.gateKey !== gateKey) return
         const name = String(event.data.name || 'project.insp360')
+        const displayName =
+          String(event.data.displayName || '').trim() || insp360ProjectDisplayName(name) || name
         const linkedRaw = Boolean(event.data.alreadyLinked)
-        // Hosted gate reopen: treat any successful project open as linked.
-        // Viewer still sometimes notifies alreadyLinked:false after skipGateBind opens.
-        const linked = linkedRaw || Boolean(launchBoundName)
+        const sameAsLaunch = insp360SameProjectFile(name, launchBoundName)
+        // Trust the viewer when it says linked. Otherwise only inherit the launch link
+        // for the same .insp360 — opening a different file must clear "Linked: …".
+        const effectiveLinked = linkedRaw || sameAsLaunch
         projectOpenRef.current = true
         setProjectOpen(true)
         setProjectName(name)
-        setAlreadyLinked(linked)
+        setProjectDisplayName(displayName)
+        setAlreadyLinked(effectiveLinked)
         setAwaitingLinkedOpen(false)
         setRestoring(false)
-        if (linked) {
+        if (effectiveLinked) {
           setBoundName(name)
           setNeedsRestore(false)
+        } else {
+          setBoundName(null)
         }
         return
       }
@@ -573,6 +638,11 @@ export function Inspection360Viewer({
         if (gateKey && event.data.gateKey && String(event.data.gateKey) !== gateKey) return
         setNeedsRestore(true)
         openRestoreFilePicker()
+        return
+      }
+      if (event.data?.type === INSP360_REQUEST_CHANGE_TOUR_MSG) {
+        if (gateKey && event.data.gateKey && String(event.data.gateKey) !== gateKey) return
+        void requestChangeTour()
         return
       }
       if (event.data?.type === INSP360_STALE_GATE_LINK_MSG) {
@@ -587,7 +657,10 @@ export function Inspection360Viewer({
         const buffer = arrayBufferFromMessageData(event.data.buffer)
         const source = event.source as Window | null
         hostSaveChainRef.current = hostSaveChainRef.current.then(async () => {
-          let hosted = await confirmGateProjectStored(gate, { maxWaitMs: 30000 })
+          let hosted = await confirmGateProjectStored(gate, {
+            maxWaitMs: 120000,
+            fallbackName: name,
+          })
           if (!hosted && buffer) {
             hosted = await saveHostGateProject(gate, name, buffer)
           }
@@ -595,6 +668,7 @@ export function Inspection360Viewer({
             writeInsp360GateHook(gate, name, { hosted: true })
             setBoundName(name)
             setProjectName(name)
+            setProjectDisplayName((prev) => prev || insp360ProjectDisplayName(name) || name)
             setProjectOpen(true)
             setAlreadyLinked(true)
             setLinkError(null)
@@ -619,7 +693,7 @@ export function Inspection360Viewer({
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [open, gateKey, openRestoreFilePicker, launchBoundName])
+  }, [open, gateKey, openRestoreFilePicker, launchBoundName, requestChangeTour])
 
   useEffect(() => {
     if (!open || !geoIndex) return
@@ -646,22 +720,28 @@ export function Inspection360Viewer({
       ? 'Saving tour and linking to this gate — large projects may take a minute…'
       : closingMode === 'closing'
         ? 'Closing…'
-        : restoring
-          ? 'Opening tour file…'
-          : needsRestore && (boundName || launchBoundName)
-            ? `Reconnect “${insp360ProjectDisplayName(boundName || launchBoundName)}” — pick the .insp360 file`
-            : awaitingLinkedOpen
-              ? 'Opening linked tour…'
-              : boundName
-                ? `Linked: ${insp360ProjectDisplayName(boundName)}`
-                : projectOpen
-                  ? 'Tour open — you’ll be asked to link it when you close'
-                  : !projectUrl
-                    ? 'Open or create a .insp360 for this gateway'
-                    : null
+        : changingTour
+          ? 'Unlinking tour from this gateway…'
+          : restoring
+            ? 'Opening tour file…'
+            : needsRestore && (boundName || launchBoundName)
+              ? `Reconnect “${insp360ProjectDisplayName(boundName || launchBoundName)}” — pick the .insp360 file`
+              : awaitingLinkedOpen
+                ? 'Opening linked tour…'
+                : boundName
+                  ? `Linked: ${insp360ProjectDisplayName(boundName)} · Gear → Change tour…`
+                  : projectOpen
+                    ? `Open: ${insp360ProjectDisplayName(projectDisplayName || projectName) || 'tour'} — you’ll be asked to link it when you close`
+                    : !projectUrl
+                      ? 'Open or create a .insp360 for this gateway'
+                      : null
 
   const showReconnect =
-    Boolean(boundName || launchBoundName) && !projectOpen && !closing && !restoring
+    Boolean(boundName || launchBoundName) &&
+    !projectOpen &&
+    !closing &&
+    !restoring &&
+    !changingTour
 
   return (
     <div className={styles.inspection360Overlay} role="dialog" aria-label="QR-360 degree tour viewer">
@@ -687,7 +767,7 @@ export function Inspection360Viewer({
             className={styles.closeBtn}
             onClick={() => void requestClose()}
             aria-label="Close 360 tour"
-            disabled={closing || restoring}
+            disabled={closing || restoring || changingTour}
           >
             ✕
           </button>
@@ -709,6 +789,7 @@ export function Inspection360Viewer({
       {iframeSrc ? (
         <div className={styles.frameWrap}>
           <iframe
+            key={viewerEpoch}
             ref={iframeRef}
             className={styles.frame}
             src={iframeSrc}
@@ -815,7 +896,11 @@ export function Inspection360Viewer({
             <h2 id="insp360-link-title" className={styles.linkPromptTitle}>
               Link this tour?
             </h2>
-            <p className={styles.linkPromptMessage}>{insp360LinkGateConfirmMessage(projectName)}</p>
+            <p className={styles.linkPromptMessage}>
+              {insp360LinkGateConfirmMessage(projectDisplayName || projectName, {
+                fileName: projectName,
+              })}
+            </p>
             {linkError ? <p className={styles.linkPromptError}>{linkError}</p> : null}
             <div className={styles.linkPromptActions}>
               <button
@@ -826,6 +911,19 @@ export function Inspection360Viewer({
               >
                 Not now
               </button>
+              {linkError ? (
+                <button
+                  type="button"
+                  className={styles.linkPromptConfirm}
+                  onClick={() => {
+                    setLinkPromptOpen(false)
+                    setLinkError(null)
+                    openRestoreFilePicker()
+                  }}
+                >
+                  Pick .insp360 to link…
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={styles.linkPromptConfirm}

@@ -3,7 +3,7 @@ description: Keep the embedded QR-360° viewer synced from the Inspections sourc
 alwaysApply: true
 ---
 
-# QR-360° viewer sync (building-map-explorer)
+# QR-360° viewer sync (QR-East_Industrial_Database)
 
 ## Source of truth
 
@@ -24,7 +24,7 @@ The main program must keep using **`insp360/viewer.html`** (stable). Never point
 ## When the user ships a new viewer version
 
 1. Confirm the new HTML exists in the Inspections source folder.
-2. Run from `building-map-explorer`:
+2. Run from `QR-East_Industrial_Database`:
 
 ```powershell
 npm run sync:qr360-viewer

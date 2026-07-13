@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             Dev server running? In the project folder run <code>npm run dev</code>
           </li>
           <li>
-            Open <a href={devUrl}>{devUrl}</a> (or <code>/building-map-explorer/</code> if using
+            Open <a href={devUrl}>{devUrl}</a> (or <code>/QR-East_Industrial_Database/</code> if using
             GitHub Pages base)
           </li>
           <li>

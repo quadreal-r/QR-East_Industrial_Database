@@ -544,7 +544,7 @@
   <button class="btn topbtn" id="btnSaveView" title="Save the current angle &amp; zoom as this photo's view"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save view</button>
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-  <span id="appVer" title="INSP 360 Viewer">v1.1.16</span>
+  <span id="appVer" title="INSP 360 Viewer">v1.1.17</span>
 </div>
 
 <div id="privacySettings">
@@ -998,6 +998,33 @@ function buildPrivacySettings(){
   const hint=document.createElement('div'); hint.className='ms-empty'; hint.style.marginTop='10px';
   hint.textContent='Runs in the background after Files / Folder / drop upload — not when you browse existing photos. Use the privacy-blur button to adjust manually.';
   body.appendChild(hint);
+  // Gateway embed: same Change tour action as map Settings → Edit 360° Gates.
+  if(window.embedGateKey && window.parent && window.parent!==window){
+    hdr('Gateway');
+    const status=document.createElement('div'); status.className='ms-empty';
+    const linkedLabel=(lastProjName||window.embedBoundName||((projectMeta&&projectMeta.name)?projectMeta.name:'')||'').toString().replace(/\.(insp360|zip)$/i,'');
+    status.textContent=linkedLabel
+      ? ('Linked tour: '+linkedLabel+'. Unlink it here to open a different .insp360 for this gateway.')
+      : 'No local tour linked yet. Open a .insp360, then Link when you close.';
+    body.appendChild(status);
+    const actions=document.createElement('div'); actions.className='ms-actions';
+    const btn=document.createElement('button'); btn.type='button'; btn.className='ms-btn';
+    btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><span>Change tour\u2026</span>';
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      closePrivacySettings();
+      try{
+        window.parent.postMessage({
+          type:'insp360:requestChangeTour',
+          gateKey: window.embedGateKey,
+          name: lastProjName||window.embedBoundName||null,
+          displayName: (typeof currentProjectDisplayLabel==='function') ? currentProjectDisplayLabel() : null
+        }, '*');
+      }catch(_){}
+    });
+    actions.appendChild(btn);
+    body.appendChild(actions);
+  }
 }
 function closePrivacySettings(){
   const pan=document.getElementById('privacySettings');
@@ -1463,7 +1490,8 @@ async function deleteItem(it){
 }
 
 /** Keep the project chrome open (library, topbar tools, Menu) without dumping to the dashboard. */
-function enterProjectMode(){
+function enterProjectMode(modeOpts){
+  modeOpts=modeOpts||{};
   emptyEl.style.display='none';
   library.classList.add('show');
   library.classList.remove('collapsed');
@@ -1471,11 +1499,12 @@ function enterProjectMode(){
   document.getElementById('btnHome').style.display='';
   document.body.classList.add('proj-open');
   // Newly created / opened projects must bind to this gate even if the user never edits hotspots.
-  if(window.embedGateKey) window._gateMirrorDirty=true;
+  if(window.embedGateKey && !modeOpts.alreadyLinked) window._gateMirrorDirty=true;
   setProjTitle();
   syncProjectEmptyUi();
   syncTourSaveUi();
-  try{ notifyHostProjectOpen(!!window._gateLinkedThisSession); }catch(_){}
+  const linked=modeOpts.alreadyLinked!=null ? !!modeOpts.alreadyLinked : !!window._gateLinkedThisSession;
+  try{ notifyHostProjectOpen(linked); }catch(_){}
 }
 function syncProjectEmptyUi(){
   const emptyLib=document.getElementById('libEmptySlot');
@@ -2207,12 +2236,14 @@ function notifyHostProjectOpen(alreadyLinked){
   try{
     if(!window.embedGateKey) return;
     if(!(window.parent && window.parent!==window)) return;
-    const name=(lastProjName||((projectMeta&&projectMeta.name)?projectMeta.name+'.insp360':((projHandle&&projHandle.name)||'project.insp360'))||'project.insp360');
+    const fileName=(lastProjName||((projHandle&&projHandle.name)||((projectMeta&&projectMeta.name)?projectMeta.name+'.insp360':'project.insp360'))||'project.insp360');
+    const linked=!!(alreadyLinked || window._gateLinkedThisSession || window._gateHostConfirmed);
     window.parent.postMessage({
       type:'insp360:projectOpen',
       gateKey: window.embedGateKey,
-      name: name,
-      alreadyLinked: !!alreadyLinked
+      name: fileName,
+      displayName: currentProjectDisplayLabel(),
+      alreadyLinked: linked
     }, '*');
   }catch(_){}
 }
@@ -2289,29 +2320,44 @@ async function mirrorBlobToGate(blob, name){
 async function mirrorCurrentProjectToGate(){
   const key=window.embedGateKey;
   if(!key) return false;
-  const handle=projHandle||projHandleRemembered||null;
+  const handle=projHandle||null;
+  const remembered=projHandleRemembered||null;
   const label=(handle&&handle.name)||lastProjName||((projectMeta&&projectMeta.name)?projectMeta.name+'.insp360':'project.insp360');
-  if(handle){
+  // Prefer a handle only when it matches the open tour file. A remembered handle from a
+  // previous tour (e.g. Test-blur) must not override the currently open project.
+  const wantName=String(lastProjName||label||'').replace(/\.(insp360|zip)$/i,'').toLowerCase();
+  const handleMatches=function(h){
+    if(!h || !h.name) return false;
+    if(!wantName) return !!projHandle && h===projHandle;
+    return String(h.name).replace(/\.(insp360|zip)$/i,'').toLowerCase()===wantName;
+  };
+  const diskHandle=handleMatches(handle) ? handle : (handleMatches(remembered) ? remembered : null);
+  // Unsaved edits live in memory — reading the on-disk file would drop them and can
+  // also re-bind the wrong older tour if the handle is stale.
+  if(diskHandle && window._gateMirrorDirty !== true){
     try{
       let perm='prompt';
-      try{ perm=await handle.queryPermission({mode:'read'}); }catch(_){}
-      if(perm!=='granted' && handle.requestPermission){
-        try{ perm=await handle.requestPermission({mode:'read'}); }catch(_){}
+      try{ perm=await diskHandle.queryPermission({mode:'read'}); }catch(_){}
+      if(perm!=='granted' && diskHandle.requestPermission){
+        try{ perm=await diskHandle.requestPermission({mode:'read'}); }catch(_){}
       }
       if(perm==='granted'){
-        const file=await handle.getFile();
-        if(file && file.size) return bindProjectToGate(file, file.name||label, handle);
+        const file=await diskHandle.getFile();
+        if(file && file.size) return bindProjectToGate(file, file.name||label, diskHandle);
       }
     }catch(e){ console.warn('gate mirror from handle failed, rebuilding zip', e); }
   }
   await materializeProjectPhotos();
   const parts=[]; await buildZip({ write:p=>{ parts.push(p); } }, showSaveProgress);
   const blob=new Blob(parts,{type:'application/zip'});
-  if(!blob.size) return false;
+  if(!blob.size){
+    console.warn('gate mirror rebuild produced empty zip');
+    return false;
+  }
   return bindProjectToGate(
     blob,
     label,
-    handle
+    diskHandle
   );
 }
 async function readBoundGateProject(key){
@@ -2320,12 +2366,17 @@ async function readBoundGateProject(key){
   const idbBlob=await readGateIdbBlob(key);
   if(idbBlob && idbBlob.size){
     const name=(await idbGet('gateProjName:'+key))||'project.insp360';
-    return new File([idbBlob], /\.insp360$/i.test(name)?name:name+'.insp360', { type:'application/zip' });
+    // Do NOT wrap large Blobs in new File([...]) — Chromium can hang copying 100MB+.
+    if(typeof File!=='undefined' && idbBlob instanceof File) return idbBlob;
+    try{ Object.defineProperty(idbBlob, 'name', { value: /\.insp360$/i.test(name)?name:name+'.insp360', configurable:true }); }catch(_){}
+    return idbBlob;
   }
   let file=await readGateOpfs(key);
   if(file && file.size){
     const name=(await idbGet('gateProjName:'+key))||file.name||'project.insp360';
-    return new File([file], /\.insp360$/i.test(name)?name:name+'.insp360', { type:'application/zip' });
+    if(typeof File!=='undefined' && file instanceof File) return file;
+    try{ Object.defineProperty(file, 'name', { value: /\.insp360$/i.test(name)?name:name+'.insp360', configurable:true }); }catch(_){}
+    return file;
   }
   file=await readGateCache(key);
   if(file && file.size){
@@ -2855,6 +2906,11 @@ async function openProject(file, handle, opts){
   toast(opts.quiet?'Resuming last project\u2026':'Opening project\u2026');
   projHandle = handle || null;   // Save will overwrite this file; null means Save prompts for a name
   if(handle) rememberLastProject(handle);
+  if(handle && handle.name){
+    lastProjName=handle.name; try{ idbSet('lastProjName', handle.name); }catch(_){}
+  } else if(file && file.name){
+    lastProjName=file.name; try{ idbSet('lastProjName', file.name); }catch(_){}
+  }
   let list; try{ list=await readProject(file); }catch(e){ toast('That isn\u2019t a valid .insp360 project.', true); return; }
   const tourEntry=list.find(e=>e.name.toLowerCase()==='tour.json');
   const photos=list.filter(e=>/\.(jpg|jpeg|png)$/i.test(e.name) && e.method===0 && e.name.toLowerCase()!=='preview.jpg');
@@ -2876,7 +2932,8 @@ async function openProject(file, handle, opts){
   try{ await materializeProjectPhotos(); }catch(e){ console.warn(e); }
   // Apply gate-link flags BEFORE enterProjectMode so the first host notify is accurate.
   // (enterProjectMode itself notifies the parent; a late false notify was clearing restore UI.)
-  if(window.embedGateKey && opts.skipGateBind){
+  const gateAlreadyLinked=!!(window.embedGateKey && opts.skipGateBind);
+  if(gateAlreadyLinked){
     window._gateLinkedThisSession=true;
     window._gateMirrorDirty=false;
     window._gateHostConfirmed=true;
@@ -2885,7 +2942,7 @@ async function openProject(file, handle, opts){
     window._gateLinkedThisSession=false;
     window._gateHostConfirmed=false;
   }
-  enterProjectMode();
+  enterProjectMode({ alreadyLinked: gateAlreadyLinked || !!window._gateLinkedThisSession });
   if(tourEntry){ try{ applyTourText(await tourEntry.blob.text()); }catch(e){} }
   if(items.length){
     let startIdx=0;
@@ -2903,14 +2960,12 @@ async function openProject(file, handle, opts){
     window._gateMirrorDirty=true;
     window._gateLinkedThisSession=false;
   }
-  if(window.embedGateKey && opts.skipGateBind){
+  if(gateAlreadyLinked){
     // Resumed from this gate's stored project — already linked & stored, so start clean.
-    // (enterProjectMode optimistically set dirty=true; clear it so an unedited reopen
-    // closes instantly instead of re-mirroring the whole tour to the gate.)
     window._gateLinkedThisSession=true;
     window._gateMirrorDirty=false;
   }
-  try{ notifyHostProjectOpen(!!window._gateLinkedThisSession); }catch(_){}
+  try{ notifyHostProjectOpen(gateAlreadyLinked || !!window._gateLinkedThisSession); }catch(_){}
   toast(items.length
     ? ((opts.resumePhoto?'Resumed':'Project opened')+' \u2014 '+items.length+' photo'+(items.length===1?'':'s')
       +(opts.resumePhoto&&items[currentIndex]?(' \u00B7 '+items[currentIndex].name):'')+'.')
@@ -2957,6 +3012,26 @@ document.getElementById('openProject2').onclick=(ev)=>{
 
 /* ---- recent-projects dashboard ---- */
 function countObjects(){ return items.reduce((s,it)=>s+((it.hotspots&&it.hotspots.length)||0),0); }
+/** Same label shown in the viewer badge — prefer project title over .insp360 filename. */
+function currentProjectDisplayLabel(){
+  let name;
+  if(projectMeta && projectMeta.name){ name=projectMeta.name; }
+  else if(projHandle && projHandle.name){
+    name=String(projHandle.name).replace(/\.(insp360|zip)$/i,'');
+  } else if(lastProjName){
+    name=String(lastProjName).replace(/\.(insp360|zip)$/i,'');
+  } else {
+    name='Untitled walkthrough';
+  }
+  const addr=(projectMeta && projectMeta.address)||window.embedBuildingAddress||'';
+  let label=String(name||'').trim()||'Untitled walkthrough';
+  if(addr){
+    const a=String(addr).trim(), n=label;
+    if(a && n && n.toLowerCase().indexOf(a.toLowerCase())!==0) label=a+' \u2014 '+n;
+    else if(a && !n) label=a;
+  }
+  return label;
+}
 async function setProjTitle(){
   const el=document.getElementById('projName');
   const info=document.getElementById('btnProjInfo');
@@ -7899,12 +7974,28 @@ render();
   const bF=document.getElementById('btnBlurFaces');
   if(bF) bF.onclick=()=>openEditor('faces');
 })();
+
+// Bridge: BME gate integration runs in a classic <script> and cannot see module scope.
+window.openProject = openProject;
+window.rememberLastProject = rememberLastProject;
+window.idbSet = idbSet;
+window.idbGet = idbGet;
+window.readBoundGateProject = readBoundGateProject;
+window.toast = toast;
+window.mergeBuildingRtus = mergeBuildingRtus;
+window.updateDbStatus = updateDbStatus;
+window.refreshGeoReadout = refreshGeoReadout;
+Object.defineProperty(window, 'geoIndex', {
+  configurable: true,
+  get(){ return geoIndex; },
+  set(v){ geoIndex = v; }
+});
 </script>
 
 <script>
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
-  const VERSION="v1.1.16";
+  const VERSION="v1.1.17";
   const params=new URLSearchParams(location.search);
   const isEmbed=params.get('embed')==='1';
   const gateKey=(params.get('gate')||'').trim();
@@ -7916,9 +8007,11 @@ render();
   window.embedGateKey = gateKey || null;
   window.embedBuildingAddress = pageAddress || null;
   window.embedGateTitle = pageTitle || null;
+  window.embedBoundName = boundNameParam || null;
   window.__bmeHostGeoReady = false;
   window._gateLinkedThisSession = false;
   window._gateHostConfirmed = false;
+  window._gatePreferLiveOpen = false;
 
   if(isEmbed) document.body.classList.add('embed');
   if(pageTitle || pageAddress){
@@ -7957,6 +8050,52 @@ render();
       }
       return;
     }
+    if(data.type==='insp360:openGateHandle'){
+      (async ()=>{
+        if(document.body.classList.contains('proj-open')) return;
+        if(data.gateKey && gateKey && String(data.gateKey)!==String(gateKey)) return;
+        const displayName=data.name||boundNameParam||'saved project';
+        const liveHandle=data.handle||null;
+        const liveFile=data.file||null;
+        let ok=false;
+        try{
+          // Interrupt any hung IDB auto-open so the freshly picked File can load.
+          window._gatePreferLiveOpen=true;
+          window._gateOpenInFlight=false;
+          window._gateOpenPromise=null;
+          const openFn=typeof window.openProject==='function'?window.openProject:null;
+          const rememberFn=typeof window.rememberLastProject==='function'?window.rememberLastProject:null;
+          const idbSetFn=typeof window.idbSet==='function'?window.idbSet:null;
+          // Open the live File FIRST — remembering the handle must never block opening.
+          if(liveFile && liveFile.size && openFn){
+            await openFn(liveFile, liveHandle||null, { resumePhoto:true, quiet:false, skipGateBind:true });
+            ok=document.body.classList.contains('proj-open');
+          }
+          if(liveHandle){
+            if(idbSetFn){
+              try{ await idbSetFn('gateProj:'+gateKey, liveHandle); }catch(_){}
+              try{ await idbSetFn('gateProjName:'+gateKey, displayName); }catch(_){}
+            }
+            try{ if(rememberFn) rememberFn(liveHandle); }catch(_){}
+          }
+          if(!ok && liveHandle){
+            ok=await openGateHandle(liveHandle, true);
+          }
+          if(!ok){
+            const h=await idbGet('gateProj:'+gateKey);
+            if(h) ok=await openGateHandle(h, true);
+          }
+        }catch(e){
+          console.warn('openGateHandle msg failed', e);
+        }
+        if(ok){
+          try{ toast('Opened linked tour for this gate.'); }catch(_){}
+        } else if(!document.body.classList.contains('proj-open')){
+          showGateContinue(liveHandle||null, displayName, liveHandle?async ()=>openGateHandle(liveHandle, true):null, { forcePicker:!liveHandle });
+        }
+      })();
+      return;
+    }
     if(data.type==='insp360:openGateProject'){
       (async ()=>{
         const alreadyOpen=document.body.classList.contains('proj-open');
@@ -7965,13 +8104,29 @@ render();
         const displayName=data.name||boundNameParam||'saved project';
         let ok=false;
         if(data.buffer && data.buffer.byteLength>0){
-          ok=await openGateProjectFromHost(data.buffer, displayName);
+          if(window._gateOpenInFlight){
+            const start=Date.now();
+            while(window._gateOpenInFlight && Date.now()-start<120000){
+              await new Promise(function(r){ setTimeout(r, 200); });
+              if(document.body.classList.contains('proj-open')){ ok=true; break; }
+            }
+            if(ok || document.body.classList.contains('proj-open')){
+              try{ toast('Opened linked tour for this gate.'); }catch(_){}
+              return;
+            }
+          }
+          window._gateOpenInFlight=true;
+          try{
+            ok=await openGateProjectFromHost(data.buffer, displayName);
+          } finally {
+            window._gateOpenInFlight=false;
+          }
         } else {
           ok=await openGateFromCache(displayName);
         }
         if(ok){
           try{ toast('Opened linked tour for this gate.'); }catch(_){}
-        } else {
+        } else if(!document.body.classList.contains('proj-open')){
           showGateContinue(null, displayName, null, { forcePicker:true });
         }
       })();
@@ -7991,6 +8146,7 @@ render();
     if(data.type==='insp360:prepareClose'){
       (async ()=>{
         const linkGate = data.linkGate === true;
+        let mirrorOk = true;
         try{
           try{ await _projectSaveChain; }catch(_){}
           // Only re-mirror to the gate when there are genuinely unsaved edits. A resumed,
@@ -8001,15 +8157,15 @@ render();
           if(needMirror){
             try{
               showSaveProgress(0, Math.max(2, items.length+2), 'Linking to this gate\u2026');
-              const ok=await mirrorCurrentProjectToGate();
+              mirrorOk=!!(await mirrorCurrentProjectToGate());
               endSaveProgress();
-              if(!ok){
+              if(!mirrorOk){
                 try{ toast('Could not store this tour for the gate. Try Save, then close again.', true); }catch(_){}
               }
-            }catch(e){ try{ endSaveProgress(); }catch(_){} }
+            }catch(e){ mirrorOk=false; try{ endSaveProgress(); }catch(_){} }
           }
         }finally{
-          try{ if(ev.source) ev.source.postMessage({ type:'insp360:readyToClose' }, '*'); }catch(_){}
+          try{ if(ev.source) ev.source.postMessage({ type:'insp360:readyToClose', linkGate: linkGate, ok: mirrorOk }, '*'); }catch(_){}
         }
       })();
       return;
@@ -8097,6 +8253,28 @@ render();
             }, '*');
           }
         }catch(_){}
+        // Also try File System Access here so we can remember the on-disk path.
+        if(typeof window.showOpenFilePicker==='function'){
+          void (async ()=>{
+            try{
+              const [h]=await window.showOpenFilePicker({
+                multiple:false,
+                types:[{description:'INSP360 project', accept:{'application/zip':['.insp360','.zip']}}]
+              });
+              if(window.embedGateKey){
+                try{ await idbSet('gateProj:'+window.embedGateKey, h); }catch(_){}
+                try{ await idbSet('gateProjName:'+window.embedGateKey, h.name||label); }catch(_){}
+              }
+              rememberLastProject(h);
+              await openProject(await h.getFile(), h, { resumePhoto:true, quiet:false, skipGateBind:true });
+            }catch(err){
+              if(err && err.name==='AbortError') return;
+              const openedInput=pickNow();
+              if(!openedInput) void openProjectPicker();
+            }
+          })();
+          return;
+        }
         const openedInput=pickNow();
         if(openedInput){
           try{ toast('Choose the .insp360 file for \u201C'+label+'\u201D\u2026'); }catch(_){}
@@ -8140,22 +8318,48 @@ render();
   }
 
   async function openGateFromCache(displayName){
-    const cached=await readBoundGateProject(gateKey);
-    if(!cached || !cached.size) return false;
-    let handle=null;
-    try{
-      const h=await idbGet('gateProj:'+gateKey);
-      if(h){
+    if(document.body.classList.contains('proj-open')) return true;
+    if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+    // Promise single-flight: boot poll + host message share one unzip.
+    if(window._gateOpenPromise) return window._gateOpenPromise;
+    window._gateOpenPromise=(async ()=>{
+      try{
+        if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+        // Prefer the remembered on-disk file handle — IDB blob open hangs on ~100MB tours.
         try{
-          if((await h.queryPermission({mode:'read'}))==='granted') handle=h;
-          else projHandleRemembered=h;
-        }catch(_){ projHandleRemembered=h; }
+          const h=await idbGet('gateProj:'+gateKey);
+          if(h){
+            let perm='prompt';
+            try{ perm=await h.queryPermission({mode:'read'}); }catch(_){}
+            if(perm==='granted'){
+              if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+              const okHandle=await openGateHandle(h, false);
+              if(okHandle) return true;
+            }
+          }
+        }catch(_){}
+        if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+        const cached=await Promise.race([
+          readBoundGateProject(gateKey),
+          new Promise(function(resolve){ setTimeout(function(){ resolve(null); }, 8000); })
+        ]);
+        if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+        if(!cached || !cached.size) return false;
+        const name=(displayName||cached.name||'project.insp360');
+        const fileName=/\.insp360$/i.test(name)?name:name+'.insp360';
+        const file=(typeof File!=='undefined' && cached instanceof File)
+          ? cached
+          : (cached.name ? cached : Object.assign(cached, { name: fileName }));
+        await openProject(file, null, { resumePhoto:true, quiet:true, skipGateBind:true });
+        const ok=document.body.classList.contains('proj-open');
+        return ok;
+      } finally {
+        window._gateOpenPromise=null;
+        window._gateOpenInFlight=false;
       }
-    }catch(_){}
-    const name=(displayName||cached.name||'project.insp360');
-    const file=new File([cached], /\.insp360$/i.test(name)?name:name+'.insp360', {type:'application/zip'});
-    await openProject(file, handle, { resumePhoto:true, quiet:true, skipGateBind:true });
-    return document.body.classList.contains('proj-open');
+    })();
+    window._gateOpenInFlight=true;
+    return window._gateOpenPromise;
   }
 
   async function openGateProjectFromHost(buffer, displayName){
@@ -8191,22 +8395,32 @@ render();
     try{
       let name=''; try{ name=await idbGet('gateProjName:'+gateKey); }catch(_){}
       if(!name && boundNameParam) name=boundNameParam;
-      try{
-        if(await openGateFromCache(name)){ return true; }
-      }catch(e){ console.warn('gate cache open failed', e); }
+      // Prefer remembered on-disk .insp360 handle — never block on huge IDB blob first.
       const h=await idbGet('gateProj:'+gateKey);
       if(h){
         try{
           const q=await h.queryPermission({mode:'read'});
           if(q==='granted'){
-            if(await openGateHandle(h, false)) return true;
+            if(await openGateHandle(h, false)){
+              return true;
+            }
           }
         }catch(e){}
+        // Need a user gesture to re-grant permission — Continue with this handle.
         showGateContinue(h, name||h.name, async ()=>openGateHandle(h, true));
         return 'pending';
       }
+      try{
+        if(await openGateFromCache(name)){ return true; }
+      }catch(e){ console.warn('gate cache open failed', e); }
       if(name){
-        showGateContinue(null, name, null, { forcePicker:true });
+        try{
+          const empty=document.getElementById('empty');
+          const h1=empty && empty.querySelector('h1');
+          const p=empty && empty.querySelector('p');
+          if(h1) h1.textContent='Opening linked tour\u2026';
+          if(p) p.textContent='Loading \u201C'+String(name).replace(/\.(insp360|zip)$/i,'').replace(/</g,'&lt;')+'\u201D for this gate\u2026';
+        }catch(_){}
         return 'pending';
       }
       return false;
@@ -8237,16 +8451,47 @@ render();
   async function waitForGateBytesAndOpen(displayName, maxWaitMs){
     const label=displayName||boundNameParam||'project.insp360';
     const start=Date.now();
+    // Prefer disk handle; only then try cache. Never block the loop on a hung IDB read.
     while(Date.now()-start<maxWaitMs){
       if(document.body.classList.contains('proj-open')) return true;
-      try{ if(await openGateFromCache(label)) return true; }catch(_){}
-      await new Promise(function(r){ setTimeout(r, 250); });
+      if(window._gateOpenPromise){
+        try{ if(await window._gateOpenPromise) return true; }catch(_){}
+        if(document.body.classList.contains('proj-open')) return true;
+      }
+      try{
+        const h=await idbGet('gateProj:'+gateKey);
+        if(h){
+          let perm='prompt';
+          try{ perm=await h.queryPermission({mode:'read'}); }catch(_){}
+          if(perm==='granted'){
+            if(await openGateHandle(h, false)) return true;
+          }
+        }
+      }catch(_){}
+      try{
+        if(await openGateFromCache(label)) return true;
+      }catch(_){}
+      await new Promise(function(r){ setTimeout(r, 500); });
     }
-    return document.body.classList.contains('proj-open');
+    try{ return await openGateFromCache(label); }catch(_){ return false; }
   }
 
   async function bootEmbed(){
     if(isEmbed){
+      if(boundNameParam){
+        try{
+          const empty=document.getElementById('empty');
+          const h1=empty && empty.querySelector('h1');
+          const p=empty && empty.querySelector('p');
+          const createBtn=document.getElementById('createProj');
+          const openBtn=document.getElementById('openProject2');
+          const label=String(boundNameParam||'').replace(/\.(insp360|zip)$/i,'')||'linked tour';
+          if(h1) h1.textContent='Opening linked tour\u2026';
+          if(p) p.textContent='Loading \u201C'+label+'\u201D for this gate. This can take a moment for large projects.';
+          if(createBtn) createBtn.style.display='none';
+          if(openBtn) openBtn.style.display='none';
+        }catch(_){}
+      }
         requestHostGeo();
       setTimeout(requestHostGeo, 400);
       setTimeout(requestHostGeo, 1200);
@@ -8263,9 +8508,9 @@ render();
           if(h1) h1.textContent='Opening linked tour\u2026';
           if(p) p.textContent='Loading \u201C'+label+'\u201D for this gate. This can take a moment for large projects.';
         }catch(_){}
-        const opened=await waitForGateBytesAndOpen(boundNameParam||'', 20000);
+        const opened=await waitForGateBytesAndOpen(boundNameParam||'', 60000);
         if(opened || document.body.classList.contains('proj-open')) return;
-        if(gateOpened==='pending') return;
+        if(gateOpened==='pending' && !boundNameParam) return;
         if(boundNameParam){
           showGateContinue(null, boundNameParam, null, { forcePicker:true });
           return;
@@ -8273,6 +8518,11 @@ render();
       }
       if(!gateOpened) await tryOpenProjectUrl();
       if(document.body.classList.contains('proj-open')) return;
+      // Linked gate: never fall through to Create/Open — host shows Restore if needed.
+      if(boundNameParam){
+        showGateContinue(null, boundNameParam, null, { forcePicker:true });
+        return;
+      }
       const empty=document.getElementById('empty');
       if(empty && !projectUrl){
         const h1=empty.querySelector('h1');

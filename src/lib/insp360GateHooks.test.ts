@@ -4,8 +4,10 @@ import {
   getInsp360GateHook,
   INSP360_GATE_PROJECTS_LS,
   INSP360_LOCAL_PREFIX,
+  insp360ChangeTourConfirmMessage,
   insp360LinkGateConfirmMessage,
   insp360ProjectDisplayName,
+  insp360SameProjectFile,
   resolveInsp360TourLabel,
   resolveInsp360ViewerProjectUrl,
   shouldPromptLinkGate,
@@ -63,6 +65,22 @@ describe('insp360GateHooks', () => {
     expect(insp360ProjectDisplayName('https://cdn.example.com/path/Tour%20B.zip')).toBe('Tour B')
   })
 
+  it('compares project file identity ignoring path and extension', () => {
+    expect(
+      insp360SameProjectFile(
+        'Test-blur 145 Carrier QR-360°.insp360',
+        '145 Carrier QR-360°.insp360',
+      ),
+    ).toBe(false)
+    expect(
+      insp360SameProjectFile(
+        'C:\\tours\\145 Carrier QR-360°.insp360',
+        '145 Carrier QR-360°.insp360',
+      ),
+    ).toBe(true)
+    expect(insp360SameProjectFile(null, 'tour.insp360')).toBe(false)
+  })
+
   it('does not pass local-only hooks as fetchable viewer project URLs', () => {
     expect(resolveInsp360ViewerProjectUrl(`${INSP360_LOCAL_PREFIX}Room A.insp360`)).toBeNull()
     expect(resolveInsp360ViewerProjectUrl('insp360/projects/room-a.insp360')).toBe(
@@ -72,11 +90,27 @@ describe('insp360GateHooks', () => {
   })
 
   it('builds a clear link-on-close confirm message', () => {
-    expect(insp360LinkGateConfirmMessage('60 Birmingham Electrical Room.insp360')).toBe(
-      'Link “60 Birmingham Electrical Room” to this gateway so it opens automatically next time?',
+    expect(insp360LinkGateConfirmMessage('145 Carrier Drive — 145 Carrier')).toBe(
+      'Link “145 Carrier Drive — 145 Carrier” to this gateway so it opens automatically next time?',
+    )
+    expect(
+      insp360LinkGateConfirmMessage('145 Carrier Drive — 145 Carrier', {
+        fileName: 'Test-blur 145 Carrier QR-360°.insp360',
+      }),
+    ).toBe(
+      'Link “145 Carrier Drive — 145 Carrier” to this gateway so it opens automatically next time?\n\nTour file: Test-blur 145 Carrier QR-360°',
     )
     expect(insp360LinkGateConfirmMessage(null)).toBe(
       'Link “this tour” to this gateway so it opens automatically next time?',
+    )
+  })
+
+  it('builds a clear change-tour confirm message', () => {
+    expect(insp360ChangeTourConfirmMessage('60 Birmingham Electrical Room.insp360')).toBe(
+      'Unlink “60 Birmingham Electrical Room” from this gateway? You can open a different .insp360 and link it instead.',
+    )
+    expect(insp360ChangeTourConfirmMessage(null)).toBe(
+      'Unlink “the current tour” from this gateway? You can open a different .insp360 and link it instead.',
     )
   })
 

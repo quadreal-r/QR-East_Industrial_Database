@@ -2,7 +2,7 @@
 
 QuadReal Industrial Portfolio Map — a strongly typed React SPA for exploring buildings, RTUs, tenants, utilities, and polygons on Google Maps.
 
-**Live site:** https://quadreal-r.github.io/building-map-explorer/
+**Live site:** https://quadreal-r.github.io/QR-East_Industrial_Database/
 
 ## Stack
 
@@ -16,8 +16,8 @@ QuadReal Industrial Portfolio Map — a strongly typed React SPA for exploring b
 ## Quick start
 
 ```bash
-git clone git@github.com:quadreal-r/building-map-explorer.git
-cd building-map-explorer
+git clone git@github.com:quadreal-r/QR-East_Industrial_Database.git
+cd QR-East_Industrial_Database
 npm install
 cp .env.example .env.local   # add your keys
 npm run dev

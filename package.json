@@ -1,7 +1,7 @@
 {
-  "name": "building-map-explorer",
+  "name": "qr-east-industrial-database",
   "private": true,
-  "version": "1.11.0",
+  "version": "1.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
