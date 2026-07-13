@@ -60,6 +60,11 @@ export type Database = {
           lat: number
           lng: number
           manager: string | null
+          building_operator: string | null
+          operator_phone: string | null
+          ops_manager: string | null
+          gm_ops: string | null
+          vp: string | null
           map_heading: number | null
           map_imagery_mode: string | null
           map_lat: number | null
@@ -81,6 +86,11 @@ export type Database = {
           lat: number
           lng: number
           manager?: string | null
+          building_operator?: string | null
+          operator_phone?: string | null
+          ops_manager?: string | null
+          gm_ops?: string | null
+          vp?: string | null
           map_heading?: number | null
           map_imagery_mode?: string | null
           map_lat?: number | null
@@ -102,6 +112,11 @@ export type Database = {
           lat?: number
           lng?: number
           manager?: string | null
+          building_operator?: string | null
+          operator_phone?: string | null
+          ops_manager?: string | null
+          gm_ops?: string | null
+          vp?: string | null
           map_heading?: number | null
           map_imagery_mode?: string | null
           map_lat?: number | null
@@ -142,42 +157,6 @@ export type Database = {
           id?: number
           name?: string
           paths?: Json
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      portfolio_map_views: {
-        Row: {
-          created_at: string
-          filter_key: string
-          map_heading: number | null
-          map_imagery_mode: string | null
-          map_lat: number | null
-          map_lng: number | null
-          map_tilt: number | null
-          map_zoom: number | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          filter_key: string
-          map_heading?: number | null
-          map_imagery_mode?: string | null
-          map_lat?: number | null
-          map_lng?: number | null
-          map_tilt?: number | null
-          map_zoom?: number | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          filter_key?: string
-          map_heading?: number | null
-          map_imagery_mode?: string | null
-          map_lat?: number | null
-          map_lng?: number | null
-          map_tilt?: number | null
-          map_zoom?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -406,6 +385,7 @@ export type Database = {
       }
       tenants: {
         Row: {
+          auto_placed: boolean
           building_id: number
           created_at: string
           description: string | null
@@ -418,6 +398,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_placed?: boolean
           building_id: number
           created_at?: string
           description?: string | null
@@ -430,6 +411,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_placed?: boolean
           building_id?: number
           created_at?: string
           description?: string | null

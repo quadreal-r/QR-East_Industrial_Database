@@ -3,12 +3,18 @@ import * as XLSX from 'xlsx'
 import { importCapitalRtuWorkbook } from '@/lib/capitalRtuWorkbook'
 import { detectExcelWorkbookKind } from '@/lib/excelWorkbookType'
 import { exportPortfolioExcel, importPortfolioExcel } from '@/lib/excel'
+import {
+  loadLastExcelImportFileName,
+  resolveLastExcelImportFileName,
+  saveLastExcelImportFileName,
+} from '@/lib/lastExcelImportFile'
 import { mergePortfolioExcelImport } from '@/lib/portfolioExcelMerge'
 import { importEquipmentSchedule } from '@/lib/equipmentSheet'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { normalizePortfolioData } from '@/types/domain'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import type { Building, PortfolioData } from '@/types/domain'
 import { SettingsToolButton } from '@/features/settings/SettingsToolButton'
 import styles from '@/features/settings/SettingsModal.module.css'
@@ -32,10 +38,23 @@ export function ImportExportButtons({
 }: ImportExportButtonsProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
-  const sourceFile = useRtuScheduleStore((s) => s.sourceFile)
+  const [sessionFileName, setSessionFileName] = useState<string | null>(null)
+  const scheduleSourceFile = useRtuScheduleStore((s) => s.sourceFile)
+  const pricingSourceFile = useRtuPricingStore((s) => s.sourceFile)
   const pricingTiers = useRtuPricingStore((s) => s.rows.length)
   const applyEquipmentImport = useRtuScheduleStore((s) => s.applyEquipmentImport)
   const applyPricingImport = useRtuPricingStore((s) => s.applyPricingImport)
+  const managerRenames = useSettingsStore((s) => s.managerRenames)
+  const lastFileName = resolveLastExcelImportFileName({
+    persisted: sessionFileName ?? loadLastExcelImportFileName(),
+    scheduleSourceFile,
+    pricingSourceFile,
+  })
+
+  const rememberImportFile = (fileName: string) => {
+    saveLastExcelImportFileName(fileName)
+    setSessionFileName(fileName.trim())
+  }
 
   const requireAuth = (action: 'import' | 'export') => {
     if (!isAuthenticated) {
@@ -53,7 +72,7 @@ export function ImportExportButtons({
     if (!requireAuth('export')) return
     setBusy(true)
     try {
-      await exportPortfolioExcel(portfolio)
+      await exportPortfolioExcel(portfolio, undefined, { managerRenames })
       showToastSuccess('✓ Excel exported')
       onExportComplete?.()
     } catch (e) {
@@ -99,12 +118,14 @@ export function ImportExportButtons({
       if (kind === 'portfolio') {
         const imported = normalizePortfolioData(importPortfolioExcel(buffer))
         const data = mergePortfolioExcelImport(portfolio, imported)
+        rememberImportFile(file.name)
         onImport(data)
-        showToastSuccess('✓ Portfolio staged from Excel — save to write to Supabase')
+        showToastSuccess('✓ Portfolio staged from Excel — click Save to write to Supabase')
         return
       }
 
       await handleCapitalImport(buffer, file)
+      rememberImportFile(file.name)
     } catch (e) {
       showToastError(e instanceof Error ? e.message : 'Import failed')
     } finally {
@@ -123,7 +144,7 @@ export function ImportExportButtons({
       {showExport ? (
         <SettingsToolButton
           variant="export"
-          tooltip="Export buildings, RTUs, tenant polygons, utilities, and RTU picture references to Excel."
+          tooltip="Export buildings, RTUs, tenant polygons, utilities, 360 gateways, building operators, and RTU picture references to Excel."
           onClick={() => void handleExport()}
           disabled={busy}
         >
@@ -131,25 +152,26 @@ export function ImportExportButtons({
         </SettingsToolButton>
       ) : null}
       {showImport ? (
-        <SettingsToolButton
-          tooltip={
-            <>
-              Import Database from Excel: portfolio export updates map data in Supabase, or Capital RTU
-              Replacement workbook updates schedule and pricing.
-              {sourceFile ? (
-                <>
-                  {' '}
-                  Last workbook: {sourceFile}
-                  {pricingTiers ? ` · ${pricingTiers} tonnage tiers` : ''}
-                </>
-              ) : null}
-            </>
-          }
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-        >
-          {busy ? 'Importing…' : 'Import Database from Excel'}
-        </SettingsToolButton>
+        <div>
+          <SettingsToolButton
+            tooltip={
+              <>
+                Import Database from Excel: portfolio export updates map data in Supabase, or Capital RTU
+                Replacement workbook updates schedule and pricing.
+                {pricingTiers ? ` · ${pricingTiers} tonnage tiers` : ''}
+              </>
+            }
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+          >
+            {busy ? 'Importing…' : 'Import Database from Excel'}
+          </SettingsToolButton>
+          {lastFileName ? (
+            <p className={styles.hint} title={lastFileName}>
+              Last file: {lastFileName}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {showImport ? (
         <input

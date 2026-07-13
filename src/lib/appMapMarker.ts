@@ -140,7 +140,7 @@ export function buildBuildingMarkerContent(
   label: BuildingMarkerLabel,
   gap = 4,
 ): HTMLElement {
-  const pinSize = symbolPixelSize(icon.scale ?? 9)
+  const pinSize = symbolPixelSize(icon.scale ?? 11)
 
   const root = document.createElement('div')
   root.style.position = 'relative'
@@ -180,7 +180,7 @@ export function buildBuildingMarkerContent(
 }
 
 export function buildingMarkerPinHeight(icon: google.maps.Symbol): number {
-  return symbolPixelSize(icon.scale ?? 9)
+  return symbolPixelSize(icon.scale ?? 11)
 }
 
 export function setBuildingMarkerContent(

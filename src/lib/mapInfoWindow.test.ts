@@ -107,18 +107,39 @@ describe('mapInfoWindow', () => {
     expect(html).not.toContain('Hide building details')
     expect(html).toContain('<strong>BU #</strong>')
     expect(html).toContain('<strong>Manager</strong>')
+    expect(html).toContain('<strong>Operator</strong>')
   })
 
   it('builds building plain text matching popup layout', () => {
-    const text = buildBuildingInfoPlainText(building, tenantPolygons)
+    const text = buildBuildingInfoPlainText(
+      {
+        ...building,
+        buildingOperator: 'Aaron Meecham',
+        operatorPhone: '(437)-346-0642',
+      },
+      tenantPolygons,
+    )
     expect(text).toContain('100 Main Street')
     expect(text).toContain('Test Park')
     expect(text).toContain('BU #        123')
+    expect(text).toContain('Operator    Aaron Meecham · (437)-346-0642')
     expect(text).toContain('RTUs (1)')
     expect(text).toContain('RTU-01')
     expect(text).toContain('  ABC · TRANE')
     expect(text).toContain('Tenant Polygons (1)')
     expect(text).toContain('Unit 1  Acme Corp')
+  })
+
+  it('includes operator phone in building popup html', () => {
+    const html = buildBuildingInfoHtml(
+      {
+        ...building,
+        buildingOperator: 'Aaron Meecham',
+        operatorPhone: '(437)-346-0642',
+      },
+      tenantPolygons,
+    )
+    expect(html).toContain('Aaron Meecham · (437)-346-0642')
   })
 
   it('includes Picture, Documents, and Edit in RTU popup footer', () => {
@@ -160,7 +181,7 @@ describe('mapInfoWindow', () => {
     expect(html).toContain('No documents on Cloudflare')
   })
 
-  it('includes Open viewer and Move but not Delete in 360° gate popup', () => {
+  it('includes Enter QR-360° Tour and Move but not Delete in 360° gate popup', () => {
     const entrance = {
       id: 8,
       building_id: 1,
@@ -174,6 +195,7 @@ describe('mapInfoWindow', () => {
       buildingAddress: '6150 Kennedy Road',
     })
     expect(html).toContain('360° GATE')
+    expect(html).toContain('Enter QR-360° Tour')
     expect(html).toContain('data-iw-action="inspection360-open"')
     expect(html).toContain('↔ Move')
     expect(html).not.toContain('🗑 Delete')
@@ -207,7 +229,7 @@ describe('mapInfoWindow', () => {
     expect(html).not.toContain('data-iw-action="edit-text"')
   })
 
-  it('includes Open viewer and Move for electrical room sphere popup', () => {
+  it('includes Enter QR-360° Tour and Move for electrical room sphere popup', () => {
     const utility = {
       id: 2,
       utility_type: 'Electrical Rooms' as const,
@@ -219,12 +241,32 @@ describe('mapInfoWindow', () => {
     }
     const html = buildDetailInfoHtml('electrical', utility)
     expect(html).toContain('ELECTRICAL 360°')
+    expect(html).toContain('Enter QR-360° Tour')
     expect(html).toContain('data-iw-action="inspection360-open"')
     expect(html).toContain('↔ Move')
     expect(html).toContain('Not connected yet')
   })
 
-  it('includes Open viewer for sprinkler room sphere with connected tour', () => {
+  it('shows hooked local project name on electrical gate popup', () => {
+    const utility = {
+      id: 2,
+      utility_type: 'Electrical Rooms' as const,
+      name: 'Electrical Room',
+      description: '60 Birmingham St',
+      lat: 43.65,
+      lng: -79.62,
+      inspection_url: null,
+    }
+    const html = buildDetailInfoHtml('electrical', utility, {
+      tourConnected: true,
+      tourLabel: '60 Birmingham Electrical Room',
+    })
+    expect(html).toContain('60 Birmingham Electrical Room')
+    expect(html).toContain('Enter QR-360° Tour')
+    expect(html).not.toContain('Not connected yet')
+  })
+
+  it('includes Enter QR-360° Tour for sprinkler room sphere with connected tour', () => {
     const utility = {
       id: 3,
       utility_type: 'Sprinkler Rooms' as const,
@@ -237,7 +279,7 @@ describe('mapInfoWindow', () => {
     const html = buildDetailInfoHtml('sprinkler', utility)
     expect(html).toContain('SPRINKLER 360°')
     expect(html).toContain('Connected')
-    expect(html).toContain('Enter QR-360° tour')
+    expect(html).toContain('Enter QR-360° Tour')
   })
 
   it('includes Copy, Move, and Delete in utility detail popup footer', () => {

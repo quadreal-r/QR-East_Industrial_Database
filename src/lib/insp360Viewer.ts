@@ -1,4 +1,12 @@
-/** Build URLs for the embedded QR-360° viewer (`public/insp360/viewer.html`). */
+/** Build URLs for the embedded QR-360° viewer.
+ *
+ * Live embed (always the latest synced build):
+ *   public/insp360/viewer.html
+ *
+ * Versioned copies + sync from Inspections source:
+ *   qr360-viewer/QR-360°_viewer_vX.Y.Z.html
+ *   npm run sync:qr360-viewer
+ */
 
 export type Inspection360GateKind = 'suite' | 'electrical' | 'sprinkler'
 
@@ -8,9 +16,11 @@ export function buildInspection360GateKey(
   entity: { id?: number; name: string; lat: number; lng: number },
   buildingId?: number | null,
 ): string {
-  if (entity.id != null) return `${kind}:${entity.id}`
+  if (entity.id != null && Number.isFinite(entity.id)) return `${kind}:${entity.id}`
   const b = buildingId ?? 'x'
-  return `${kind}:tmp:${b}:${entity.name}:${entity.lat.toFixed(6)}:${entity.lng.toFixed(6)}`
+  const name = String(entity.name || 'gate').trim() || 'gate'
+  // Do not include lat/lng — marker nudges would orphan the saved project.
+  return `${kind}:tmp:${b}:${name}`
 }
 
 export function resolveInspection360ProjectUrl(inspectionUrl: string): string {
@@ -31,6 +41,8 @@ export interface Inspection360ViewerLaunch {
   projectUrl?: string | null
   scene?: string | null
   title?: string | null
+  /** Building street address — shown before the project/gate name. */
+  address?: string | null
   /** Per-gate id used to reopen the last local project chosen for this sphere. */
   gateKey?: string | null
 }
@@ -44,6 +56,7 @@ export function buildInspection360ViewerPageUrl(options: Inspection360ViewerLaun
   }
   if (options.scene) page.searchParams.set('photo', options.scene)
   if (options.title) page.searchParams.set('title', options.title)
+  if (options.address) page.searchParams.set('address', options.address)
   if (options.gateKey) page.searchParams.set('gate', options.gateKey)
   return page.href
 }

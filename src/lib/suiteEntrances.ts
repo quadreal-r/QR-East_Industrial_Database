@@ -189,14 +189,11 @@ export function defaultEntrancePosition(
 }
 
 /**
- * Only re-snap gates explicitly marked as still auto-placed — i.e. never
- * dragged or manually positioned by a user. Distance-based checks don't
- * work here: suites are often narrower than a reasonable "did they move it"
- * tolerance, so any intentional small adjustment would look like it was
- * still at the default spot and get snapped straight back.
+ * Re-snap when still auto-placed. Missing/undefined means “never manually
+ * moved” (including rows loaded from the DB before auto_placed was stored).
  */
 function shouldSnapEntranceToFacade(entrance: SuiteEntrance): boolean {
-  return entrance.auto_placed === true
+  return entrance.auto_placed !== false
 }
 
 /**

@@ -1,0 +1,36 @@
+---
+description: Keep the embedded QR-360° viewer synced from the Inspections source folder
+alwaysApply: true
+---
+
+# QR-360° viewer sync (building-map-explorer)
+
+## Source of truth
+
+`C:\Users\Robert\Projects\QR-360°-Inspections\QR-360°-Inspections`
+
+New builds are named like `QR-360°_viewer_v1.1.3.html`.
+
+## Linked locations in this repo
+
+| Purpose | Path |
+|---------|------|
+| Versioned archive | `qr360-viewer/QR-360°_viewer_v*.html` |
+| Live iframe target | `public/insp360/viewer.html` |
+| App URL builder | `src/lib/insp360Viewer.ts` → `insp360/viewer.html` |
+
+The main program must keep using **`insp360/viewer.html`** (stable). Never point the iframe at a versioned filename.
+
+## When the user ships a new viewer version
+
+1. Confirm the new HTML exists in the Inspections source folder.
+2. Run from `building-map-explorer`:
+
+```powershell
+npm run sync:qr360-viewer
+```
+
+3. That **replaces** older files in `qr360-viewer/` and overwrites `public/insp360/viewer.html`.
+4. Tell the user to hard-refresh BME / reopen the gate sphere.
+
+Do not hand-edit `public/insp360/viewer.html` — edit the Inspections source, then sync.

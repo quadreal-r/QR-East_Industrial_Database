@@ -15,13 +15,14 @@ export const ACTIVE_PORTFOLIO_SHEETS = [
   'Tenant Polygons',
   'Polygons',
   'Utilities',
+  'Building Operators',
 ] as const
 
 /**
  * Sheets kept in the workbook for reference / future features but not applied
  * to portfolio tables on import.
  */
-export const DORMANT_PORTFOLIO_SHEETS = ['RTU Pictures'] as const
+export const DORMANT_PORTFOLIO_SHEETS = ['RTU Pictures', '360 Gateways'] as const
 
 function pathsFingerprint(paths: Polygon['paths']): string {
   return paths
@@ -205,6 +206,21 @@ export function mergePortfolioExcelImport(
         sold: incoming.sold,
         // Excel export has no notes column — preserve whatever is in the DB.
         notes: existing.notes,
+        ...(incoming.buildingOperator !== undefined
+          ? {
+              buildingOperator: incoming.buildingOperator,
+              operatorPhone: incoming.operatorPhone ?? null,
+              opsManager: incoming.opsManager ?? null,
+              gmOps: incoming.gmOps ?? null,
+              vp: incoming.vp ?? null,
+            }
+          : {
+              buildingOperator: existing.buildingOperator,
+              operatorPhone: existing.operatorPhone,
+              opsManager: existing.opsManager,
+              gmOps: existing.gmOps,
+              vp: existing.vp,
+            }),
         rtus: mergeRtus(existing, incoming),
       })
       continue
@@ -218,7 +234,6 @@ export function mergePortfolioExcelImport(
     polygons: mergePolygons(baseline, imported),
     // Keep existing gates; normalizePortfolioData will add any missing ones.
     suiteEntrances: baseline.suiteEntrances ?? [],
-    portfolioMapViews: baseline.portfolioMapViews ?? {},
   }
 
   const normalized = normalizePortfolioData(merged)

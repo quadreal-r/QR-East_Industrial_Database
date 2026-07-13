@@ -1,7 +1,7 @@
 {
   "name": "building-map-explorer",
   "private": true,
-  "version": "1.10.0",
+  "version": "1.11.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -43,7 +43,8 @@
     "upload-rtu-pictures-from-folder": "node scripts/upload-rtu-pictures-from-folder.mjs",
     "compare-local-pictures-cloudflare": "node scripts/compare-local-pictures-with-cloudflare.mjs",
     "push-live": "node scripts/push-live.mjs",
-    "restore-point": "node scripts/restore-point.mjs"
+    "restore-point": "node scripts/restore-point.mjs",
+    "sync:qr360-viewer": "node scripts/sync-qr360-viewer.mjs"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",

@@ -24,6 +24,7 @@ import {
   type PortfolioData,
 } from '@/hooks/usePortfolioData'
 import { normalizePortfolioData } from '@/types/domain'
+import { mergeBuildingMapViewsFromBaseline } from '@/lib/buildingMapView'
 import { clearRtuPictureManifestCache } from '@/lib/rtuPictures'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { errorMessage } from '@/lib/errorMessage'
@@ -42,7 +43,6 @@ const EMPTY_PORTFOLIO: PortfolioData = {
   utilities: [],
   polygons: [],
   suiteEntrances: [],
-  portfolioMapViews: {},
 }
 const SAVE_SUCCESS_DISPLAY_MS = 1000
 
@@ -140,7 +140,13 @@ export function AppShell() {
   }, [clearSaveDismissTimer])
 
   const baseline = data ?? EMPTY_PORTFOLIO
-  const portfolio = portfolioOverride ?? baseline
+  const portfolio = useMemo(
+    () =>
+      portfolioOverride
+        ? mergeBuildingMapViewsFromBaseline(portfolioOverride, baseline)
+        : baseline,
+    [portfolioOverride, baseline],
+  )
 
   const editSummary = useMemo(
     () => (portfolioOverride ? diffPortfolio(baseline, portfolioOverride) : null),
@@ -162,7 +168,7 @@ export function AppShell() {
   const handleSave = useCallback(async () => {
     if (!portfolioOverride || saveInFlightRef.current) return
 
-    const pending = portfolioOverride
+    const pending = mergeBuildingMapViewsFromBaseline(portfolioOverride, baseline)
     const baselineSnapshot = baseline
     if (editSummary) {
       setDisplaySummary(editSummary)

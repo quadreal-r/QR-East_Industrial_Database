@@ -65,11 +65,27 @@ describe('ensureSuiteEntrances', () => {
       description: 'Acme Corp',
       lat: 43.6619515,
       lng: -79.6541663,
+      auto_placed: false,
     }
     const result = ensureSuiteEntrances([building], [polygon], [existing])
     expect(result).toHaveLength(1)
     expect(result[0]?.lat).toBe(43.6619515)
     expect(result[0]?.id).toBe(5)
+  })
+
+  it('re-snaps gates that are still auto-placed (including DB rows with no flag yet)', () => {
+    const existing: SuiteEntrance = {
+      id: 5,
+      building_id: 1,
+      name: 'Suite 7',
+      description: 'Acme Corp',
+      lat: 43.6619515,
+      lng: -79.6541663,
+    }
+    const result = ensureSuiteEntrances([building], [polygon], [existing])
+    expect(result).toHaveLength(1)
+    expect(result[0]?.lat).not.toBeCloseTo(43.6619515, 5)
+    expect(result[0]?.auto_placed).toBe(true)
   })
 
   it('creates auto-placed gates that keep re-snapping until moved', () => {
@@ -121,6 +137,7 @@ describe('ensureSuiteEntrances', () => {
       description: 'Home Reno Direct',
       lat: 43.662675,
       lng: -79.6560035,
+      auto_placed: false,
     }
     const result = ensureSuiteEntrances([building], [renamedPolygon], [legacy])
     expect(result).toHaveLength(1)
@@ -156,6 +173,7 @@ describe('ensureSuiteEntrances', () => {
       lat: 43.6619515,
       lng: -79.6541663,
       polygon_id: 1,
+      auto_placed: false,
     }
     const result = ensureSuiteEntrances([building], [suite1, suite10], [existing])
     expect(result).toHaveLength(2)

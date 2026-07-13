@@ -30,11 +30,13 @@ describe('insp360Viewer', () => {
   it('builds embed viewer page even without a linked project URL', () => {
     const url = buildInspection360ViewerPageUrl({
       title: 'Suite 7',
-      gateKey: 'suite:tmp:1:Suite 7:43.650000:-79.380000',
+      address: '145 Carrier Drive',
+      gateKey: 'suite:tmp:1:Suite 7',
     })
     expect(url).toContain('insp360/viewer.html')
     expect(url).toContain('embed=1')
     expect(url).toContain('title=Suite+7')
+    expect(url).toContain('address=145+Carrier+Drive')
     expect(url).toContain('gate=')
     expect(url).not.toContain('project=')
   })
@@ -54,13 +56,13 @@ describe('insp360Viewer', () => {
     ).toBe('electrical:5')
   })
 
-  it('falls back to building + name + coords when gate has no id yet', () => {
+  it('falls back to building + name when gate has no id yet', () => {
     expect(
       buildInspection360GateKey(
         'sprinkler',
         { name: 'SR-1', lat: 43.65, lng: -79.38 },
         88,
       ),
-    ).toBe('sprinkler:tmp:88:SR-1:43.650000:-79.380000')
+    ).toBe('sprinkler:tmp:88:SR-1')
   })
 })

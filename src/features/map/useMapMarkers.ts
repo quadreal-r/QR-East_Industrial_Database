@@ -33,9 +33,8 @@ import {
   unregisterMarqueeTarget,
 } from '@/lib/mapMarqueeSelect'
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
-import { applySavedMapView, panToPreserveRotation, resolveBuildingClickZoom } from '@/lib/mapRotation'
-import { getBuildingSavedView } from '@/lib/buildingMapView'
-import { getPortfolioSavedView } from '@/lib/portfolioMapView'
+import { panToPreserveRotation } from '@/lib/mapRotation'
+import { focusBuildingCamera } from '@/lib/buildingMapView'
 import { imageryModeIndexFromId } from '@/lib/imageryMode'
 import {
   consumeSuppressBuildingMapFocus,
@@ -53,14 +52,13 @@ import {
   MAP_CLOSE_POPUPS_EVENT,
   shouldSuppressInfoWindowCloseReset,
 } from '@/lib/mapPopups'
-import { collectSearchHits } from '@/lib/searchHits'
+import { dismissSearchHitCircles } from '@/features/map/useSearchHitCircles'
 import {
   loadRtuPictureManifest,
   onRtuPicturesChanged,
   type RtuPicture,
 } from '@/lib/rtuPictures'
 import { areAllLayersHidden, useLayerStore } from '@/stores/layerStore'
-import { useFilterStore } from '@/stores/filterStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useUiStore } from '@/stores/uiStore'
 import {
@@ -86,7 +84,7 @@ import { useMarkerVisibility } from '@/features/map/useMarkerVisibility'
 import { useRtuPictureBadges } from '@/features/map/useRtuPictureBadges'
 import { useMarkerDrag } from '@/features/map/useMarkerDrag'
 import { useInfoWindowActions } from '@/features/map/useInfoWindowActions'
-import type { Building, ImageryMode, LayerKey, Polygon, PortfolioMapViewFields, Rtu, SuiteEntrance, Utility } from '@/types/domain'
+import type { Building, ImageryMode, LayerKey, Polygon, Rtu, SuiteEntrance, Utility } from '@/types/domain'
 import { buildingForSuiteEntrance } from '@/lib/suiteEntrances'
 
 export interface UseMapMarkersOptions {
@@ -96,7 +94,6 @@ export interface UseMapMarkersOptions {
   utilities: Utility[]
   suiteEntrances: SuiteEntrance[]
   polygons: Polygon[]
-  portfolioMapViews: Record<string, PortfolioMapViewFields>
   onSelectBuilding: (building: Building) => void
   onBuildingMoved?: (building: Building, lat: number, lng: number) => void
   onDetailMoved?: (
@@ -129,7 +126,6 @@ export function useMapMarkers({
   utilities,
   suiteEntrances,
   polygons,
-  portfolioMapViews,
   onSelectBuilding,
   onBuildingMoved,
   onDetailMoved,
@@ -139,10 +135,6 @@ export function useMapMarkers({
   onImageryModeChange,
 }: UseMapMarkersOptions) {
   const layers = useLayerStore((s) => s.layers)
-  const search = useFilterStore((s) => s.search)
-  const park = useFilterStore((s) => s.park)
-  const cluster = useFilterStore((s) => s.cluster)
-  const manager = useFilterStore((s) => s.manager)
   const currentBuilding = useSelectionStore((s) => s.currentBuilding)
   const dragMode = useSelectionStore((s) => s.dragMode)
   const dragSelectedKeys = useSelectionStore((s) => s.dragSelectedKeys)
@@ -203,6 +195,22 @@ export function useMapMarkers({
     imageryModeRef,
     imageryOverlayRef,
   )
+
+  const focusBuildingWithImagery = useCallback(
+    (building: Building) => {
+      if (!map) return
+      const savedView = focusBuildingCamera(map, building)
+      if (savedView?.imageryMode) {
+        const applied = applyMode(imageryModeIndexFromId(savedView.imageryMode))
+        if (applied) onImageryModeChange?.(applied)
+      }
+    },
+    [map, applyMode, onImageryModeChange],
+  )
+  const focusBuildingWithImageryRef = useRef(focusBuildingWithImagery)
+  useEffect(() => {
+    focusBuildingWithImageryRef.current = focusBuildingWithImagery
+  }, [focusBuildingWithImagery])
 
   const {
     refreshDetailVisibility,
@@ -352,8 +360,9 @@ export function useMapMarkers({
           refreshDragSelectionStyles()
           return
         }
-        callbacksRef.current.onSelectBuilding(b)
-        openBuildingInfo(b, marker)
+        callbacksRef.current.onSelectBuilding(entry.building)
+        focusBuildingWithImageryRef.current(entry.building)
+        openBuildingInfo(entry.building, marker)
       })
 
       addAppMarkerListener(marker, 'dragstart', () => {
@@ -677,6 +686,7 @@ export function useMapMarkers({
         refreshDragSelectionStyles()
       }
       closeAllMapPopups()
+      dismissSearchHitCircles()
     })
     return () => google.maps.event.removeListener(listener)
   }, [map, refreshDragSelectionStyles, stopSoloMove])
@@ -723,22 +733,7 @@ export function useMapMarkers({
       closeAllMapPopups()
       callbacksRef.current.onSelectBuilding(entry.building)
       highlightBuilding(entry.building)
-      const savedView = getBuildingSavedView(entry.building)
-      if (savedView) {
-        applySavedMapView(map, savedView)
-        if (savedView.imageryMode) {
-          const applied = applyMode(imageryModeIndexFromId(savedView.imageryMode))
-          if (applied) onImageryModeChange?.(applied)
-        }
-      } else {
-        const currentZoom = map.getZoom() ?? 0
-        panToPreserveRotation(
-          map,
-          { lat: entry.building.lat, lng: entry.building.lng },
-          resolveBuildingClickZoom(currentZoom, MAP_DETAIL_ZOOM),
-          { onlyZoomIn: true },
-        )
-      }
+      focusBuildingWithImagery(entry.building)
       refreshDetailVisibility()
       setTimeout(() => {
         document
@@ -748,92 +743,21 @@ export function useMapMarkers({
     }
     window.addEventListener('map:openBuilding', handler)
     return () => window.removeEventListener('map:openBuilding', handler)
-  }, [map, highlightBuilding, refreshDetailVisibility, applyMode, onImageryModeChange])
+  }, [map, highlightBuilding, refreshDetailVisibility, focusBuildingWithImagery])
 
   const visibleAddressesRef = useRef('')
 
-  useEffect(() => {
-    if (!map) return
-    if (hasPendingHardRefreshView()) return
-
-    const q = search.trim()
-    const hasDropdownFilter = Boolean(park || cluster || manager)
-    if (
-      q &&
-      !hasDropdownFilter &&
-      collectSearchHits(buildings, polygons, q).length > 0
-    ) {
-      return
-    }
-
-    const addressKey = mapBuildings
-      .map((b) => b.address)
-      .sort()
-      .join('\n')
-    const fitKey = `${park}|${cluster}|${manager}|${addressKey}`
-    if (fitKey === visibleAddressesRef.current) {
-      return
-    }
-    visibleAddressesRef.current = fitKey
-
-    const savedPortfolioView = !currentBuilding
-      ? getPortfolioSavedView(portfolioMapViews ?? {}, { park, cluster, manager })
-      : null
-    if (savedPortfolioView) {
-      applySavedMapView(map, savedPortfolioView)
-      if (savedPortfolioView.imageryMode) {
-        const applied = applyMode(imageryModeIndexFromId(savedPortfolioView.imageryMode))
-        if (applied) onImageryModeChange?.(applied)
-      }
-      return
-    }
-
-    fitAllMarkers()
-  }, [
-    map,
-    mapBuildings,
-    fitAllMarkers,
-    buildings,
-    polygons,
-    search,
-    park,
-    cluster,
-    manager,
-    portfolioMapViews,
-    currentBuilding,
-    applyMode,
-    onImageryModeChange,
-  ])
-
+  // Park / cluster / manager / operator filters only draw red circles — never
+  // auto-fit, zoom, or apply a saved portfolio camera.
   const showAllBuildingsView = useCallback(() => {
     if (!map) return
-    const filter = { park: '', cluster: '', manager: '' }
     const addressKey = mapBuildings
       .map((b) => b.address)
       .sort()
       .join('\n')
     visibleAddressesRef.current = `|||${addressKey}`
-
-    const saved = getPortfolioSavedView(portfolioMapViews ?? {}, filter)
-    if (saved) {
-      applySavedMapView(map, saved)
-      if (saved.imageryMode) {
-        const applied = applyMode(imageryModeIndexFromId(saved.imageryMode))
-        if (applied) onImageryModeChange?.(applied)
-      }
-      refreshDetailVisibility()
-      return
-    }
     showAllMarkers()
-  }, [
-    map,
-    mapBuildings,
-    portfolioMapViews,
-    applyMode,
-    onImageryModeChange,
-    refreshDetailVisibility,
-    showAllMarkers,
-  ])
+  }, [map, mapBuildings, showAllMarkers])
 
   useEffect(() => {
     if (

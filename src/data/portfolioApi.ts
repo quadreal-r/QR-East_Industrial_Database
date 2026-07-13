@@ -5,7 +5,6 @@ import type {
   LatLng,
   Polygon,
   PortfolioData,
-  PortfolioMapViewFields,
   Rtu,
   SuiteEntrance,
   Utility,
@@ -20,7 +19,6 @@ type BuildingRow = Tables<'buildings'>
 type RtuRow = Tables<'rtus'>
 type UtilityRow = Tables<'utilities'>
 type PolygonRow = Tables<'polygons'>
-type PortfolioMapViewRow = Tables<'portfolio_map_views'>
 type TenantRow = Tables<'tenants'>
 
 function rowToRtu(row: RtuRow): Rtu {
@@ -53,6 +51,11 @@ function rowToBuilding(row: BuildingRow, rtus: RtuRow[]): Building {
     sqft: row.sqft ?? '',
     cluster: row.cluster ?? '',
     manager: row.manager ?? '',
+    buildingOperator: row.building_operator,
+    operatorPhone: row.operator_phone,
+    opsManager: row.ops_manager,
+    gmOps: row.gm_ops,
+    vp: row.vp,
     notes: row.notes,
     sold: row.sold,
     mapLat: row.map_lat,
@@ -117,41 +120,24 @@ function rowToSuiteEntrance(row: TenantRow): SuiteEntrance {
     lat: row.lat,
     lng: row.lng,
     inspection_url: row.inspection_url,
+    auto_placed: row.auto_placed,
   }
 }
 
-function rowToPortfolioMapView(row: PortfolioMapViewRow): [string, PortfolioMapViewFields] {
-  return [
-    row.filter_key,
-    {
-      mapLat: row.map_lat,
-      mapLng: row.map_lng,
-      mapZoom: row.map_zoom,
-      mapHeading: row.map_heading,
-      mapTilt: row.map_tilt,
-      mapImageryMode: parseMapImageryMode(row.map_imagery_mode),
-    },
-  ]
-}
-
 export async function fetchPortfolio(): Promise<PortfolioData> {
-  const [buildingsRows, rtusRows, utilitiesRows, polygonsRows, tenantsRows, mapViewsRows] =
-    await Promise.all([
-      fetchAllPages<BuildingRow>(async (from, to) =>
-        supabase.from('buildings').select('*').order('address').range(from, to),
-      ),
-      fetchAllPages<RtuRow>(async (from, to) => supabase.from('rtus').select('*').range(from, to)),
-      fetchAllPages<UtilityRow>(async (from, to) =>
-        supabase.from('utilities').select('*').order('name').range(from, to),
-      ),
-      fetchAllPages<PolygonRow>(async (from, to) =>
-        supabase.from('polygons').select('*').order('name').range(from, to),
-      ),
-      fetchAllPages<TenantRow>(async (from, to) => supabase.from('tenants').select('*').range(from, to)),
-      fetchAllPages<PortfolioMapViewRow>(async (from, to) =>
-        supabase.from('portfolio_map_views').select('*').range(from, to),
-      ),
-    ])
+  const [buildingsRows, rtusRows, utilitiesRows, polygonsRows, tenantsRows] = await Promise.all([
+    fetchAllPages<BuildingRow>(async (from, to) =>
+      supabase.from('buildings').select('*').order('address').range(from, to),
+    ),
+    fetchAllPages<RtuRow>(async (from, to) => supabase.from('rtus').select('*').range(from, to)),
+    fetchAllPages<UtilityRow>(async (from, to) =>
+      supabase.from('utilities').select('*').order('name').range(from, to),
+    ),
+    fetchAllPages<PolygonRow>(async (from, to) =>
+      supabase.from('polygons').select('*').order('name').range(from, to),
+    ),
+    fetchAllPages<TenantRow>(async (from, to) => supabase.from('tenants').select('*').range(from, to)),
+  ])
 
   const rtusByBuilding = new Map<number, RtuRow[]>()
   for (const rtu of rtusRows) {
@@ -162,19 +148,16 @@ export async function fetchPortfolio(): Promise<PortfolioData> {
 
   const buildings = buildingsRows.map((row) => rowToBuilding(row, rtusByBuilding.get(row.id) ?? []))
 
-  const portfolioMapViews = Object.fromEntries(mapViewsRows.map(rowToPortfolioMapView))
-
   return normalizePortfolioData({
     buildings,
     utilities: utilitiesRows.map(rowToUtility),
     polygons: polygonsRows.map(rowToPolygon),
     suiteEntrances: tenantsRows.map(rowToSuiteEntrance),
-    portfolioMapViews,
   })
 }
 
-export async function upsertBuilding(building: Building): Promise<Building> {
-  const payload = {
+function buildingCorePayload(building: Building) {
+  return {
     park: building.park,
     address: building.address,
     bu: building.bu || null,
@@ -183,10 +166,19 @@ export async function upsertBuilding(building: Building): Promise<Building> {
     sqft: building.sqft || null,
     cluster: building.cluster || null,
     manager: building.manager || null,
+    building_operator: building.buildingOperator || null,
+    operator_phone: building.operatorPhone || null,
+    ops_manager: building.opsManager || null,
+    gm_ops: building.gmOps || null,
+    vp: building.vp || null,
     notes: building.notes ?? null,
     sold: building.sold ?? false,
     ...buildingMapViewPayload(building),
   }
+}
+
+export async function upsertBuilding(building: Building): Promise<Building> {
+  const payload = buildingCorePayload(building)
 
   let buildingId = building.id
   if (buildingId) {
@@ -211,19 +203,7 @@ async function updateBuildingOnly(building: Building): Promise<void> {
     throw new Error('Cannot update building without id')
   }
 
-  const payload = {
-    park: building.park,
-    address: building.address,
-    bu: building.bu || null,
-    lat: building.lat,
-    lng: building.lng,
-    sqft: building.sqft || null,
-    cluster: building.cluster || null,
-    manager: building.manager || null,
-    notes: building.notes ?? null,
-    sold: building.sold ?? false,
-    ...buildingMapViewPayload(building),
-  }
+  const payload = buildingCorePayload(building)
 
   const { error } = await supabase.from('buildings').update(payload).eq('id', building.id)
   if (error) throw error
@@ -262,33 +242,6 @@ export async function saveBuildingMapView(
       }
 
   const { error } = await supabase.from('buildings').update(payload).eq('id', buildingId)
-  if (error) throw error
-}
-
-/** Save (or clear when `view` is null) a portfolio filter's map camera. */
-export async function savePortfolioMapView(
-  filterKey: string,
-  view: BuildingMapView | null,
-): Promise<void> {
-  if (view) {
-    const payload = {
-      filter_key: filterKey,
-      map_lat: view.lat,
-      map_lng: view.lng,
-      map_zoom: view.zoom,
-      map_heading: view.heading,
-      map_tilt: view.tilt,
-      map_imagery_mode: view.imageryMode,
-      updated_at: new Date().toISOString(),
-    }
-    const { error } = await supabase.from('portfolio_map_views').upsert(payload, {
-      onConflict: 'filter_key',
-    })
-    if (error) throw error
-    return
-  }
-
-  const { error } = await supabase.from('portfolio_map_views').delete().eq('filter_key', filterKey)
   if (error) throw error
 }
 
@@ -369,7 +322,7 @@ export async function upsertPolygon(polygon: Polygon): Promise<Polygon> {
     paths: polygon.paths as unknown as Json,
   }
 
-  if (polygon.id) {
+  if (polygon.id != null) {
     const { data, error } = await supabase
       .from('polygons')
       .update(payload)
@@ -378,6 +331,7 @@ export async function upsertPolygon(polygon: Polygon): Promise<Polygon> {
       .maybeSingle()
     if (error) throw error
     if (data) return rowToPolygon(data)
+    throw new Error(`Polygon #${polygon.id} was not found — cannot update a missing row.`)
   }
 
   const { data, error } = await supabase.from('polygons').insert(payload).select('*').single()
@@ -401,6 +355,7 @@ export async function upsertSuiteEntrance(
     lat: entrance.lat,
     lng: entrance.lng,
     inspection_url: entrance.inspection_url ?? null,
+    auto_placed: entrance.auto_placed !== false,
   }
 
   if (entrance.id) {
@@ -466,11 +421,7 @@ export async function savePortfolio(portfolio: PortfolioData): Promise<Portfolio
   const nextPolygonIds = new Set(
     normalized.polygons.map((p) => p.id).filter((id): id is number => id != null),
   )
-  for (const row of existingPolygons.data ?? []) {
-    if (!nextPolygonIds.has(row.id)) {
-      await deletePolygon(row.id)
-    }
-  }
+  // Upsert first so suite gates can keep valid polygon_id links.
   for (const polygon of normalized.polygons) {
     await upsertPolygon(polygon)
   }
@@ -488,6 +439,12 @@ export async function savePortfolio(portfolio: PortfolioData): Promise<Portfolio
   for (const entrance of normalized.suiteEntrances) {
     if (entrance.building_id == null) continue
     await upsertSuiteEntrance({ ...entrance, building_id: entrance.building_id })
+  }
+
+  for (const row of existingPolygons.data ?? []) {
+    if (!nextPolygonIds.has(row.id)) {
+      await deletePolygon(row.id)
+    }
   }
 
   return fetchPortfolio()
@@ -529,12 +486,18 @@ export async function savePortfolioChanges(
     await upsertUtility(utility)
   }
 
-  for (const id of changes.polygonIdsToDelete) {
-    await deletePolygon(id)
-  }
+  // Upsert polygons BEFORE deletes so suite gates can keep a valid polygon_id.
+  const deletedPolygonIds = new Set(changes.polygonIdsToDelete)
+  const baselinePolygonById = new Map(
+    baseline.polygons.filter((p) => p.id != null).map((p) => [p.id!, p]),
+  )
+  const savedPolygonIdByKey = new Map<string, number>()
 
   for (const polygon of changes.polygonsToUpsert) {
-    await upsertPolygon(polygon)
+    const saved = await upsertPolygon(polygon)
+    if (saved.id != null) {
+      savedPolygonIdByKey.set(polygonKey(saved.name, saved.description), saved.id)
+    }
   }
 
   for (const id of changes.suiteEntranceIdsToDelete) {
@@ -542,8 +505,51 @@ export async function savePortfolioChanges(
   }
 
   for (const entrance of changes.suiteEntrancesToUpsert) {
-    await upsertSuiteEntrance(entrance)
+    await upsertSuiteEntrance(
+      remapSuiteEntrancePolygonId(entrance, {
+        deletedPolygonIds,
+        baselinePolygonById,
+        savedPolygonIdByKey,
+      }),
+    )
+  }
+
+  for (const id of changes.polygonIdsToDelete) {
+    await deletePolygon(id)
   }
 
   return fetchPortfolio()
+}
+
+function polygonKey(name: string, description: string | null | undefined): string {
+  return `${name}\0${description ?? ''}`
+}
+
+/**
+ * If a gate still points at a polygon row that is about to be deleted, point it
+ * at the replacement polygon (same name) or clear the link.
+ */
+export function remapSuiteEntrancePolygonId<T extends SuiteEntrance>(
+  entrance: T,
+  options: {
+    deletedPolygonIds: Set<number>
+    baselinePolygonById: Map<number, Polygon>
+    savedPolygonIdByKey: Map<string, number>
+  },
+): T {
+  const polygonId = entrance.polygon_id ?? null
+  if (polygonId == null || !options.deletedPolygonIds.has(polygonId)) {
+    return entrance
+  }
+
+  const oldPolygon = options.baselinePolygonById.get(polygonId)
+  const key = oldPolygon
+    ? polygonKey(oldPolygon.name, oldPolygon.description)
+    : polygonKey(entrance.name, entrance.description)
+  const remapped =
+    options.savedPolygonIdByKey.get(key) ??
+    options.savedPolygonIdByKey.get(polygonKey(entrance.name, entrance.description)) ??
+    null
+
+  return { ...entrance, polygon_id: remapped }
 }

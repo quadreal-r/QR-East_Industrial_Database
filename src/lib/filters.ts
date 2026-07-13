@@ -1,4 +1,5 @@
 import { RTU_AGE_WARN } from '@/lib/constants'
+import { collectBuildingOperatorFilterOptions } from '@/lib/buildingOperators'
 import { hasPlaceholderGps, hasVacant, mlCount } from '@/lib/dataQuality'
 import { resolveManagerDisplayName, isManagerSlotKey } from '@/lib/managerNames'
 import {
@@ -57,6 +58,7 @@ export function matchesBuildingMetadata(
   if (building.bu?.toLowerCase().includes(q)) return true
   if (building.cluster?.toLowerCase().includes(q)) return true
   if (building.manager?.toLowerCase().includes(q)) return true
+  if (building.buildingOperator?.toLowerCase().includes(q)) return true
   if (resolveManagerDisplayName(building.manager ?? '', managerRenames).toLowerCase().includes(q)) {
     return true
   }
@@ -84,6 +86,7 @@ export function matchesSearch(
   if (building.bu?.toLowerCase().includes(q)) return true
   if (building.cluster?.toLowerCase().includes(q)) return true
   if (building.manager?.toLowerCase().includes(q)) return true
+  if (building.buildingOperator?.toLowerCase().includes(q)) return true
   if (resolveManagerDisplayName(building.manager ?? '', managerRenames).toLowerCase().includes(q)) {
     return true
   }
@@ -172,6 +175,12 @@ export function reconcileFilterDropdowns(
     if (next.manager && !searchMatches.some((b) => matchesManagerFilter(b, next.manager, managerRenames))) {
       next.manager = ''
     }
+    if (
+      next.buildingOperator &&
+      !searchMatches.some((b) => (b.buildingOperator ?? '') === next.buildingOperator)
+    ) {
+      next.buildingOperator = ''
+    }
   }
 
   if (next.park && !buildingsForFilterOptions(buildings, next, 'park', polygonIndex, managerRenames).some((b) => b.park === next.park)) {
@@ -191,6 +200,8 @@ export function reconcileFilterDropdowns(
   ) {
     next.manager = ''
   }
+  // Building operator stays selected even when park/manager scope has no matches,
+  // so the full operator roster remains usable in the dropdown.
 
   return next
 }
@@ -198,11 +209,11 @@ export function reconcileFilterDropdowns(
 /** When a dropdown has exactly one option left, select it (unless the user just cleared that field). */
 export function autoFillFilterDropdowns(
   buildings: Building[],
-  filters: Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager'>,
+  filters: Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager' | 'buildingOperator'>,
   skipFields: ReadonlySet<string> = new Set(),
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
-): Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager'> {
+): Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager' | 'buildingOperator'> {
   const next = { ...filters }
   let changed = true
 
@@ -222,6 +233,14 @@ export function autoFillFilterDropdowns(
       next.manager = options.managers[0]!
       changed = true
     }
+    if (
+      !next.buildingOperator &&
+      !skipFields.has('buildingOperator') &&
+      options.buildingOperators.length === 1
+    ) {
+      next.buildingOperator = options.buildingOperators[0]!
+      changed = true
+    }
   }
 
   return next
@@ -231,14 +250,15 @@ export function autoFillFilterDropdowns(
 export function applyFilterSelection(
   buildings: Building[],
   filters: FilterState,
-  patch: Partial<Pick<FilterState, 'park' | 'cluster' | 'manager'>>,
+  patch: Partial<Pick<FilterState, 'park' | 'cluster' | 'manager' | 'buildingOperator'>>,
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
-): Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager'> {
+): Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager' | 'buildingOperator'> {
   const expanded = { ...patch }
   if (patch.park === '') {
     expanded.manager = ''
     expanded.cluster = ''
+    expanded.buildingOperator = ''
   }
   if (patch.manager === '') {
     expanded.park = ''
@@ -260,7 +280,7 @@ export function applyFilterSelection(
   )
 }
 
-/** Primary filter pass (search, park, cluster, manager, advanced). */
+/** Primary filter pass (search, park, cluster, manager, building operator, advanced). */
 export function applyPrimaryFilters(
   buildings: Building[],
   filters: FilterState,
@@ -275,6 +295,9 @@ export function applyPrimaryFilters(
     if (reconciled.park && building.park !== reconciled.park) return false
     if (reconciled.cluster && building.cluster !== reconciled.cluster) return false
     if (reconciled.manager && !matchesManagerFilter(building, reconciled.manager, managerRenames)) return false
+    if (reconciled.buildingOperator && (building.buildingOperator ?? '') !== reconciled.buildingOperator) {
+      return false
+    }
     if (!passAdvFilter(building, reconciled.adv, polygonIndex)) return false
     return true
   })
@@ -314,8 +337,8 @@ export function applyCostScopeFilters(
 /** Buildings eligible for a dropdown, excluding that dropdown's own filter. */
 function buildingsForFilterOptions(
   buildings: Building[],
-  filters: Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager'>,
-  exclude: 'park' | 'cluster' | 'manager',
+  filters: Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager' | 'buildingOperator'>,
+  exclude: 'park' | 'cluster' | 'manager' | 'buildingOperator',
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
 ): Building[] {
@@ -329,6 +352,13 @@ function buildingsForFilterOptions(
     if (exclude !== 'manager' && filters.manager && !matchesManagerFilter(building, filters.manager, managerRenames)) {
       return false
     }
+    if (
+      exclude !== 'buildingOperator' &&
+      filters.buildingOperator &&
+      (building.buildingOperator ?? '') !== filters.buildingOperator
+    ) {
+      return false
+    }
     return true
   })
 }
@@ -336,11 +366,12 @@ function buildingsForFilterOptions(
 /** Unique sorted values for filter dropdown population (cascades with active filters). */
 export function collectFilterOptions(
   buildings: Building[],
-  filters: Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager'> = {
+  filters: Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager' | 'buildingOperator'> = {
     search: '',
     park: '',
     cluster: '',
     manager: '',
+    buildingOperator: '',
   },
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
@@ -348,6 +379,7 @@ export function collectFilterOptions(
   parks: string[]
   clusters: string[]
   managers: string[]
+  buildingOperators: string[]
 } {
   const parks = [
     ...new Set(
@@ -368,8 +400,10 @@ export function collectFilterOptions(
         .filter(Boolean),
     ),
   ].sort()
+  // Always offer the full operator roster (not narrowed by park/manager).
+  const buildingOperators = collectBuildingOperatorFilterOptions(buildings)
 
-  return { parks, clusters, managers }
+  return { parks, clusters, managers, buildingOperators }
 }
 
 /** True when search only matches RTU/tenant detail fields (not building metadata). */

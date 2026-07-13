@@ -17,9 +17,12 @@ import {
 import { buildingDragKey } from '@/lib/dragSelection'
 import { suppressMapClickClearOnce } from '@/lib/mapMarqueeSelect'
 import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScroll } from '@/lib/mapPopups'
-import { MAP_DETAIL_ZOOM } from '@/lib/constants'
+import {
+  resolveInsp360TourLabel,
+  resolveInsp360ViewerProjectUrl,
+} from '@/lib/insp360GateHooks'
 import { buildInspection360GateKey } from '@/lib/insp360Viewer'
-import { afterMapViewChange, panToPreserveRotation, resolveBuildingClickZoom } from '@/lib/mapRotation'
+import { afterMapViewChange } from '@/lib/mapRotation'
 import {
   addRtuPicturesFromFiles,
   deleteRtuPicture,
@@ -140,13 +143,6 @@ export function useInfoWindowActions(
       closeAllMapPopups()
       activeDetailInfoRef.current = null
       clearActiveRtuPictures()
-      const currentZoom = map.getZoom() ?? 0
-      panToPreserveRotation(
-        map,
-        { lat: building.lat, lng: building.lng },
-        resolveBuildingClickZoom(currentZoom, MAP_DETAIL_ZOOM),
-        { onlyZoomIn: true },
-      )
       const tenantPolygons = polygonsForBuilding(polygonIndexRef.current, building.address)
       const managerRenames = useSettingsStore.getState().managerRenames
       infoWindowRef.current.setContent(
@@ -163,13 +159,37 @@ export function useInfoWindowActions(
   )
 
   const detailHtmlOptions = useCallback(
-    (entry: DetailMarkerEntry, pendingPictureAssignCount = 0) => ({
-      buildingAddress: entry.building?.address,
-      pendingPictureAssignCount,
-      showMove: isAuthenticated,
-      showEdit: isAuthenticated,
-      showDelete: isAuthenticated,
-    }),
+    (entry: DetailMarkerEntry, pendingPictureAssignCount = 0) => {
+      let tourGateKey: string | null = null
+      let tourInspectionUrl: string | null = null
+      if (entry.type === 'inspection360') {
+        const entrance = entry.data as SuiteEntrance
+        tourGateKey = buildInspection360GateKey(
+          'suite',
+          entrance,
+          entrance.building_id ?? entry.building?.id,
+        )
+        tourInspectionUrl = entrance.inspection_url?.trim() || null
+      } else if (entry.type === 'electrical' || entry.type === 'sprinkler') {
+        const utility = entry.data as Utility
+        tourGateKey = buildInspection360GateKey(
+          entry.type === 'electrical' ? 'electrical' : 'sprinkler',
+          utility,
+          entry.building?.id,
+        )
+        tourInspectionUrl = utility.inspection_url?.trim() || null
+      }
+      const tour = resolveInsp360TourLabel(tourGateKey, tourInspectionUrl)
+      return {
+        buildingAddress: entry.building?.address,
+        pendingPictureAssignCount,
+        showMove: isAuthenticated,
+        showEdit: isAuthenticated,
+        showDelete: isAuthenticated,
+        tourConnected: tour.connected,
+        tourLabel: tour.label,
+      }
+    },
     [isAuthenticated],
   )
 
@@ -449,17 +469,18 @@ export function useInfoWindowActions(
           if (ctx.entry.type === 'inspection360') {
             const entrance = ctx.entry.data as SuiteEntrance
             const buildingAddress = ctx.entry.building?.address ?? ''
+            const gateKey = buildInspection360GateKey(
+              'suite',
+              entrance,
+              entrance.building_id ?? ctx.entry.building?.id,
+            )
             useUiStore.getState().openInspection360Viewer({
               buildingAddress,
               suiteName: entrance.name,
               title: entrance.name,
-              projectUrl: entrance.inspection_url?.trim() || null,
+              projectUrl: resolveInsp360ViewerProjectUrl(entrance.inspection_url),
               scene: null,
-              gateKey: buildInspection360GateKey(
-                'suite',
-                entrance,
-                entrance.building_id ?? ctx.entry.building?.id,
-              ),
+              gateKey,
             })
           } else if (
             (ctx.entry.type === 'electrical' || ctx.entry.type === 'sprinkler') &&
@@ -467,13 +488,14 @@ export function useInfoWindowActions(
           ) {
             const utility = ctx.entry.data as Utility
             const gateKind = ctx.entry.type === 'electrical' ? 'electrical' : 'sprinkler'
+            const gateKey = buildInspection360GateKey(gateKind, utility, ctx.entry.building?.id)
             useUiStore.getState().openInspection360Viewer({
               buildingAddress: ctx.entry.building?.address ?? utility.description ?? '',
               suiteName: utility.name,
               title: utility.name,
-              projectUrl: utility.inspection_url?.trim() || null,
+              projectUrl: resolveInsp360ViewerProjectUrl(utility.inspection_url),
               scene: null,
-              gateKey: buildInspection360GateKey(gateKind, utility, ctx.entry.building?.id),
+              gateKey,
             })
           } else {
             return

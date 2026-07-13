@@ -47,7 +47,7 @@ function polygon(partial: Partial<Polygon> & Pick<Polygon, 'name' | 'paths'>): P
 }
 
 describe('listDormantSheetNames', () => {
-  it('treats RTU Pictures and unknown sheets as dormant', () => {
+  it('treats known archive sheets and unknown sheets as dormant', () => {
     expect(
       listDormantSheetNames([
         'Buildings',
@@ -55,10 +55,17 @@ describe('listDormantSheetNames', () => {
         'RTU Pictures',
         'Tenant Polygons',
         'Utilities',
+        '360 Gateways',
+        'Building Operators',
         'Lease Items',
         'Normalized Building Report',
       ]),
-    ).toEqual(['RTU Pictures', 'Lease Items', 'Normalized Building Report'])
+    ).toEqual([
+      'RTU Pictures',
+      '360 Gateways',
+      'Lease Items',
+      'Normalized Building Report',
+    ])
   })
 })
 
@@ -128,12 +135,9 @@ describe('mergePortfolioExcelImport', () => {
         auto_placed: false,
       } satisfies SuiteEntrance,
     ],
-    portfolioMapViews: {
-      'East||': { mapLat: 43.8, mapLng: -79.4, mapZoom: 12, mapHeading: 0, mapTilt: 0, mapImageryMode: 'google' },
-    },
   }
 
-  it('preserves ids, notes, map views, and 360 gates while updating RTUs', () => {
+  it('preserves ids, notes, building map views, and 360 gates while updating RTUs', () => {
     const imported: PortfolioData = {
       buildings: [
         building({
@@ -191,8 +195,6 @@ describe('mergePortfolioExcelImport', () => {
     expect(merged.suiteEntrances).toHaveLength(1)
     expect(merged.suiteEntrances[0]!.id).toBe(50)
     expect(merged.suiteEntrances[0]!.inspection_url).toBe('https://example.com/tour')
-
-    expect(merged.portfolioMapViews?.['East||']?.mapZoom).toBe(12)
   })
 
   it('drops suite entrances whose polygon disappeared', () => {

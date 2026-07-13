@@ -103,7 +103,7 @@ describe('collectFilterOptions', () => {
     const all = collectFilterOptions(buildings)
     const josh = collectFilterOptions(
       buildings,
-      { search: '', park: '', cluster: '', manager: JOSH_MANAGER_SLOT },
+      { search: '', park: '', cluster: '', manager: JOSH_MANAGER_SLOT, buildingOperator: '' },
       polygonIndex,
       JOSH_MANAGER_RENAMES,
     )
@@ -125,6 +125,7 @@ describe('collectFilterOptions', () => {
       park,
       cluster: '',
       manager: '',
+      buildingOperator: '',
     })
     const parkBuildings = buildings.filter((b) => b.park === park)
 

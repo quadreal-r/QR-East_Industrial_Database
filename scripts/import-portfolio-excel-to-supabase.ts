@@ -120,13 +120,12 @@ async function fetchAllRows(table, columns = '*', orderBy = null) {
 }
 
 async function fetchBaseline() {
-  const [buildings, rtus, utilities, polygons, tenants, mapViews] = await Promise.all([
+  const [buildings, rtus, utilities, polygons, tenants] = await Promise.all([
     fetchAllRows('buildings', '*', 'address'),
     fetchAllRows('rtus'),
     fetchAllRows('utilities', '*', 'name'),
     fetchAllRows('polygons', '*', 'name'),
     fetchAllRows('tenants'),
-    fetchAllRows('portfolio_map_views'),
   ])
 
   const rtusByBuilding = new Map()
@@ -134,21 +133,6 @@ async function fetchBaseline() {
     const list = rtusByBuilding.get(row.building_id) ?? []
     list.push(row)
     rtusByBuilding.set(row.building_id, list)
-  }
-
-  const portfolioMapViews = {}
-  for (const row of mapViews) {
-    portfolioMapViews[row.filter_key] = {
-      mapLat: row.map_lat,
-      mapLng: row.map_lng,
-      mapZoom: row.map_zoom,
-      mapHeading: row.map_heading,
-      mapTilt: row.map_tilt,
-      mapImageryMode:
-        row.map_imagery_mode === 'google' || row.map_imagery_mode === 'esri'
-          ? row.map_imagery_mode
-          : null,
-    }
   }
 
   return normalizePortfolioData({
@@ -215,7 +199,6 @@ async function fetchBaseline() {
       lng: row.lng,
       inspection_url: row.inspection_url,
     })),
-    portfolioMapViews,
   })
 }
 

@@ -45,6 +45,7 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   const park = useFilterStore((s) => s.park)
   const cluster = useFilterStore((s) => s.cluster)
   const manager = useFilterStore((s) => s.manager)
+  const buildingOperator = useFilterStore((s) => s.buildingOperator)
   const adv = useFilterStore((s) => s.adv)
   const setSearchInput = useFilterStore((s) => s.setSearchInput)
   const applySearch = useFilterStore((s) => s.applySearch)
@@ -54,6 +55,7 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   const setPark = useFilterStore((s) => s.setPark)
   const setCluster = useFilterStore((s) => s.setCluster)
   const setManager = useFilterStore((s) => s.setManager)
+  const setBuildingOperator = useFilterStore((s) => s.setBuildingOperator)
   const managerRenames = useSettingsStore((s) => s.managerRenames)
 
   const layers = useLayerStore((s) => s.layers)
@@ -73,8 +75,8 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   const toggleSidebar = useSelectionStore((s) => s.toggleSidebar)
 
   const filterContext = useMemo(
-    () => ({ search, park, cluster, manager }),
-    [search, park, cluster, manager],
+    () => ({ search, park, cluster, manager, buildingOperator }),
+    [search, park, cluster, manager, buildingOperator],
   )
 
   const polygonIndex = useMemo(
@@ -88,17 +90,18 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   )
 
   const baseFilters = useMemo(
-    () => ({ search, park, cluster, manager, adv, dq: DEFAULT_DQ_FILTERS }),
-    [search, park, cluster, manager, adv],
+    () => ({ search, park, cluster, manager, buildingOperator, adv, dq: DEFAULT_DQ_FILTERS }),
+    [search, park, cluster, manager, buildingOperator, adv],
   )
 
   const handleFilterChange = (
-    patch: Partial<Pick<typeof baseFilters, 'park' | 'cluster' | 'manager'>>,
+    patch: Partial<Pick<typeof baseFilters, 'park' | 'cluster' | 'manager' | 'buildingOperator'>>,
   ) => {
     const next = applyFilterSelection(allBuildings, baseFilters, patch, polygonIndex, managerRenames)
     if (next.park !== park) setPark(next.park)
     if (next.cluster !== cluster) setCluster(next.cluster)
     if (next.manager !== manager) setManager(next.manager)
+    if (next.buildingOperator !== buildingOperator) setBuildingOperator(next.buildingOperator)
   }
 
   useLayoutEffect(() => {
@@ -106,7 +109,23 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
     if (reconciled.park !== park) setPark(reconciled.park)
     if (reconciled.cluster !== cluster) setCluster(reconciled.cluster)
     if (reconciled.manager !== manager) setManager(reconciled.manager)
-  }, [baseFilters, allBuildings, polygonIndex, managerRenames, park, cluster, manager, setPark, setCluster, setManager])
+    if (reconciled.buildingOperator !== buildingOperator) {
+      setBuildingOperator(reconciled.buildingOperator)
+    }
+  }, [
+    baseFilters,
+    allBuildings,
+    polygonIndex,
+    managerRenames,
+    park,
+    cluster,
+    manager,
+    buildingOperator,
+    setPark,
+    setCluster,
+    setManager,
+    setBuildingOperator,
+  ])
 
   return (
     <>
@@ -187,6 +206,16 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
             value={manager}
             onChange={(e) => handleFilterChange({ manager: e.target.value })}
             placeholder="All property managers"
+          />
+          <Select
+            id="building-operator-filter"
+            options={options.buildingOperators.map((operator) => ({
+              value: operator,
+              label: operator,
+            }))}
+            value={buildingOperator}
+            onChange={(e) => handleFilterChange({ buildingOperator: e.target.value })}
+            placeholder="All building operators"
           />
         </div>
 

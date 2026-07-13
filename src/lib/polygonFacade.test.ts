@@ -49,7 +49,7 @@ function suitePolygonRect(
 }
 
 describe('facadeEntrancePosition', () => {
-  it('lines stacked suites on one facade row, centered between suite walls', () => {
+  it('puts end-cap suites on their short exterior wall and middle suites on the outward facade', () => {
     const suite14 = suitePolygon(14, 'Suite # 14', 43.601, 43.6018)
     const suite15 = suitePolygon(15, 'Suite # 15', 43.6018, 43.6026)
     const suite16 = suitePolygon(16, 'Suite # 16', 43.6026, 43.6034)
@@ -59,64 +59,70 @@ describe('facadeEntrancePosition', () => {
     const pos15 = facadeEntrancePosition(suite15, building, buildingPolygons)
     const pos16 = facadeEntrancePosition(suite16, building, buildingPolygons)
 
-    expect(pos14.lng).toBeCloseTo(-79.602, 5)
-    expect(pos15.lng).toBeCloseTo(-79.602, 5)
-    expect(pos16.lng).toBeCloseTo(-79.602, 5)
+    // South end-cap: shortest exterior edge is the south wall.
+    expect(pos14.lat).toBeCloseTo(43.601, 5)
+    expect(pos14.lng).toBeCloseTo((-79.603 + -79.602) / 2, 5)
 
-    expect(pos14.lat).toBeCloseTo((43.601 + 43.6018) / 2, 5)
+    // Middle suite: only long E/W walls are exterior — prefer outward (east).
+    expect(pos15.lng).toBeCloseTo(-79.602, 5)
     expect(pos15.lat).toBeCloseTo((43.6018 + 43.6026) / 2, 5)
-    expect(pos16.lat).toBeCloseTo((43.6026 + 43.6034) / 2, 5)
+
+    // North end-cap: shortest exterior edge is the north wall.
+    expect(pos16.lat).toBeCloseTo(43.6034, 5)
+    expect(pos16.lng).toBeCloseTo((-79.603 + -79.602) / 2, 5)
   })
 
-  it('faces outward, away from a separated neighbour wing', () => {
-    // The two wings sit side by side with a small gap between them.
-    // On real industrial buildings the parking is on the outside, so the
-    // gate should be on the OUTER wall of each wing, not the shared alley.
-    const leftWing = suitePolygon(1, 'Suite # 1', 43.601, 43.602)
-    const rightWing = suitePolygon(2, 'Suite # 2', 43.601, 43.602)
-    rightWing.paths = rightWing.paths.map((point) => ({ lat: point.lat, lng: point.lng + 0.002 }))
+  it('faces outward on the short exterior walls away from a separated neighbour wing', () => {
+    // Wider than tall so the short walls are the east/west faces (parking side).
+    const leftWing = suitePolygonRect(1, 'Suite # 1', {
+      south: 43.601,
+      north: 43.6015,
+      west: -79.604,
+      east: -79.602,
+    })
+    const rightWing = suitePolygonRect(2, 'Suite # 2', {
+      south: 43.601,
+      north: 43.6015,
+      west: -79.6,
+      east: -79.598,
+    })
 
     const leftPos = facadeEntrancePosition(leftWing, building, [leftWing, rightWing])
     const rightPos = facadeEntrancePosition(rightWing, building, [leftWing, rightWing])
 
-    expect(leftPos.lng).toBeCloseTo(-79.603, 5)
-    expect(rightPos.lng).toBeCloseTo(-79.6, 5)
-    expect(leftPos.lat).toBeCloseTo((43.601 + 43.602) / 2, 5)
-    expect(rightPos.lat).toBeCloseTo((43.601 + 43.602) / 2, 5)
+    expect(leftPos.lng).toBeCloseTo(-79.604, 5)
+    expect(rightPos.lng).toBeCloseTo(-79.598, 5)
+    expect(leftPos.lat).toBeCloseTo((43.601 + 43.6015) / 2, 5)
+    expect(rightPos.lat).toBeCloseTo((43.601 + 43.6015) / 2, 5)
   })
 
-  it('does not snap to polygon vertices on jagged outlines', () => {
-    const jagged: Polygon = {
+  it('prefers a short doorway notch over long facade walls', () => {
+    // East wall has a door opening that is shorter than the recess return walls.
+    const withDoor: Polygon = {
       id: 3,
       name: 'Suite # 3',
       description: 'Tenant',
       color: '#60a5fa',
       paths: [
         { lat: 43.601, lng: -79.603 },
-        { lat: 43.6014, lng: -79.6028 },
-        { lat: 43.6018, lng: -79.603 },
-        { lat: 43.6018, lng: -79.602 },
-        { lat: 43.601, lng: -79.602 },
+        { lat: 43.602, lng: -79.603 },
+        { lat: 43.602, lng: -79.6022 },
+        { lat: 43.60155, lng: -79.6022 },
+        { lat: 43.60155, lng: -79.602 },
+        { lat: 43.60145, lng: -79.602 },
+        { lat: 43.60145, lng: -79.6022 },
+        { lat: 43.601, lng: -79.6022 },
       ],
     }
 
-    const pos = facadeEntrancePosition(jagged, building, [jagged])
-    const onVertex = jagged.paths.some(
-      (vertex) =>
-        Math.abs(vertex.lat - pos.lat) < 1e-8 && Math.abs(vertex.lng - pos.lng) < 1e-8,
-    )
+    const pos = facadeEntrancePosition(withDoor, building, [withDoor])
 
-    expect(onVertex).toBe(false)
-    expect(pos.lat).toBeGreaterThanOrEqual(43.601)
-    expect(pos.lat).toBeLessThanOrEqual(43.6018)
-    expect(pos.lng).toBeGreaterThanOrEqual(-79.603)
-    expect(pos.lng).toBeLessThanOrEqual(-79.602)
+    // Door opening ~11 m on the east face; recess returns are ~16 m.
+    expect(pos.lng).toBeCloseTo(-79.602, 5)
+    expect(pos.lat).toBeCloseTo((43.60145 + 43.60155) / 2, 5)
   })
 
-  it('places U-shaped building gates on each wing\'s outer wall', () => {
-    // Reproduces the 4181 Sladeview layout: three wings around a central
-    // courtyard. Every gate should sit on the wall that faces the parking
-    // lot (outward), not the interior courtyard.
+  it('places U-shaped building gates on each wing\'s outer short or facade wall', () => {
     const northWing = [
       suitePolygonRect(101, 'Suite # 33', { south: 43.605, north: 43.606, west: -79.610, east: -79.609 }),
       suitePolygonRect(102, 'Suite # 34', { south: 43.605, north: 43.606, west: -79.609, east: -79.608 }),
@@ -136,18 +142,17 @@ describe('facadeEntrancePosition', () => {
     const buildingPolygons = [...northWing, ...westWing, ...eastWing]
     const uShaped: Building = { ...building, lat: 43.603, lng: -79.6085 }
 
-    for (const suite of northWing) {
-      const pos = facadeEntrancePosition(suite, uShaped, buildingPolygons)
-      expect(pos.lat).toBeCloseTo(43.606, 5)
-    }
-    for (const suite of westWing) {
-      const pos = facadeEntrancePosition(suite, uShaped, buildingPolygons)
-      expect(pos.lng).toBeCloseTo(-79.610, 5)
-    }
-    for (const suite of eastWing) {
-      const pos = facadeEntrancePosition(suite, uShaped, buildingPolygons)
-      expect(pos.lng).toBeCloseTo(-79.606, 5)
-    }
+    // Middle north-wing suite: only N/S exterior among shorts after shared E/W — north is outward.
+    const midNorth = facadeEntrancePosition(northWing[1]!, uShaped, buildingPolygons)
+    expect(midNorth.lat).toBeCloseTo(43.606, 5)
+
+    // West-wing middle: only E/W exterior — west outward.
+    const midWest = facadeEntrancePosition(westWing[1]!, uShaped, buildingPolygons)
+    expect(midWest.lng).toBeCloseTo(-79.610, 5)
+
+    // East-wing middle: east outward.
+    const midEast = facadeEntrancePosition(eastWing[1]!, uShaped, buildingPolygons)
+    expect(midEast.lng).toBeCloseTo(-79.606, 5)
   })
 
   it('stays on the suite polygon boundary even when it does not reach a taller neighbor\'s edge', () => {

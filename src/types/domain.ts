@@ -58,6 +58,13 @@ export interface Building {
   sqft: string
   cluster: string
   manager: string
+  /** On-site building operator (from Building Operators roster). */
+  buildingOperator?: string | null
+  operatorPhone?: string | null
+  /** Regional ops manager, e.g. "Eldin Shima (West)". */
+  opsManager?: string | null
+  gmOps?: string | null
+  vp?: string | null
   notes?: string | null
   sold?: boolean
   /** Saved map camera for this building (center/zoom/rotation); null = no saved view. */
@@ -104,9 +111,8 @@ export interface SuiteEntrance {
   /** QR-360°-Inspections tour URL — connected in a future session. */
   inspection_url?: string | null
   /**
-   * True only while this gate still sits at its auto-computed facade
-   * position and has never been manually dragged or placed. Cleared to
-   * false the moment a user moves it, so later portfolio updates never
+   * True while this gate still uses the auto-computed shortest exterior edge.
+   * Cleared to false when a user moves it, so later portfolio updates never
    * snap a manual placement back to the default spot.
    */
   auto_placed?: boolean
@@ -142,17 +148,9 @@ export interface FilterState {
   park: string
   cluster: string
   manager: string
+  buildingOperator: string
   adv: AdvFilterState
   dq: DqFilterState
-}
-
-export interface PortfolioMapViewFields {
-  mapLat: number | null
-  mapLng: number | null
-  mapZoom: number | null
-  mapHeading: number | null
-  mapTilt: number | null
-  mapImageryMode: ImageryModeId | null
 }
 
 export interface PortfolioData {
@@ -160,8 +158,6 @@ export interface PortfolioData {
   utilities: Utility[]
   polygons: Polygon[]
   suiteEntrances: SuiteEntrance[]
-  /** Saved map cameras keyed by `${park}|${cluster}|${manager}`. */
-  portfolioMapViews?: Record<string, PortfolioMapViewFields>
 }
 
 export interface ImageryMode {
@@ -217,7 +213,6 @@ export function normalizeBuilding(building: Building): Building {
 export function normalizePortfolioData(portfolio: PortfolioData): PortfolioData {
   return mergePortfolioSuiteEntrances({
     ...portfolio,
-    portfolioMapViews: portfolio.portfolioMapViews ?? {},
     suiteEntrances: portfolio.suiteEntrances ?? [],
     buildings: portfolio.buildings.map(normalizeBuilding),
   })
@@ -284,6 +279,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   park: '',
   cluster: '',
   manager: '',
+  buildingOperator: '',
   adv: DEFAULT_ADV_FILTERS,
   dq: DEFAULT_DQ_FILTERS,
 }

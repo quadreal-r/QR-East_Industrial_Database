@@ -159,6 +159,26 @@ describe('diffPortfolio', () => {
     expect(changes.buildingsToInsert).toHaveLength(0)
   })
 
+  it('detects building operator roster edits', () => {
+    const pending: PortfolioData = {
+      ...baseline,
+      buildings: [
+        {
+          ...baseline.buildings[0]!,
+          buildingOperator: 'Aaron Meecham',
+          operatorPhone: '(437)-346-0642',
+          opsManager: 'Eldin Shima (West)',
+          gmOps: 'Joseph Pimentel',
+          vp: 'Carl Lam',
+        },
+      ],
+    }
+
+    const changes = computePortfolioChanges(baseline, pending)
+    expect(changes.buildingsToUpdate).toHaveLength(1)
+    expect(changes.buildingsToUpdate[0]?.buildingOperator).toBe('Aaron Meecham')
+  })
+
   it('treats new polygons without database ids as inserts', () => {
     const pending: PortfolioData = {
       ...baseline,

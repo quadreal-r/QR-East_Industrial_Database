@@ -335,26 +335,19 @@ function SettingsForm({
                 >
                   Edit Polygons
                 </SettingsToolButton>
-                <ImportExportButtons
-                  portfolio={portfolio}
-                  buildings={portfolio.buildings}
-                  onImport={handleImport}
-                  mode="import"
-                  isAuthenticated={isAuthenticated}
-                />
                 <RtuPictureGpsAssign onBusyChange={setUploadBusy} />
               </div>
             </section>
 
             <section>
-              <SettingsSectionLabel>Export</SettingsSectionLabel>
+              <SettingsSectionLabel>Export/Import</SettingsSectionLabel>
               <div className={styles.tools}>
                 <ImportExportButtons
                   portfolio={portfolio}
                   buildings={portfolio.buildings}
                   onImport={handleImport}
                   onExportComplete={handleClose}
-                  mode="export"
+                  mode="both"
                   isAuthenticated={isAuthenticated}
                 />
               </div>

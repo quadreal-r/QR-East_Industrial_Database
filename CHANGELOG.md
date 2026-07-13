@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.11.0] - 2026-07-13
+
+### Added
+
+- Building operator fields (operator, phone, ops manager, GM, VP) with filters and Excel/import support
+- Linked 360° gate tours that remember the on-disk `.insp360` and reopen from Reconnect when needed
+- QR-360° viewer sync script (`npm run sync:qr360-viewer`) so the live embed stays on `insp360/viewer.html`
+- Search-hit map circles and clearer highlight targets when stepping through sidebar results
+- Portfolio Excel extra-sheet merge helpers and last-import file memory
+
+### Changed
+
+- Store map camera per building only (remove portfolio-level map views)
+- Prefer opening large linked tours from the picked file/handle instead of hanging on a full browser cache copy
+
+### Fixed
+
+- Open linked Electrical/Sprinkler gate tours into photos after Enter / Reconnect (including ~100MB+ projects)
+- Bridge viewer module APIs so reconnect can call `openProject` from the embed integration script
+
 ## [1.10.0] - 2026-07-11
 
 ### Added

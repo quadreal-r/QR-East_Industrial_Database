@@ -91,6 +91,11 @@ function buildingTextFields(building: Building): Record<string, unknown> {
     sqft: building.sqft,
     cluster: building.cluster,
     manager: building.manager,
+    buildingOperator: building.buildingOperator ?? null,
+    operatorPhone: building.operatorPhone ?? null,
+    opsManager: building.opsManager ?? null,
+    gmOps: building.gmOps ?? null,
+    vp: building.vp ?? null,
     notes: building.notes ?? null,
     sold: building.sold ?? false,
   }

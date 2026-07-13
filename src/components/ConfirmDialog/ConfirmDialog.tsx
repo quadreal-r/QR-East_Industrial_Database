@@ -31,7 +31,7 @@ export function ConfirmDialog() {
           }}
           autoFocus
         >
-          Cancel
+          {request.cancelLabel}
         </button>
         <button
           type="button"
@@ -41,7 +41,7 @@ export function ConfirmDialog() {
             resolve(true)
           }}
         >
-          OK
+          {request.confirmLabel}
         </button>
       </div>
     </Modal>

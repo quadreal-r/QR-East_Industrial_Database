@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { collectSearchHits, openSearchHit, type SearchHit } from '@/lib/searchHits'
 import { useFilterStore } from '@/stores/filterStore'
 import type { Building, Polygon } from '@/types/domain'
@@ -16,13 +16,7 @@ function SearchHitNavInner({ hits }: { hits: SearchHit[] }) {
     openSearchHit(target)
   }, [])
 
-  useEffect(() => {
-    if (hits.length >= 1) {
-      openSearchHit(hits[0]!)
-    }
-    // Parent remounts via key={search} when the query changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only per search query
-  }, [])
+  // Do not auto-zoom to the first hit — search circles + frame handle map focus.
 
   if (hits.length <= 1) return null
 

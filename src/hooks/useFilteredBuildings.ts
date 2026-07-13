@@ -10,6 +10,7 @@ export function useFilteredBuildings(buildings: Building[], polygons: Polygon[] 
   const park = useFilterStore((state) => state.park)
   const cluster = useFilterStore((state) => state.cluster)
   const manager = useFilterStore((state) => state.manager)
+  const buildingOperator = useFilterStore((state) => state.buildingOperator)
   const adv = useFilterStore((state) => state.adv)
   const managerRenames = useSettingsStore((state) => state.managerRenames)
 
@@ -24,10 +25,11 @@ export function useFilteredBuildings(buildings: Building[], polygons: Polygon[] 
       park,
       cluster,
       manager,
+      buildingOperator,
       adv,
       dq: { gps: false, rtu: false, vacant: false, ml: false },
     }),
-    [search, park, cluster, manager, adv],
+    [search, park, cluster, manager, buildingOperator, adv],
   )
 
   // Reconcile once and reuse for both filtered and cost-scope passes

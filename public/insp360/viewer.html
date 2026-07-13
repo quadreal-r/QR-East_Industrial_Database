@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>QR-360° Viewer</title>
+<title>INSP 360 Viewer</title>
 <style>
   :root{
     --bg:#0b0e12; --surface:rgba(21,26,33,.82); --surface-solid:#151a21;
@@ -20,7 +20,7 @@
 
   .topbar{
     position:fixed; top:0; left:0; right:0; height:52px; z-index:20;
-    display:flex; align-items:center; gap:10px; padding:0 16px;
+    display:flex; align-items:center; gap:5px; padding:0 14px;
     background:linear-gradient(180deg, rgba(11,14,18,.92), rgba(11,14,18,0)); pointer-events:none;
   }
   .topbar > *{pointer-events:auto}
@@ -29,6 +29,11 @@
   .brand .dot{width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent)}
   .brand b{font-weight:600; font-size:13px}
   .brand span{color:var(--muted-dim); font-size:11px}
+  #appVer{
+    flex:0 0 auto; pointer-events:none; user-select:none;
+    font-family:var(--font); font-size:11px; color:var(--muted-dim); letter-spacing:.04em;
+    padding:5px 8px; border:1px solid var(--border); border-radius:7px; background:rgba(21,26,33,.72);
+  }
   .projname{display:flex; align-items:center; gap:7px; max-width:300px; overflow:hidden; white-space:nowrap; font-family:var(--font); font-size:12px; color:var(--text); padding:5px 11px; border:1px solid var(--border); border-radius:8px; background:var(--surface-solid)}
   .projname::before{content:''; flex:0 0 auto; width:7px; height:7px; border-radius:2px; background:var(--accent); box-shadow:0 0 7px var(--accent)}
   .projname b{overflow:hidden; text-overflow:ellipsis; font-weight:500}
@@ -98,6 +103,15 @@
   .dash-del:hover{color:var(--danger); border-color:var(--danger)}
   .dash-edit:hover,.dash-rename:hover{color:var(--accent); border-color:var(--accent-dim)}
   #empty.has-dash{padding-left:300px}
+  #resumeLast{
+    display:none; width:100%; box-sizing:border-box; margin:0 0 14px; padding:11px 14px;
+    font-family:var(--font); font-size:12px; color:var(--text); text-align:left; cursor:pointer;
+    background:rgba(45,212,191,.08); border:1px solid var(--accent-dim); border-radius:10px;
+  }
+  #resumeLast.show{display:block}
+  #resumeLast:hover{border-color:var(--accent); background:rgba(45,212,191,.14)}
+  #resumeLast b{color:var(--accent); font-weight:600}
+  #resumeLast .resume-sub{display:block; margin-top:4px; font-size:10.5px; color:var(--muted)}
 
   /* Left library panel */
   #library{position:fixed; top:52px; bottom:0; left:0; z-index:18; width:214px; display:none; flex-direction:column; background:rgba(17,21,27,.92); backdrop-filter:blur(10px); border-right:1px solid var(--border); transition:transform .22s ease}
@@ -205,6 +219,11 @@
   #addbar button.on{border-color:var(--accent); color:var(--accent); background:rgba(45,212,191,.08)}
   #addbar .sep{width:1px; background:var(--border); margin:3px 1px}
   #addbar svg{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+  /* Project mode: tour lives inside .insp360 — hide standalone JSON Save as / Load / Folder */
+  body.proj-open #tourSaveAs,
+  body.proj-open #tourImport,
+  body.proj-open #projectFolder,
+  body.proj-open #addbar .tour-json-sep{display:none}
 
   /* Object inspector */
   #inspector{position:fixed; left:50%; transform:translateX(-50%); bottom:82px; z-index:23; display:none; width:min(460px,92vw); background:var(--surface-solid); border:1px solid var(--border); border-radius:10px; padding:13px; box-shadow:0 12px 40px rgba(0,0,0,.55); font-family:var(--font)}
@@ -473,18 +492,29 @@
   .pe-actions button{flex:1; font-family:var(--font); font-size:11px; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer}
   .pe-actions .del{color:var(--danger); border-color:rgba(229,104,138,.4)}
   .pe-actions .done{color:var(--accent); border-color:var(--accent-dim)}
-  /* Embed mode when opened from building-map-explorer sphere gateways.
-     Show only Open project for this gate — no Recent projects list.
-     A local .insp360 opened here is remembered for this gate next time. */
-  body.embed #empty #createProj,
+
+  /* __BME_INSP360_INTEGRATION__ embed */
   body.embed #empty #loadDbBtn,
   body.embed #empty #loadDbRing{display:none !important}
   body.embed #empty .hint{display:none !important}
   body.embed #dash{display:none !important}
+  body.embed #btnHome{display:none !important}
   body.embed #empty.has-dash{padding-left:24px}
   body.embed #projEmpty{display:none !important}
+  body.embed #resumeLast{display:none !important}
   #openLinkedProj{display:none !important}
   body.embed #empty.show-linked #openLinkedProj{display:inline-flex !important}
+  body.embed #empty #createProj{display:inline-flex !important}
+  #gateContinue{
+    display:none; width:min(420px,92vw); margin:0 auto 14px; padding:16px 18px; text-align:left; cursor:pointer;
+    font-family:var(--font); color:var(--text); background:rgba(45,212,191,.12);
+    border:1px solid var(--accent); border-radius:12px;
+  }
+  body.embed #empty.has-gate-proj #gateContinue{display:block}
+  body.embed #empty.has-gate-proj #createProj,
+  body.embed #empty.has-gate-proj #openProject2{opacity:.75}
+  #gateContinue b{display:block; color:var(--accent); font-size:14px; font-weight:600; margin-bottom:6px}
+  #gateContinue span{display:block; font-size:11px; color:var(--muted); line-height:1.45}
 </style>
 </head>
 <body>
@@ -499,7 +529,7 @@
 <div id="hotspots"></div>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span><b>QR-360&deg;</b><span>tour viewer</span></div>
+  <div class="brand"><span class="dot"></span><b>INSP&nbsp;360</b><span>equirectangular viewer</span></div>
   <button class="btn" id="btnHome" style="display:none" title="Close photo & return to menu (Esc)"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Menu</button>
   <div id="projName" class="projname" style="display:none"></div>
   <button class="btn icon" id="btnProjInfo" style="display:none" title="Project details — info, stats, save / share / download"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg></button>
@@ -514,6 +544,7 @@
   <button class="btn topbtn" id="btnSaveView" title="Save the current angle &amp; zoom as this photo's view"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save view</button>
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+  <span id="appVer" title="INSP 360 Viewer">v1.1.16</span>
 </div>
 
 <div id="privacySettings">
@@ -528,14 +559,15 @@
     <p>Open one or more <b>equirectangular</b> panoramas (2:1 <b>.jpg</b> / <b>.png</b>) — the stitched output exported from Insta360 Studio or your camera. Drag to look, scroll to zoom.</p>
   </div>
   <div id="dbStatus" style="display:none"></div>
+  <button type="button" id="gateContinue"></button>
   <div class="actions">
     <button class="btn" id="createProj" style="border-color:var(--accent); color:var(--accent)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create New Project</button>
     <button class="btn" id="loadDbBtn" title="Load the address database (Excel .xlsx / .csv or QuadReal DB JSON)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>Load database</button>
-    <button class="btn" id="openLinkedProj" type="button" title="Reopen the project linked to this 360° gate"><svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open linked project</button>
+    <button class="btn" id="openLinkedProj" type="button"><svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open linked project</button>
     <button class="btn" id="openProject2"><svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open project</button>
   </div>
   <div class="hint">drop equirectangular photos anywhere &nbsp;·&nbsp; <span class="kbd">drag</span> look &nbsp; <span class="kbd">scroll</span> zoom</div>
-  <div id="dash"><div class="dash-title">Recent projects</div><input id="dashSearch" class="dash-search" type="search" placeholder="Search projects…" autocomplete="off"><div id="dashGrid"></div><div id="dashEmpty" class="dash-empty" style="display:none">No matches</div></div>
+  <div id="dash"><div class="dash-title">Recent projects</div><button type="button" id="resumeLast"></button><input id="dashSearch" class="dash-search" type="search" placeholder="Search projects…" autocomplete="off"><div id="dashGrid"></div><div id="dashEmpty" class="dash-empty" style="display:none">No matches</div></div>
 </div>
 
 <div id="hud">
@@ -566,7 +598,7 @@
   <button id="addMarker"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.3"/></svg>Marker link</button>
   <button id="addLabel"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 4z"/></svg>Label</button>
   <div class="sep"></div>
-  <button id="lockView" title="Keep heading, pitch & zoom when following a link"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Lock view</button>
+  <button id="lockView" title="Library browse keeps your last look-at; arrow/marker links always open the saved view"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Lock view</button>
   <button id="setView" title="Save the current angle & zoom as this photo's opening view"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/></svg>Set view</button>
   <button id="setNorth" title="Aim at true north, then click — applies to ALL photos"><svg viewBox="0 0 24 24"><path d="M12 2v20M12 2l4 6M12 2L8 8"/><path d="M5 13l14-3"/></svg>Set north (all)</button>
   <button id="autoNorth" title="Estimate north for every photo from GPS travel direction"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l3 8-3-2-3 2z"/></svg>Auto&nbsp;N</button>
@@ -574,7 +606,7 @@
   <button id="tourExport" title="Save / overwrite the current tour file"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Save</button>
   <button id="tourSaveAs" title="Save to a new tour file"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save as</button>
   <button id="tourImport" title="Open a tour file"><svg viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></svg>Load</button>
-  <div class="sep"></div>
+  <div class="sep tour-json-sep"></div>
   <button id="projectFolder" title="Choose the folder tours are saved to and loaded from"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="2.1"/></svg><span id="folderLbl">Folder</span></button>
 </div>
 
@@ -662,7 +694,8 @@
         <button type="button" class="be-btn" id="beZoomIn" title="Zoom in">+</button>
       </div>
       <span class="be-sep"></span>
-      <button type="button" class="be-btn" id="beClear">Clear</button>
+      <button type="button" class="be-btn" id="beClear" title="Remove all blur boxes">Clear all</button>
+      <button type="button" class="be-btn" id="beDelete" title="Delete selected blur box(es) — or press Delete" disabled>Delete</button>
       <button type="button" class="be-btn" id="beRevert" style="display:none">Revert</button>
       <button type="button" class="be-btn ghost" id="beCancel">Cancel</button>
       <button type="button" class="be-btn primary" id="beApply">Apply blur</button>
@@ -670,7 +703,7 @@
   </div>
   <div class="be-stage" id="beStage">
     <canvas id="beCanvas"></canvas>
-    <div class="be-hint" id="beHint">Manual: scroll to zoom · Alt-drag to pan · drag to draw a blur box · Delete removes selected</div>
+    <div class="be-hint" id="beHint">Click a blur to select · Shift-click for multi-select · Delete removes selected · Clear all removes every box</div>
     <div class="be-busy" id="beBusy" style="display:none"><div class="be-spin"></div><span id="beBusyText">Loading&hellip;</span></div>
   </div>
 </div>
@@ -896,12 +929,44 @@ const DRAG={on:false,x:0,y:0,moved:false};
 let items=[], currentIndex=-1, currentTexture=null;
 let _autoBlurHook=null;   // set by the privacy-blur module; queues auto face/plate blur on photo upload
 let autoBlurFaces=true, autoBlurPlates=true;   // privacy auto-blur toggles (persisted)
+let showPrivacyBlur=true;  // when false, viewer shows originals (_blurOrig) without undoing blur
 try{ const _ab=JSON.parse(localStorage.getItem('insp360.autoBlur')||'null'); if(_ab){ if(typeof _ab.faces==='boolean') autoBlurFaces=_ab.faces; if(typeof _ab.plates==='boolean') autoBlurPlates=_ab.plates; } }catch(e){}
+try{ const _sp=localStorage.getItem('insp360.showPrivacyBlur'); if(_sp==='0'||_sp==='false') showPrivacyBlur=false; }catch(e){}
 function saveAutoBlurPrefs(){ try{ localStorage.setItem('insp360.autoBlur', JSON.stringify({faces:autoBlurFaces, plates:autoBlurPlates})); }catch(e){} }
+function saveShowPrivacyBlurPref(){ try{ localStorage.setItem('insp360.showPrivacyBlur', showPrivacyBlur?'1':'0'); }catch(e){} }
 function setAutoBlurPref(kind, val){
   if(kind==='faces') autoBlurFaces=!!val; else autoBlurPlates=!!val;
   saveAutoBlurPrefs();
   if(typeof buildPrivacySettings==='function') buildPrivacySettings();
+}
+/** File to display in the viewer — original when privacy blur is hidden. */
+function itemDisplayFile(it){
+  if(!it) return null;
+  if(!showPrivacyBlur && it._blurOrig) return it._blurOrig;
+  return it.file;
+}
+function invalidateBlurredItemCaches(){
+  for(const it of items){
+    if(!it || !it._blurOrig) continue;
+    const r=texCache.get(it);
+    if(r){ if(r.tex) r.tex.dispose(); cacheBytes-=(r.bytes||0); texCache.delete(it); }
+    const i=cacheOrder.indexOf(it); if(i>=0) cacheOrder.splice(i,1);
+  }
+}
+async function setShowPrivacyBlur(on){
+  showPrivacyBlur=!!on;
+  saveShowPrivacyBlurPref();
+  invalidateBlurredItemCaches();
+  const cur=items[currentIndex];
+  if(cur){
+    try{
+      const res=await loadFull(itemDisplayFile(cur));
+      cachePut(cur,res);
+      currentTexture=res.tex; uniforms.uTex.value=res.tex;
+    }catch(e){ console.error(e); }
+  }
+  if(typeof buildPrivacySettings==='function') buildPrivacySettings();
+  try{ toast(showPrivacyBlur ? 'Privacy blur shown.' : 'Privacy blur hidden — showing originals.'); }catch(_){}
 }
 
 function buildPrivacySettings(){
@@ -919,6 +984,10 @@ function buildPrivacySettings(){
     cb.addEventListener('change', ()=>onToggle(cb));
     row.appendChild(l); row.appendChild(sw); body.appendChild(row);
   };
+  hdr('View');
+  toggle('Show privacy blur','Show or hide face and licence-plate blurs in the viewer. Does not undo blur — originals stay saved underneath.', showPrivacyBlur, cb=>{
+    void setShowPrivacyBlur(cb.checked);
+  });
   hdr('Automatic blur on upload');
   toggle('Face blurring','When photos are uploaded, find people first, then blur only real faces (skips ceiling/floor/empty walls). Soft 6% blur. Save the project to keep changes.', autoBlurFaces, cb=>{
     setAutoBlurPref('faces', cb.checked);
@@ -993,7 +1062,7 @@ async function runPrefetch(){
     for(const t of wants){
       if(texCache.has(t)) continue;
       if(cacheBytes>CACHE_BUDGET*0.9) break;         // leave headroom for the live view
-      try{ const res=await loadFull(t.file); if(!texCache.has(t)) cachePut(t,res); else res.tex.dispose(); }catch(e){}
+      try{ const res=await loadFull(itemDisplayFile(t)); if(!texCache.has(t)) cachePut(t,res); else res.tex.dispose(); }catch(e){}
     }
   } finally { prefetchBusy=false; updatePreloadState(); }
 }
@@ -1006,7 +1075,7 @@ async function preloadAll(){
   for(const it of order){
     if(texCache.has(it)){ done++; continue; }
     if(cacheBytes>CACHE_BUDGET*0.92){ skipped++; continue; }
-    try{ const res=await loadFull(it.file); if(!texCache.has(it)) cachePut(it,res); else res.tex.dispose(); done++; }
+    try{ const res=await loadFull(itemDisplayFile(it)); if(!texCache.has(it)) cachePut(it,res); else res.tex.dispose(); done++; }
     catch(e){ skipped++; }
   }
   updatePreloadState();
@@ -1133,7 +1202,8 @@ async function makeThumb(file){
   }catch(e){ return null; }
 }
 
-async function selectImage(idx){
+async function selectImage(idx, opts){
+  opts=opts||{};
   if(idx<0||idx>=items.length) return;
   if(planPanel && planPanel.classList.contains('full')) setPlanFull(false);   // reveal the chosen photo
   if(lockView && currentIndex>=0 && items[currentIndex])                 // remember where we were looking
@@ -1141,15 +1211,16 @@ async function selectImage(idx){
   currentIndex=idx;
   [...libList.children].forEach((el,i)=>el.classList.toggle('active', i===idx));
   const it=items[idx];
+  try{ if(it && it.name){ lastPhotoName=it.name; idbSet('lastPhotoName', it.name); } }catch(_){}
   if(it.el) it.el.scrollIntoView({block:'nearest'});
   const cached=texCache.get(it);
   const spin=it.el && it.el.querySelector('.spin'); if(!cached && spin) spin.style.display='grid';
   try{
-    const res = cached || await loadFull(it.file);
+    const res = cached || await loadFull(itemDisplayFile(it));
     if(!cached) cachePut(it,res); else cacheTouch(it);
     currentTexture=res.tex; uniforms.uTex.value=res.tex;
     deselectHotspot(); buildHotspots();
-    enterView(it);
+    enterView(it, opts);
     ensureMeta(it).then(refreshGeoReadout); refreshGeoReadout();
     updatePlanHere();
     schedulePrefetch();                    // warm this photo's links & neighbours
@@ -1157,8 +1228,16 @@ async function selectImage(idx){
   }catch(e){ console.error(e); toast(`Couldn't decode "${it.name}".`, true); }
   finally{ if(spin) spin.style.display='none'; }
 }
-function enterView(it){
-  if(lockView && it.lastView){ applyStoredView(it.lastView); return; }   // return to the locked spot you left
+function enterView(it, opts){
+  opts=opts||{};
+  // Navigation objects (arrows / markers / plan pins) always open the authored saved view
+  if(opts.preferSavedView){
+    if(it.view0){ applyStoredView(it.view0); return; }
+    if(lockView) return;                                                   // no saved view yet: keep current heading
+    view.lat=0; view.vLon=0; view.vLat=0; view.targetFov=75;
+    return;
+  }
+  if(lockView && it.lastView){ applyStoredView(it.lastView); return; }   // library browse: return to where you left it
   if(it.view0){ applyStoredView(it.view0); return; }                     // otherwise the authored opening view
   if(lockView) return;                                                   // first locked visit: carry current heading
   view.lat=0; view.vLon=0; view.vLat=0; view.targetFov=75;               // unlocked, no saved view: level out
@@ -1384,15 +1463,21 @@ async function deleteItem(it){
 }
 
 /** Keep the project chrome open (library, topbar tools, Menu) without dumping to the dashboard. */
-function enterProjectMode(){
+function enterProjectMode(modeOpts){
+  modeOpts=modeOpts||{};
   emptyEl.style.display='none';
   library.classList.add('show');
   library.classList.remove('collapsed');
   libShow.classList.remove('show');
   document.getElementById('btnHome').style.display='';
   document.body.classList.add('proj-open');
+  // Newly created / opened projects must bind to this gate even if the user never edits hotspots.
+  if(window.embedGateKey && !modeOpts.alreadyLinked) window._gateMirrorDirty=true;
   setProjTitle();
   syncProjectEmptyUi();
+  syncTourSaveUi();
+  const linked=modeOpts.alreadyLinked!=null ? !!modeOpts.alreadyLinked : !!window._gateLinkedThisSession;
+  try{ notifyHostProjectOpen(linked); }catch(_){}
 }
 function syncProjectEmptyUi(){
   const emptyLib=document.getElementById('libEmptySlot');
@@ -1456,16 +1541,21 @@ window.addEventListener('keydown', e=>{
   else if(e.key.toLowerCase()==='f') toggleFull();
   else if(e.key.toLowerCase()==='e' && items.length) setEdit(!editMode);
   else if(e.key.toLowerCase()==='p' && items.length) togglePlan();
-  else if(e.key==='Escape'){ if(planPanel.classList.contains('full')) setPlanFull(false); else if(selectedHS) deselectHotspot(); else if(editMode) setEdit(false); else if(document.body.classList.contains('proj-open')) goHome(); }
+  else if(e.key==='Escape'){ if(planPanel.classList.contains('full')) setPlanFull(false); else if(selectedHS) deselectHotspot(); else if(editMode) setEdit(false); else if(document.body.classList.contains('proj-open') && !document.body.classList.contains('embed')) goHome(); }
   else if(e.key==='[' && currentIndex>0) selectImage(currentIndex-1);
   else if(e.key===']' && currentIndex<items.length-1) selectImage(currentIndex+1);
 });
 
 function resetView(){ view.lon=0; view.lat=0; view.vLon=0; view.vLat=0; view.targetFov=75; }
-function goHome(){
+function goHome(opts){
+  opts=opts||{};
+  // Inside a gateway overlay the host owns navigation — block Menu/Esc unless explicitly forced (e.g. Create project).
+  if(!opts.force && document.body.classList.contains('embed') && document.body.classList.contains('proj-open')) return;
   clearCache(); currentTexture=null;
   uniforms.uTex.value=null;
-  setEdit(false); deselectHotspot(); hotspotsLayer.innerHTML=''; tourHandle=null; projHandle=null; projHandleRemembered=null; idbSet('projHandle',null); northCal=null; projectMeta=null;
+  // Keep last project in IndexedDB so the gateway can resume it next open —
+  // only clear the in-session handles.
+  setEdit(false, {skipSave:true}); deselectHotspot(); hotspotsLayer.innerHTML=''; tourHandle=null; projHandle=null; northCal=null; projectMeta=null;
   items=[]; currentIndex=-1;
   libList.innerHTML=''; libCount.textContent='0'; document.getElementById('libSearch').value='';
   library.classList.remove('show'); libShow.classList.remove('show');
@@ -1477,8 +1567,10 @@ function goHome(){
   clearPlan();
   emptyEl.style.display='';   // reveal the main menu again
   try{ syncProjectEmptyUi(); }catch(e){}
+  try{ syncTourSaveUi(); }catch(e){}
   try{ updateDbStatus(); }catch(e){}
   renderDashboard();
+  try{ updateResumeBanner(); }catch(e){}
 }
 document.getElementById('btnHome').onclick=goHome;
 function toggleFull(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
@@ -1594,7 +1686,8 @@ function renderOneHotspot(h){ if(h.el){ h.el.style.color=h.color; applyIconRotat
 function applyIconRotation(h){
   if(!h.el || h.type!=='arrow') return;
   const ico=h.el.querySelector('.hs-ico');
-  if(ico) ico.style.transform='rotate('+(h.rotation||0)+'deg)';
+  const deg=+(h.yaw!=null?h.yaw:h.rotation)||0;
+  if(ico) ico.style.transform='rotate('+deg+'deg)';
 }
 
 function activateHotspot(h){
@@ -1602,7 +1695,7 @@ function activateHotspot(h){
   if(!h.target) return;
   const idx=items.findIndex(it=>it.name===h.target);
   if(idx<0){ toast('Linked photo "'+h.target+'" isn\'t loaded.', true); return; }
-  selectImage(idx);
+  selectImage(idx, { preferSavedView:true });
 }
 function applyStoredView(v){
   view.lon=v.lon;
@@ -1732,7 +1825,7 @@ function selectHotspot(h){
     items.filter(it=>it!==cur).map(it=>{ const n=it.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); return `<option value="${n}">${n}</option>`; }).join('');
   insTarget.value=h.target||'';
   insLabel.value=h.label||'';
-  insRot.value=h.rotation||0; insRotVal.textContent=(h.rotation||0)+'\u00B0';
+  insRot.value=+(h.yaw!=null?h.yaw:h.rotation)||0; insRotVal.textContent=insRot.value+'\u00B0';
   renderInsThumbs();
   syncSwatches();
   inspector.classList.toggle('islabel', h.type==='label');
@@ -1768,7 +1861,7 @@ insLabel.addEventListener('change', ()=>{                     // commit: naming 
   if(!selectedHS) return; const lbl=insLabel.value.trim();
   if(lbl && selectedHS.target){ const t=items.find(x=>x.name===selectedHS.target); if(t){ const nn=renamePhoto(t,lbl); if(nn) toast('Linked photo renamed to \u201C'+nn+'\u201D.'); } }
 });
-insRot.oninput   =()=>{ if(selectedHS){ selectedHS.rotation=+insRot.value; insRotVal.textContent=insRot.value+'\u00B0'; applyIconRotation(selectedHS); } };
+insRot.oninput   =()=>{ if(selectedHS){ selectedHS.yaw=+insRot.value; selectedHS.rotation=selectedHS.yaw; insRotVal.textContent=insRot.value+'\u00B0'; applyIconRotation(selectedHS); } };
 document.getElementById('insDelete').onclick=()=>{
   if(!selectedHS) return;
   const it=curItem(), i=it.hotspots.indexOf(selectedHS);
@@ -1776,7 +1869,10 @@ document.getElementById('insDelete').onclick=()=>{
   deselectHotspot();
   refreshPathIfOn();
 };
-document.getElementById('insDone').onclick=deselectHotspot;
+document.getElementById('insDone').onclick=()=>{
+  deselectHotspot();
+  autoSaveTourEdits('object Done');
+};
 
 /* ---- label image attachments ---- */
 const hsImgPick=document.getElementById('hsImgPick'), insThumbs=document.getElementById('insThumbs');
@@ -1886,7 +1982,7 @@ lbImg.addEventListener('click', e=>e.stopPropagation());     // a pan/zoom on th
 function addObject(type){
   const it=curItem(); if(!it){ toast('Load a photo first.'); return; }
   it.hotspots=it.hotspots||[];
-  const h={id:hsSeq++, type, lon:view.lon, lat:view.lat, target:null, label:'', color:COLORS[0], rotation:0, images:[]};
+  const h={id:hsSeq++, type, lon:view.lon, lat:view.lat, target:null, label:'', color:COLORS[0], yaw:0, rotation:0, images:[]};
   it.hotspots.push(h); makeHotspotEl(h); selectHotspot(h);
   toast(type==='label' ? 'Label added \u2014 drag to reposition.' : 'Link added \u2014 pick a target photo, then drag to reposition.');
 }
@@ -1895,25 +1991,41 @@ document.getElementById('addMarker').onclick=()=>addObject('marker');
 document.getElementById('addLabel').onclick =()=>addObject('label');
 
 /* ---- edit mode ---- */
-function setEdit(on){
+let _editAutoSaveAt=0;
+let _projectSaveChain=Promise.resolve();   // serialize saves so two createWritables never overlap
+function autoSaveTourEdits(reason){
+  if(typeof inProject!=='function' || !inProject()) return;
+  const now=Date.now();
+  if(now-_editAutoSaveAt<2500) return;   // avoid stacking full .insp360 writes
+  _editAutoSaveAt=now;
+  // Quiet: never open Save As / override dialogs during auto-save (that path was zeroing files)
+  window._gateMirrorDirty=true;
+  try{ saveProject({ quiet:true, reason }); }catch(e){ console.warn('auto-save ('+reason+') failed', e); }
+}
+function setEdit(on, opts){
+  opts=opts||{};
   if(on && !items.length){ toast('Load a photo first.'); return; }
-  editMode=on;
-  document.body.classList.toggle('editing', on);
-  btnEdit.classList.toggle('on', on);
-  if(!on) deselectHotspot();
+  const wasOn=editMode;
+  editMode=!!on;
+  document.body.classList.toggle('editing', editMode);
+  btnEdit.classList.toggle('on', editMode);
+  btnEdit.title = editMode ? 'Done — save tour & exit edit (E)' : 'Edit tour objects (E)';
+  if(!editMode) deselectHotspot();
   const it=curItem(); if(it&&it.hotspots) it.hotspots.forEach(updateHotspotLabel);
+  // Leaving edit mode → auto-save the .insp360 so tour changes are kept
+  if(wasOn && !editMode && !opts.skipSave) autoSaveTourEdits('exit edit');
 }
 btnEdit.onclick=()=>setEdit(!editMode);
 
 const lockBtn=document.getElementById('lockView');
 lockBtn.classList.toggle('on', lockView);
-lockBtn.onclick=()=>{ lockView=!lockView; lockBtn.classList.toggle('on', lockView); items.forEach(it=>it.lastView=null); toast(lockView?'View locked \u2014 each photo reopens where you left it.':'View unlocks \u2014 links open leveled at default zoom.'); };
+lockBtn.onclick=()=>{ lockView=!lockView; lockBtn.classList.toggle('on', lockView); items.forEach(it=>it.lastView=null); toast(lockView?'View locked \u2014 library reopens where you left each photo. Links still use the saved view.':'View unlocks \u2014 photos open leveled (or at their saved view).'); };
 
 document.getElementById('setView').onclick=()=>{
   const it=curItem(); if(!it){ toast('Load a photo first.'); return; }
   it.view0={lon:view.lon, lat:view.lat, fov:view.targetFov};
   updateViewBadges();
-  toast('Opening view saved for '+it.name+' \u2014 remember to Save the tour.');
+  toast('Opening view saved for '+it.name+' \u2014 remember to Save'+(document.body.classList.contains('proj-open')?' the project':' the tour')+'.');
 };
 document.getElementById('setNorth').onclick=async ()=>{
   const it=curItem(); if(!it){ toast('Load a photo first.'); return; }
@@ -1943,6 +2055,7 @@ document.getElementById('autoNorth').onclick=async ()=>{
 
 /* ---- save / load tour ---- */
 let tourHandle=null, startHint=null, projectDir=null, projHandle=null, projHandleRemembered=null, lastProjName=null;
+let lastPhotoName=null;   // last panorama viewed — restored when the project resumes
 let projectMeta=null;   // {name,address,tenant,sf,creator,created,modified} — travels with the project
 const tourFile=document.getElementById('tourFile');
 function hasFSAccess(){ return typeof window.showSaveFilePicker==='function' && typeof window.showOpenFilePicker==='function'; }
@@ -1963,7 +2076,340 @@ function projectsDel(name){ return idb('projects','readwrite', s=>s.delete(name)
 idbGet('startHint').then(h=>{ if(h) startHint=h; });        // restore last-used folder hint
 idbGet('projectDir').then(h=>{ if(h){ projectDir=h; updateFolderUI(); } });
 idbGet('lastProjName').then(n=>{ if(n) lastProjName=n; });
+idbGet('lastPhotoName').then(n=>{ if(n) lastPhotoName=n; });
 idbGet('projHandle').then(h=>{ if(h) projHandleRemembered=h; });   // last saved/opened project file, so "Save" can reuse it after a reload
+
+function rememberLastProject(handle){
+  if(!handle) return;
+  projHandleRemembered=handle;
+  idbSet('projHandle', handle);
+  if(handle.name){ lastProjName=handle.name; idbSet('lastProjName', handle.name); }
+  try{
+    if(window.embedGateKey){
+      idbSet('gateProj:'+window.embedGateKey, handle);
+      idbSet('gateProjName:'+window.embedGateKey, handle.name||'');
+    }
+  }catch(e){}
+  try{ updateResumeBanner(); }catch(_){}
+}
+
+/** Persist gate project bytes so reopen works without a File System Access gesture. */
+function gateOpfsKey(key){
+  return 'g_'+String(key||'').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,180);
+}
+function gateCacheUrl(key){
+  return 'https://insp360.local/gate/'+encodeURIComponent(String(key||''));
+}
+async function gateOpfsDir(){
+  if(!navigator.storage || !navigator.storage.getDirectory) return null;
+  try{
+    const root=await navigator.storage.getDirectory();
+    return await root.getDirectoryHandle('gateProjects', { create:true });
+  }catch(e){ return null; }
+}
+async function writeGateOpfs(key, blob){
+  if(!key || !blob || !blob.size) return false;
+  try{
+    const dir=await gateOpfsDir(); if(!dir) return false;
+    const fh=await dir.getFileHandle(gateOpfsKey(key)+'.insp360', { create:true });
+    const w=await fh.createWritable();
+    await w.write(blob);
+    await w.close();
+    return true;
+  }catch(e){ console.warn('gate OPFS write failed', e); return false; }
+}
+async function readGateOpfs(key){
+  if(!key) return null;
+  try{
+    const dir=await gateOpfsDir(); if(!dir) return null;
+    const fh=await dir.getFileHandle(gateOpfsKey(key)+'.insp360');
+    const file=await fh.getFile();
+    return (file && file.size) ? file : null;
+  }catch(e){ return null; }
+}
+async function writeGateCache(key, blob, name){
+  if(!key || !blob || !blob.size || typeof caches==='undefined') return false;
+  try{
+    const cache=await caches.open('insp360-gate-projects');
+    const headers=new Headers({ 'Content-Type':'application/zip', 'X-Proj-Name': name||'project.insp360' });
+    await cache.put(gateCacheUrl(key), new Response(blob, { headers }));
+    return true;
+  }catch(e){ console.warn('gate Cache write failed', e); return false; }
+}
+async function readGateCache(key){
+  if(!key || typeof caches==='undefined') return null;
+  try{
+    const cache=await caches.open('insp360-gate-projects');
+    const res=await cache.match(gateCacheUrl(key));
+    if(!res) return null;
+    const blob=await res.blob();
+    if(!blob || !blob.size) return null;
+    const name=res.headers.get('X-Proj-Name')||'project.insp360';
+    return new File([blob], name, { type:'application/zip' });
+  }catch(e){ return null; }
+}
+async function clearGateProjectStorage(key){
+  if(!key) return;
+  try{ await idbSet('gateProj:'+key, null); }catch(_){}
+  try{ await idbSet('gateProjName:'+key, ''); }catch(_){}
+  try{ await idbSet('gateProjBlob:'+key, null); }catch(_){}
+  try{ await idbSet('gateProjBound:'+key, 0); }catch(_){}
+  try{
+    const dir=await gateOpfsDir();
+    if(dir) await dir.removeEntry(gateOpfsKey(key)+'.insp360');
+  }catch(_){}
+  try{
+    if(typeof caches!=='undefined'){
+      const cache=await caches.open('insp360-gate-projects');
+      await cache.delete(gateCacheUrl(key));
+    }
+  }catch(_){}
+}
+async function notifyHostGateBound(name, blob){
+  try{
+    if(!window.embedGateKey) return false;
+    if(!(window.parent && window.parent!==window)) return false;
+    // Do NOT postMessage the full .insp360 — large tours fail/timeout. Parent reads
+    // the same-origin viewer IndexedDB (gateProjBlob) after this lightweight ping.
+    if(!(blob && blob.size)) return false;
+    const payload={
+      type:'insp360:gateProjectBound',
+      gateKey: window.embedGateKey,
+      name: name||'project.insp360',
+      size: blob.size,
+      storedLocally: true
+    };
+    const ok=await new Promise(function(resolve){
+      let done=false;
+      const finish=function(value){
+        if(done) return;
+        done=true;
+        window.clearTimeout(timer);
+        window.removeEventListener('message', onAck);
+        resolve(!!value);
+      };
+      const onAck=function(ev){
+        const data=ev && ev.data;
+        if(!data || data.type!=='insp360:gateProjectStored') return;
+        if(String(data.gateKey||'')!==String(window.embedGateKey||'')) return;
+        finish(data.ok===true);
+      };
+      const timer=window.setTimeout(function(){ finish(false); }, 120000);
+      window.addEventListener('message', onAck);
+      try{
+        window.parent.postMessage(payload, '*');
+      }catch(e){
+        finish(false);
+      }
+    });
+    return ok;
+  }catch(_){ return false; }
+}
+function notifyHostProjectOpen(alreadyLinked){
+  try{
+    if(!window.embedGateKey) return;
+    if(!(window.parent && window.parent!==window)) return;
+    const name=(lastProjName||((projectMeta&&projectMeta.name)?projectMeta.name+'.insp360':((projHandle&&projHandle.name)||'project.insp360'))||'project.insp360');
+    const linked=!!(alreadyLinked || window._gateLinkedThisSession || window._gateHostConfirmed);
+    window.parent.postMessage({
+      type:'insp360:projectOpen',
+      gateKey: window.embedGateKey,
+      name: name,
+      alreadyLinked: linked
+    }, '*');
+  }catch(_){}
+}
+async function writeGateIdbBlob(key, blob){
+  if(!key || !blob || !blob.size) return false;
+  try{
+    await idbSet('gateProjBlob:'+key, blob);
+    const check=await idbGet('gateProjBlob:'+key);
+    if(check instanceof Blob && check.size>0) return true;
+    if(check instanceof ArrayBuffer && check.byteLength>0) return true;
+    if(ArrayBuffer.isView(check) && check.byteLength>0) return true;
+    return false;
+  }catch(e){ console.warn('gate IDB blob write failed', e); return false; }
+}
+async function readGateIdbBlob(key){
+  if(!key) return null;
+  try{
+    const blob=await idbGet('gateProjBlob:'+key);
+    if(blob && blob.size) return blob;
+    if(blob instanceof ArrayBuffer && blob.byteLength>0) return new Blob([blob],{type:'application/zip'});
+    if(ArrayBuffer.isView(blob) && blob.byteLength>0) return new Blob([blob],{type:'application/zip'});
+  }catch(_){}
+  return null;
+}
+async function bindProjectToGate(blob, name, handle, opts){
+  opts=opts||{};
+  const key=window.embedGateKey;
+  if(!key || !blob || !blob.size) return false;
+  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(_){}
+  const fname=(name&&String(name))||lastProjName||((projectMeta&&projectMeta.name)?projectMeta.name+'.insp360':'project.insp360');
+  const n=/\.insp360$/i.test(fname)?fname:fname+'.insp360';
+  let ok=false;
+  let dbgIdb=false, dbgOpfs=false, dbgCache=false;
+  // Prefer IndexedDB — most reliable for auto-reopen in the embed iframe.
+  try{ if(await writeGateIdbBlob(key, blob)){ ok=true; dbgIdb=true; } }catch(_){}
+  try{ if(await writeGateOpfs(key, blob)){ ok=true; dbgOpfs=true; } }catch(_){}
+  try{ if(await writeGateCache(key, blob, n)){ ok=true; dbgCache=true; } }catch(_){}
+  try{ await idbSet('gateProjName:'+key, n); }catch(_){}
+  try{ await idbSet('gateProjBound:'+key, ok?1:0); }catch(_){}
+  if(handle){
+    try{ await idbSet('gateProj:'+key, handle); }catch(_){}
+    rememberLastProject(handle);
+  }
+  lastProjName=n; try{ await idbSet('lastProjName', n); }catch(_){}
+  // Only treat as linked when at least one storage backend actually kept the bytes.
+  if(ok){
+    if(opts.skipHostNotify){
+      window._gateLinkedThisSession=true;
+      window._gateMirrorDirty=false;
+      window._gateHostConfirmed=true;
+      return true;
+    }
+    const hosted=await notifyHostGateBound(n, blob);
+    if(hosted){
+      window._gateLinkedThisSession=true;
+      window._gateMirrorDirty=false;
+      window._gateHostConfirmed=true;
+      return true;
+    }
+    // Bytes are local but the host never confirmed — keep dirty so Link can remirror.
+    console.warn('gate bind stored locally but host did not confirm save');
+    window._gateLinkedThisSession=false;
+    window._gateMirrorDirty=true;
+    window._gateHostConfirmed=false;
+    return true;
+  } else {
+    console.warn('gate bind failed — no storage backend accepted the project');
+  }
+  return false;
+}
+async function mirrorBlobToGate(blob, name){
+  return bindProjectToGate(blob, name, projHandle||null);
+}
+async function mirrorCurrentProjectToGate(){
+  const key=window.embedGateKey;
+  if(!key) return false;
+  const handle=projHandle||projHandleRemembered||null;
+  const label=(handle&&handle.name)||lastProjName||((projectMeta&&projectMeta.name)?projectMeta.name+'.insp360':'project.insp360');
+  if(handle){
+    try{
+      let perm='prompt';
+      try{ perm=await handle.queryPermission({mode:'read'}); }catch(_){}
+      if(perm!=='granted' && handle.requestPermission){
+        try{ perm=await handle.requestPermission({mode:'read'}); }catch(_){}
+      }
+      if(perm==='granted'){
+        const file=await handle.getFile();
+        if(file && file.size) return bindProjectToGate(file, file.name||label, handle);
+      }
+    }catch(e){ console.warn('gate mirror from handle failed, rebuilding zip', e); }
+  }
+  await materializeProjectPhotos();
+  const parts=[]; await buildZip({ write:p=>{ parts.push(p); } }, showSaveProgress);
+  const blob=new Blob(parts,{type:'application/zip'});
+  if(!blob.size) return false;
+  return bindProjectToGate(
+    blob,
+    label,
+    handle
+  );
+}
+async function readBoundGateProject(key){
+  if(!key) return null;
+  // IndexedDB first — most reliable after Link from the gateway overlay.
+  const idbBlob=await readGateIdbBlob(key);
+  if(idbBlob && idbBlob.size){
+    const name=(await idbGet('gateProjName:'+key))||'project.insp360';
+    // Do NOT wrap large Blobs in new File([...]) — Chromium can hang copying 100MB+.
+    if(typeof File!=='undefined' && idbBlob instanceof File) return idbBlob;
+    try{ Object.defineProperty(idbBlob, 'name', { value: /\.insp360$/i.test(name)?name:name+'.insp360', configurable:true }); }catch(_){}
+    return idbBlob;
+  }
+  let file=await readGateOpfs(key);
+  if(file && file.size){
+    const name=(await idbGet('gateProjName:'+key))||file.name||'project.insp360';
+    if(typeof File!=='undefined' && file instanceof File) return file;
+    try{ Object.defineProperty(file, 'name', { value: /\.insp360$/i.test(name)?name:name+'.insp360', configurable:true }); }catch(_){}
+    return file;
+  }
+  file=await readGateCache(key);
+  if(file && file.size){
+    return file;
+  }
+  return null;
+}
+async function ensureFileReadPerm(h){
+  if(!h) return false;
+  try{
+    const o={mode:'read'};
+    if((await h.queryPermission(o))==='granted') return true;
+    return (await h.requestPermission(o))==='granted';
+  }catch(e){ return false; }
+}
+async function resolveResumeHandle(){
+  let h = projHandleRemembered;
+  if(!h){ try{ h=await idbGet('projHandle'); }catch(_){} }
+  if(h){ projHandleRemembered=h; return h; }
+  // Fall back to the most recently saved card on the dashboard
+  try{
+    let recs=await projectsAll(); if(!Array.isArray(recs)||!recs.length) return null;
+    recs.sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+    const top=recs.find(r=>r.handle); if(!top) return null;
+    projHandleRemembered=top.handle; return top.handle;
+  }catch(_){ return null; }
+}
+async function updateResumeBanner(){
+  const btn=document.getElementById('resumeLast'); if(!btn) return;
+  if(document.body.classList.contains('proj-open')){ btn.classList.remove('show'); return; }
+  const h=await resolveResumeHandle();
+  if(!h){ btn.classList.remove('show'); return; }
+  let label=h.name||'project';
+  try{ const rec=await projectsGet(h.name); if(rec&&rec.label) label=rec.label; }catch(_){}
+  const photo = lastPhotoName || (await idbGet('lastPhotoName')) || '';
+  btn.innerHTML='Resume <b>'+String(label).replace(/</g,'&lt;')+'</b>'
+    +(photo?('<span class="resume-sub">Last photo: '+String(photo).replace(/</g,'&lt;')+'</span>'):'<span class="resume-sub">Continue where you left off</span>');
+  btn.classList.add('show');
+  btn.onclick=()=>resumeLastProject(true);
+}
+async function resumeLastProject(interactive){
+  const h=await resolveResumeHandle();
+  if(!h){ if(interactive) toast('No recent project to resume.'); return false; }
+  try{
+    let ok=false;
+    try{
+      const q=await h.queryPermission({mode:'read'});
+      if(q==='granted') ok=true;
+      else if(interactive) ok=await ensureFileReadPerm(h);
+    }catch(_){ if(interactive) ok=await ensureFileReadPerm(h); }
+    if(!ok){
+      if(interactive) toast('Permission needed to reopen that project.', true);
+      else try{ updateResumeBanner(); }catch(_){}
+      return false;
+    }
+    const file=await h.getFile();
+    await openProject(file, h, { resumePhoto:true, quiet: !interactive });
+    return true;
+  }catch(e){
+    console.warn('resume failed', e);
+    if(interactive) toast('Couldn\u2019t reopen the last project \u2014 open it from Recent projects.', true);
+    try{ updateResumeBanner(); }catch(_){}
+    return false;
+  }
+}
+// After IndexedDB warms up, auto-resume the last saved project on the gateway
+// (skipped in BME embed mode — gate-specific resume handles that)
+Promise.all([idbGet('projHandle'), idbGet('lastPhotoName'), idbGet('lastProjName')]).then(async ([h, photo, name])=>{
+  if(h) projHandleRemembered=h;
+  if(photo) lastPhotoName=photo;
+  if(name) lastProjName=name;
+  if(document.body.classList.contains('proj-open')) return;
+  try{ if(new URLSearchParams(location.search).get('embed')==='1'){ updateResumeBanner(); return; } }catch(_){}
+  const opened=await resumeLastProject(false);
+  if(!opened) try{ updateResumeBanner(); }catch(_){}
+});
 
 async function ensureDirPerm(dir){
   if(!dir) return false;
@@ -1996,12 +2442,21 @@ async function pick(fn, opts){
 function tourData(){
   const tours={};
   items.forEach(it=>{
-    const objs=(it.hotspots||[]).map(h=>({type:h.type,lon:h.lon,lat:h.lat,target:h.target,label:h.label,color:h.color,rotation:h.rotation||0, images:(h.images&&h.images.length)?h.images:undefined}));
+    const objs=(it.hotspots||[]).map(h=>({type:h.type,lon:h.lon,lat:h.lat,target:h.target,label:h.label,color:h.color,rotation:+(h.yaw!=null?h.yaw:h.rotation)||0, images:(h.images&&h.images.length)?h.images:undefined}));
     const hasBlur=(+it.blurFaces||0)>0 || (+it.blurPlates||0)>0;
     if(objs.length || it.view0 || hasBlur){
       const e={objects:objs};
       if(it.view0) e.view={lon:it.view0.lon, lat:it.view0.lat, fov:it.view0.fov};
-      if(hasBlur) e.blur={faces:+it.blurFaces||0, plates:+it.blurPlates||0};
+      if(hasBlur){
+        e.blur={faces:+it.blurFaces||0, plates:+it.blurPlates||0};
+        if(Array.isArray(it.blurBoxes) && it.blurBoxes.length){
+          e.blur.boxes=it.blurBoxes.map(b=>({
+            x:+b.x, y:+b.y, w:+b.w, h:+b.h,
+            kind:b.kind==='plates'?'plates':'faces',
+            auto:!!b._auto
+          }));
+        }
+      }
       tours[it.name]=e;
     }
   });
@@ -2044,7 +2499,21 @@ function downloadTour(text, name){
   a.href=url; a.download=name||'insp_tour.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
   toast('Tour downloaded (this browser can\u2019t overwrite files in place).');
 }
+function inProject(){ return document.body.classList.contains('proj-open') || !!(projectMeta||projHandle); }
+function syncTourSaveUi(){
+  const btn=document.getElementById('tourExport'); if(!btn) return;
+  if(inProject()){
+    btn.title='Save project (.insp360) — photos + tour in one file';
+  } else {
+    btn.title='Save / overwrite the current tour file';
+  }
+}
 async function saveTour(forceNew){
+  // Project mode: tour.json is packed inside .insp360 — never write a sidecar JSON
+  if(inProject()){
+    if(forceNew) return saveProjectAs();
+    return saveProject();
+  }
   const data=tourData();
   if(!Object.keys(data.tours).length && !data.north){ toast('No objects to save yet.'); return; }
   const text=JSON.stringify(data,null,2);
@@ -2069,6 +2538,7 @@ async function saveTour(forceNew){
   downloadTour(text, fname);
 }
 async function loadTour(){
+  if(inProject()){ toast('Tour data is inside this .insp360 project \u2014 use Open Project to load another file.'); return; }
   if(hasFSAccess()){
     try{
       const [handle]=await pick(window.showOpenFilePicker, { types:[{description:'Tour file', accept:{'application/json':['.json']}}], multiple:false });
@@ -2103,9 +2573,20 @@ function applyTourText(text){
       if(!Array.isArray(entry) && entry.blur){
         it.blurFaces=+entry.blur.faces||0;
         it.blurPlates=+entry.blur.plates||0;
+        if(Array.isArray(entry.blur.boxes) && entry.blur.boxes.length){
+          it.blurBoxes=entry.blur.boxes.map(b=>({
+            x:+b.x||0, y:+b.y||0, w:+b.w||0, h:+b.h||0,
+            kind:b.kind==='plates'?'plates':'faces',
+            _auto:!!(b.auto||b._auto)
+          })).filter(b=>b.w>0.001 && b.h>0.001);
+        }
         try{ updateLibBlurBadge(it); }catch(_){}
       }
-      it.hotspots = arr.map(h=>{ const type=h.type||'arrow'; return {id:hsSeq++, type, lon:+h.lon||0, lat:+h.lat||0, target:h.target||null, label:h.label||'', color:h.color||COLORS[0], rotation: type==='arrow'?0:(+h.rotation||0), images:Array.isArray(h.images)?h.images.slice():[]}; });
+      it.hotspots = arr.map(h=>{
+        const type=h.type||'arrow';
+        const yaw=+(h.yaw!=null?h.yaw:h.rotation)||0;
+        return {id:hsSeq++, type, lon:+h.lon||0, lat:+h.lat||0, target:h.target||null, label:h.label||'', color:h.color||COLORS[0], yaw, rotation:yaw, images:Array.isArray(h.images)?h.images.slice():[]};
+      });
       n += it.hotspots.length;
     });
     if(northCal && northCal.anchorBearing!=null){ computeGpsBearings().then(()=>updateHud()); }   // needed for GPS-relative north
@@ -2133,6 +2614,7 @@ document.getElementById('tourSaveAs').onclick=()=>saveTour(true);
 document.getElementById('tourImport').onclick=()=>loadTour();
 document.getElementById('projectFolder').onclick=setProjectFolder;
 tourFile.onchange=e=>{ const f=e.target.files[0]; if(f){ const rd=new FileReader(); rd.onload=()=>applyTourText(rd.result); rd.readAsText(f); } tourFile.value=''; };
+syncTourSaveUi();
 
 /* ================= project files (.insp360 = photos + tour in one ZIP) ================= */
 const CRC_TABLE=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
@@ -2202,58 +2684,151 @@ async function ensureFilePerm(h, mode){
   try{ const o={mode:mode||'readwrite'}; if((await h.queryPermission(o))==='granted') return true; return (await h.requestPermission(o))==='granted'; }
   catch(e){ return false; }
 }
+/** Copy zip-slice photo blobs into standalone Blobs so overwriting the .insp360 can't empty them. */
+async function materializeProjectPhotos(){
+  for(const it of items){
+    if(!it || !it.file || it._materialized) continue;
+    try{
+      const buf=await it.file.arrayBuffer();
+      it.file=new Blob([buf],{ type:(it.file.type||'image/jpeg') });
+      it._materialized=true;
+    }catch(e){ console.warn('materialize failed for', it.name, e); }
+  }
+}
 async function writeProjectTo(handle){
+  const run=async ()=>{
   toast('Building project file\u2026');
   showSaveProgress(0, items.length+2, 'Preparing\u2026');
-  // Build the whole archive in memory FIRST. Streaming straight into a cloud-synced
-  // (OneDrive) file is unreliable, and a mid-stream failure would leave a 0-byte file.
+  // Detach photo bytes from the on-disk zip BEFORE we touch the file handle.
+  await materializeProjectPhotos();
+  // Build the whole archive in memory FIRST. Never stream into a live file —
+  // createWritable() truncates immediately and a mid-write failure left 0-byte projects.
   const parts=[]; await buildZip({ write:p=>{ parts.push(p); } }, showSaveProgress);
   const blob=new Blob(parts,{type:'application/zip'});
   if(!blob.size){ endSaveProgress(); throw new Error('empty project payload'); }
   showSaveProgress(1, 1, 'Writing to disk\u2026');
-  const w=await handle.createWritable();
-  try{ await w.write(blob); await w.close(); }
-  catch(e){ endSaveProgress(); try{ await w.abort(); }catch(_){ } throw e; }   // abort discards the temp file instead of leaving 0 bytes
-  let wrote=blob.size;
-  try{ let f=await handle.getFile(); wrote=f.size;
-    if(wrote){ await new Promise(r=>setTimeout(r,600)); f=await handle.getFile(); wrote=f.size; } }   // OneDrive may zero it just after close
-  catch(_){ wrote=0; }   // what actually landed on disk
-  if(!wrote){
-    // The data went into Chrome's ".crswap" temp file but OneDrive blocked the final
-    // rename onto the real file, leaving it at 0 bytes. Recover by downloading the
-    // archive we already hold in memory so the user still gets a working project.
-    downloadBlob(blob, handle.name);
-    projHandle=handle; projHandleRemembered=handle; idbSet('projHandle',handle);   // remember it so "Save" keeps targeting this file, not Save As
+  // keepExistingData: do NOT wipe the file to 0 bytes before the new payload lands
+  const w=await handle.createWritable({ keepExistingData:true });
+  try{
+    await w.write({ type:'write', position:0, data:blob });
+    await w.write({ type:'truncate', size:blob.size });
+    await w.close();
+  }catch(e){
+    endSaveProgress();
+    try{ await w.abort(); }catch(_){ }
+    downloadBlob(blob, handle.name||'project.insp360');
+    toast('Could not write the project file in place \u2014 downloaded a full copy to Downloads instead. Your photos in the viewer are still intact.', true);
+    throw e;
+  }
+  let wrote=0;
+  try{
+    let f=await handle.getFile(); wrote=f.size;
+    if(wrote){ await new Promise(r=>setTimeout(r,600)); f=await handle.getFile(); wrote=f.size; }
+  }catch(_){ wrote=0; }
+  if(!wrote || wrote < Math.min(blob.size, 1024)){
+    // Cloud sync (OneDrive) sometimes leaves 0 KB after a successful close — recover
+    downloadBlob(blob, handle.name||'project.insp360');
+    projHandle=handle; rememberLastProject(handle);
+    try{ await bindProjectToGate(blob, handle.name, handle); }catch(_){}
     lastProjName=handle.name; idbSet('lastProjName',handle.name); setProjTitle();
+    endSaveProgress();
     const sz0=blob.size>=1e6?(blob.size/1048576).toFixed(0)+' MB':Math.round(blob.size/1024)+' KB';
-    toast('OneDrive blocked the in-place save (it left a .crswap temp file at 0 KB). I\u2019ve downloaded \u201C'+handle.name+'\u201D ('+sz0+') to your Downloads folder instead. Move it to a NON-OneDrive folder, and save projects there from now on. You can delete the 0 KB file and the .crswap file.', true);
+    toast('The file on disk came back empty (often OneDrive). I downloaded a full \u201C'+handle.name+'\u201D ('+sz0+') to Downloads. Replace the 0 KB file with that copy, preferably outside OneDrive.', true);
     return;
   }
-  projHandle=handle; projHandleRemembered=handle; idbSet('projHandle',handle);
+  projHandle=handle; rememberLastProject(handle);
+  let bound=false;
+  try{
+    bound=await bindProjectToGate(blob, handle.name, handle, {
+      skipHostNotify: !!(window.embedGateKey && window._gateLinkedThisSession),
+    });
+  }catch(_){}
   lastProjName=handle.name; idbSet('lastProjName',handle.name); setProjTitle();
   startHint=handle; idbSet('startHint',handle);
   await recordProject(handle, true);
   const base=handle.name.replace(/\.(insp360|zip)$/i,'');
   const side=await writeSidecarPreview(base);
+  endSaveProgress();
   const sz = wrote>=1e6 ? (wrote/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(wrote/1024))+' KB';
+  let gateNote='';
+  if(window.embedGateKey){
+    gateNote = bound ? ' \u00B7 this gate will reopen it automatically' : ' \u00B7 warning: could not cache for auto-reopen';
+  }
   toast('Saved \u201C'+handle.name+'\u201D \u00B7 '+sz+' \u00B7 '+items.length+' photo'+(items.length===1?'':'s')
-    + (side?(' \u00B7 preview added to '+projectDir.name):'') + '.');
+    + (side?(' \u00B7 preview added to '+projectDir.name):'') + gateNote + '.', !bound && !!window.embedGateKey);
+  };
+  const next=_projectSaveChain.then(run, run);
+  _projectSaveChain=next.catch(()=>{});
+  return next;
 }
 // quick save: overwrite the bound project file if we have one, otherwise prompt for name + location
-async function saveProject(){
-  if(!document.body.classList.contains('proj-open') && !projectMeta && !projHandle){ toast('Open or create a project first.'); return; }
-  let h = projHandle;
-  // no handle this session (e.g. after a page reload) but we remember the last project file -> offer to reuse it
-  if(hasFSAccess() && !h && projHandleRemembered){
+async function saveProject(opts){
+  opts=opts||{};
+  const quiet=!!opts.quiet;
+  if(!document.body.classList.contains('proj-open') && !projectMeta && !projHandle){
+    if(!quiet) toast('Open or create a project first.');
+    return;
+  }
+  let h = projHandle || projHandleRemembered || null;
+  if(hasFSAccess() && !projHandle && projHandleRemembered && !quiet){
+    // Manual Save with a remembered file — confirm once, then bind it
     if(window.confirm('Save changes to the existing project \u201C'+projHandleRemembered.name+'\u201D?\n\nCancel to pick a different file (Save As).')){
       h = projHandleRemembered;
+    } else {
+      return saveProjectAs();
     }
   }
   if(hasFSAccess() && h){
-    try{ if(await ensureFilePerm(h,'readwrite')){ await writeProjectTo(h); return; } }
-    catch(err){ if(err && err.name==='AbortError') return; console.warn('quick save failed, prompting', err); projHandle=null; }
+    try{
+      if(await ensureFilePerm(h,'readwrite')){
+        await writeProjectTo(h);
+        return;
+      }
+      if(quiet){
+        await downloadProjectCopy((h.name||lastProjName||'project.insp360'), 'Auto-save could not overwrite the file (permission). Downloaded a copy instead.');
+        return;
+      }
+    }catch(err){
+      if(err && err.name==='AbortError') return;
+      console.warn('quick save failed', err);
+      if(quiet){
+        try{ await downloadProjectCopy((h&&h.name)||lastProjName||'project.insp360'); }catch(_){}
+        return;
+      }
+      projHandle=null;
+    }
+  }
+  if(quiet){
+    // Already linked to this gate: refresh the cached project. Otherwise wait for close prompt.
+    if(window.embedGateKey && window._gateLinkedThisSession){
+      try{
+        showSaveProgress(0, Math.max(2, items.length+2), 'Saving for this gate\u2026');
+        const ok=await mirrorCurrentProjectToGate();
+        endSaveProgress();
+        if(ok){ toast('Saved for this gate \u2014 it will reopen automatically next time.'); return; }
+        toast('Could not cache this project for the gate. Use Save As to keep a .insp360 on disk.', true);
+      }catch(e){ endSaveProgress(); console.warn('gate mirror failed', e); }
+    }
+    // No file handle bound (e.g. opened from a URL / drop) — download, don't prompt override
+    const name=(lastProjName||((projectMeta&&projectMeta.name)?projectMeta.name+'.insp360':'project.insp360'));
+    await downloadProjectCopy(/\.insp360$/i.test(name)?name:name+'.insp360', 'Downloaded project copy (no file linked for in-place save). Use Save / Save as to bind a file.');
+    return;
   }
   return saveProjectAs();
+}
+async function downloadProjectCopy(name, msg){
+  await materializeProjectPhotos();
+  showSaveProgress(0, Math.max(2, items.length+2), 'Preparing\u2026');
+  try{
+    const parts=[]; await buildZip({ write:p=>{ parts.push(p); } }, showSaveProgress);
+    const blob=new Blob(parts,{type:'application/zip'});
+    endSaveProgress();
+    if(blob.size){
+      try{ await bindProjectToGate(blob, name, projHandle||null); }catch(_){}
+      downloadBlob(blob, name||'project.insp360');
+      if(msg) toast(msg, true);
+    }
+  }catch(e){ endSaveProgress(); throw e; }
 }
 // always let the user choose the file name and where it goes
 async function saveProjectAs(){
@@ -2278,14 +2853,16 @@ async function saveProjectAs(){
     const blob=new Blob(parts,{type:'application/zip'}), url=URL.createObjectURL(blob), a=document.createElement('a');
     a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),3000);
     lastProjName=name; idbSet('lastProjName',name);
+    try{ await bindProjectToGate(blob, name, projHandle||null); }catch(_){}
     endSaveProgress();
     toast('Project downloaded as \u201C'+name+'\u201D.');
   }catch(e){ endSaveProgress(); toast('Could not build the project file.', true); }
 }
-async function openProject(file, handle){
-  toast('Opening project\u2026');
+async function openProject(file, handle, opts){
+  opts=opts||{};
+  toast(opts.quiet?'Resuming last project\u2026':'Opening project\u2026');
   projHandle = handle || null;   // Save will overwrite this file; null means Save prompts for a name
-  if(handle){ projHandleRemembered=handle; idbSet('projHandle',handle); }
+  if(handle) rememberLastProject(handle);
   let list; try{ list=await readProject(file); }catch(e){ toast('That isn\u2019t a valid .insp360 project.', true); return; }
   const tourEntry=list.find(e=>e.name.toLowerCase()==='tour.json');
   const photos=list.filter(e=>/\.(jpg|jpeg|png)$/i.test(e.name) && e.method===0 && e.name.toLowerCase()!=='preview.jpg');
@@ -2299,40 +2876,91 @@ async function openProject(file, handle){
     return;
   }
   clearCache(); currentTexture=null; uniforms.uTex.value=null;
-  setEdit(false); deselectHotspot(); hotspotsLayer.innerHTML=''; tourHandle=null; northCal=null; clearPlan();
+  setEdit(false, {skipSave:true}); deselectHotspot(); hotspotsLayer.innerHTML=''; tourHandle=null; northCal=null; clearPlan();
   items=[]; currentIndex=-1; libList.innerHTML=''; libCount.textContent='0'; document.getElementById('libSearch').value='';
   photos.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
   for(const pe of photos){ const it={file:pe.blob, name:pe.name, thumbUrl:null, el:null, hotspots:[], view0:null, lastView:null, headingTag:null, gps:null, gpsBearing:null, metaRead:false}; items.push(it); addThumbEl(it); }
-  enterProjectMode();
+  // Copy photo bytes out of the zip file so a later Save can't truncate them mid-read
+  try{ await materializeProjectPhotos(); }catch(e){ console.warn(e); }
+  // Apply gate-link flags BEFORE enterProjectMode so the first host notify is accurate.
+  // (enterProjectMode itself notifies the parent; a late false notify was clearing restore UI.)
+  const gateAlreadyLinked=!!(window.embedGateKey && opts.skipGateBind);
+  if(gateAlreadyLinked){
+    window._gateLinkedThisSession=true;
+    window._gateMirrorDirty=false;
+    window._gateHostConfirmed=true;
+  } else if(window.embedGateKey && file && !opts.skipGateBind){
+    window._gateMirrorDirty=true;
+    window._gateLinkedThisSession=false;
+    window._gateHostConfirmed=false;
+  }
+  enterProjectMode({ alreadyLinked: gateAlreadyLinked || !!window._gateLinkedThisSession });
   if(tourEntry){ try{ applyTourText(await tourEntry.blob.text()); }catch(e){} }
   if(items.length){
-    selectImage(0);
+    let startIdx=0;
+    if(opts.resumePhoto){
+      const want=lastPhotoName||(await idbGet('lastPhotoName'))||'';
+      if(want){ const i=items.findIndex(it=>it.name===want); if(i>=0) startIdx=i; }
+    }
+    selectImage(startIdx);
     for(let i=0;i<items.length;i++){ const it=items[i]; it.thumbUrl=await makeThumb(it.file); if(it.el&&it.thumbUrl) it.el.querySelector('img').src=it.thumbUrl; }
   }
   if(handle) requestAnimationFrame(()=>recordProject(handle, true)); setProjTitle();
-  // Remember this file for the map gateway that opened the embed viewer.
-  if(handle && typeof embedGateKey==='string' && embedGateKey){
-    try{ idbSet('gateProj:'+embedGateKey, handle); }catch(e){}
-    const emptyEl=document.getElementById('empty');
-    if(emptyEl) emptyEl.classList.remove('show-linked');
+  try{ updateResumeBanner(); }catch(_){}
+  // Opening a file from the picker does not auto-link — host asks on close.
+  if(window.embedGateKey && file && !opts.skipGateBind){
+    window._gateMirrorDirty=true;
+    window._gateLinkedThisSession=false;
   }
+  if(gateAlreadyLinked){
+    // Resumed from this gate's stored project — already linked & stored, so start clean.
+    window._gateLinkedThisSession=true;
+    window._gateMirrorDirty=false;
+  }
+  try{ notifyHostProjectOpen(gateAlreadyLinked || !!window._gateLinkedThisSession); }catch(_){}
   toast(items.length
-    ? ('Project opened \u2014 '+items.length+' photo'+(items.length===1?'':'s')+'.')
+    ? ((opts.resumePhoto?'Resumed':'Project opened')+' \u2014 '+items.length+' photo'+(items.length===1?'':'s')
+      +(opts.resumePhoto&&items[currentIndex]?(' \u00B7 '+items[currentIndex].name):'')+'.')
     : 'Project opened with no photos \u2014 add panoramas with Files or Folder.');
 }
-let embedGateKey=null;
 const projFile=document.getElementById('projFile');
 async function openProjectPicker(){
+  // Gateway embed: File System Access picker often hangs/blocks with no UI.
+  // Classic <input type=file> is reliable from a direct button click.
+  if(document.body.classList.contains('embed') || window.embedGateKey){
+    try{
+      const input=document.getElementById('projFile')||projFile;
+      if(input){ input.value=''; input.click(); return; }
+    }catch(e){ console.warn('embed projFile click failed', e); }
+  }
   if(hasFSAccess()){
     try{ const [h]=await pick(window.showOpenFilePicker,{types:[{description:'INSP360 project', accept:{'application/zip':['.insp360','.zip']}}], multiple:false}); startHint=h; idbSet('startHint',h); openProject(await h.getFile(), h); return; }
-    catch(err){ if(err && err.name==='AbortError') return; console.warn('project open failed, using picker', err); }
+    catch(err){
+      if(err && err.name==='AbortError'){
+        // Still try classic input — some browsers abort when the FS picker is unavailable.
+      } else {
+        console.warn('project open failed, using file input', err);
+      }
+    }
   }
-  projFile.click();
+  try{
+    const input=document.getElementById('projFile')||projFile;
+    if(input){ input.value=''; input.click(); }
+  }catch(e){ console.warn('projFile click failed', e); }
 }
 projFile.onchange=e=>{ const f=e.target.files[0]; if(f) openProject(f); projFile.value=''; };
 document.getElementById('libSaveProj').onclick=saveProject;
 document.getElementById('libSaveProjAs').onclick=saveProjectAs;
-document.getElementById('openProject2').onclick=openProjectPicker;
+document.getElementById('openProject2').onclick=(ev)=>{
+  try{ if(ev && ev.preventDefault) ev.preventDefault(); }catch(_){}
+  if(document.body.classList.contains('embed') || window.embedGateKey){
+    try{
+      const input=document.getElementById('projFile')||projFile;
+      if(input){ input.value=''; input.click(); return; }
+    }catch(_){}
+  }
+  void openProjectPicker();
+};
 
 /* ---- recent-projects dashboard ---- */
 function countObjects(){ return items.reduce((s,it)=>s+((it.hotspots&&it.hotspots.length)||0),0); }
@@ -2348,8 +2976,15 @@ async function setProjTitle(){
     name = projHandle.name.replace(/\.(insp360|zip)$/i,'');
     try{ const rec=await projectsGet(projHandle.name); if(rec && rec.label) name=rec.label; }catch(e){}
   } else { name='Untitled walkthrough'; }
-  el.innerHTML=''; const b=document.createElement('b'); b.textContent=name; el.appendChild(b);
-  el.title=name; el.style.display='';
+  const addr=(projectMeta && projectMeta.address)||window.embedBuildingAddress||'';
+  let label=name;
+  if(addr){
+    const a=String(addr).trim(), n=String(name||'').trim();
+    if(a && n && n.toLowerCase().indexOf(a.toLowerCase())!==0) label=a+' \u2014 '+n;
+    else if(a && !n) label=a;
+  }
+  el.innerHTML=''; const b=document.createElement('b'); b.textContent=label; el.appendChild(b);
+  el.title=label; el.style.display='';
   if(info) info.style.display='';
 }
 // ===== Project details / create =====
@@ -2504,7 +3139,10 @@ async function shareProject(){
   if(hasFSAccess()){
     try{
       const h=await window.showSaveFilePicker({ suggestedName:fname, types:[{description:'INSP360 project', accept:{'application/zip':['.insp360']}}] });
-      const w=await h.createWritable(); await w.write(blob); await w.close();
+      const w=await h.createWritable({ keepExistingData:true });
+      await w.write({ type:'write', position:0, data:blob });
+      await w.write({ type:'truncate', size:blob.size });
+      await w.close();
       lastProjName=fname; idbSet('lastProjName',lastProjName);
       toast('Saved \u201C'+fname+'\u201D. Drop it in a shared OneDrive / SharePoint folder and send that link \u2014 or attach it to an email.');
       return;
@@ -2626,7 +3264,25 @@ function openProjInfo(mode){
   try{ ensureGeoIndexSf(); }catch(e){}
   const m=projectMeta||{}, create=(mode==='create');
   g('piTitle').textContent = create ? 'Create new project' : 'Project details';
-  g('piName').value=m.name||''; g('piAddress').value=m.address||''; g('piTenant').value=m.tenant||'';
+  let startName=m.name||'';
+  let startAddr=m.address||'';
+  if(create){
+    try{
+      const qs=new URLSearchParams(location.search);
+      const t=(qs.get('title')||'').trim();
+      const a=(qs.get('address')||window.embedBuildingAddress||'').trim();
+      if(!startAddr && a) startAddr=a;
+      if(!startName){
+        if(a && t) startName=a+' \u2014 '+t;
+        else if(t) startName=t;
+        else if(a) startName=a+' \u2014 Inspection';
+      } else if(a && startName.toLowerCase().indexOf(a.toLowerCase())!==0){
+        // Keep a custom name, but still prefer address-first when name is just the gate title
+        if(t && startName===t) startName=a+' \u2014 '+t;
+      }
+    }catch(_){}
+  }
+  g('piName').value=startName; g('piAddress').value=startAddr; g('piTenant').value=m.tenant||'';
   g('piSF').value=m.sf||''; g('piCreator').value=m.creator||''; g('piType').value=m.type||'';
   // If address is already set but SF / Tenant are blank, fill from the DB now
   if(g('piAddress').value.trim()){
@@ -2652,7 +3308,10 @@ function openProjInfo(mode){
     g('piAddress').value=b.a||'';
     // project name: fill when blank, and refresh when it's still the auto-generated name for the previous address
     const nameEl=g('piName'), nv=nameEl.value.trim();
-    if(b.a && (!nv || /\u2014 Inspection$/.test(nv))) nameEl.value=b.a+' \u2014 Inspection';
+    if(b.a && (!nv || /\u2014 Inspection$/.test(nv) || (window.embedGateTitle && nv===window.embedGateTitle))){
+      const gate=(window.embedGateTitle||'').trim();
+      nameEl.value=gate ? (b.a+' \u2014 '+gate) : (b.a+' \u2014 Inspection');
+    }
     // tenant: always refresh from DB when picking an address (user chose a new building)
     applyTenantFromDb(b.a, g('piTenant'), true);
     // type: fill from the building's park/portfolio only when blank (don't clobber a manual entry)
@@ -2727,7 +3386,7 @@ function openProjInfo(mode){
   ov.onclick=e=>{ if(e.target===ov){ if(!create) commit(); done(); } };
   g('piCreate').onclick=()=>{ const f=readForm();
     if(!f.name){ toast('Give the project a name.', true); g('piName').focus(); return; }
-    goHome();                         // clean slate: drop any plans, overlay maps and photos from a previously open project
+    goHome({force:true});                         // clean slate: drop any plans, overlay maps and photos from a previously open project
     const now=new Date().toISOString(); projectMeta={ ...f, created:now, modified:now };
     done();
     enterProjectMode();               // stay in project shell even before photos are chosen
@@ -2847,20 +3506,15 @@ async function openRecent(rec){
       const opt={mode:'read'};
       if((await rec.handle.queryPermission(opt))!=='granted' && (await rec.handle.requestPermission(opt))!=='granted'){ toast('Permission needed to open that project.'); return; }
       const f=await rec.handle.getFile();
-      openProject(f, rec.handle); return;
+      openProject(f, rec.handle, { resumePhoto:true }); return;
     }catch(e){ console.warn(e); toast('Couldn\u2019t reach \u201C'+rec.name+'\u201D \u2014 locate it manually.', true); }
   }
   projFile.click();
 }
 async function renderDashboard(){
+  if(document.body.classList.contains('embed')) return;
   const dash=document.getElementById('dash'), grid=document.getElementById('dashGrid');
   if(!dash||!grid) return;
-  // Gateway embed: never show Recent projects — only the gate-linked tour.
-  if(document.body.classList.contains('embed')){
-    dash.classList.remove('show');
-    emptyEl.classList.remove('has-dash');
-    return;
-  }
   let recs=await projectsAll(); if(!Array.isArray(recs)) recs=[];
   recs.sort((a,b)=>projOrderKey(a)-projOrderKey(b));
   grid.innerHTML='';
@@ -2876,7 +3530,18 @@ async function renderDashboard(){
     const ph=rec.photos||0, ob=rec.objects||0;
     card.innerHTML=`<div class="dash-cover"${cover}></div><div class="dash-rename" title="Rename (display label)" draggable="false"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10z"/><circle cx="6.5" cy="6.5" r="1.3"/></svg></div><div class="dash-edit" title="Change preview picture" draggable="false"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><div class="dash-del" title="Remove from recents" draggable="false">\u00D7</div><div class="dash-foot"><div class="dash-grip" title="Drag to reorder"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><div class="dash-meta"><div class="dash-name">${esc(disp)}</div><div class="dash-sub">${ph} photo${ph===1?'':'s'} \u00B7 ${ob} link${ob===1?'':'s'}${d?(' \u00B7 '+d):''}</div></div></div>`;
     card.addEventListener('click', e=>{
-      if(e.target.closest('.dash-del')){ e.stopPropagation(); projectsDel(rec.name).then(renderDashboard); return; }
+      if(e.target.closest('.dash-del')){
+        e.stopPropagation();
+        projectsDel(rec.name).then(async ()=>{
+          try{
+            const h=projHandleRemembered||(await idbGet('projHandle'));
+            if(h && h.name===rec.name){ projHandleRemembered=null; idbSet('projHandle', null); }
+          }catch(_){}
+          renderDashboard();
+          updateResumeBanner();
+        });
+        return;
+      }
       if(e.target.closest('.dash-edit')){ e.stopPropagation(); coverTargetName=rec.name; coverPick.click(); return; }
       if(e.target.closest('.dash-rename')){ e.stopPropagation(); renameProject(rec); return; }
       openRecent(rec);
@@ -2889,6 +3554,7 @@ async function renderDashboard(){
     grid.appendChild(card);
   }
   filterDash();
+  try{ updateResumeBanner(); }catch(_){}
 }
 function filterDash(){
   const q=(document.getElementById('dashSearch').value||'').trim().toLowerCase();
@@ -3293,7 +3959,7 @@ function bindPin(el,m){
     if(planEdit){ selectPin(m); return; }
     if(m.target){
       const idx=items.findIndex(it=>it.name===m.target);
-      if(idx>=0){ if(!planPanel.classList.contains('show')) showPlanPanel(); if(planPanel.classList.contains('full')) setPlanFull(false); selectImage(idx); }
+      if(idx>=0){ if(!planPanel.classList.contains('show')) showPlanPanel(); if(planPanel.classList.contains('full')) setPlanFull(false); selectImage(idx, { preferSavedView:true }); }
       else toast('That pin points to \u201C'+m.target+'\u201D, which isn\u2019t in the library.', true);
     } else toast('This pin has no photo yet \u2014 turn on Place pins to assign one.');
   });
@@ -3963,7 +4629,7 @@ function openMarkerTarget(mk){
   const idx=items.findIndex(it=>it.name===mk.target);
   if(idx<0){ toast('That marker points to \u201C'+mk.target+'\u201D, which isn\u2019t in the library.', true); return; }
   if(planPanel.classList.contains('full')) setPlanFull(false);
-  selectImage(idx);
+  selectImage(idx, { preferSavedView:true });
 }
 function renderGmapPolys(p){
   if(!_gmap||!_gmapsApi) return;
@@ -5005,6 +5671,7 @@ render();
   const elSensUp=document.getElementById('beSensUp');
   const elSensDown=document.getElementById('beSensDown');
   const elClear=document.getElementById('beClear');
+  const elDelete=document.getElementById('beDelete');
   const elRevert=document.getElementById('beRevert');
   const elCancel=document.getElementById('beCancel');
   const elApply =document.getElementById('beApply');
@@ -5016,7 +5683,7 @@ render();
   const elZoomReset=document.getElementById('beZoomReset');
 
   let mode='faces', method='manual', curItem=null, baseBmp=null, baseW=0, baseH=0;
-  let boxes=[], sel=-1, drag=null;
+  let boxes=[], sel=-1, sels=new Set(), drag=null;
   let _abQueue=[], _abCancel=false, _abTotal=0, _abDone=0;
   const fit={s:1, baseS:1, ox:0, oy:0, cw:0, ch:0};
   const view={z:1, panX:0, panY:0}; // z 1..10, pan in CSS pixels
@@ -5042,10 +5709,47 @@ render();
   function syncSensLabel(){
     if(elSensVal && elStr) elSensVal.textContent=String(elStr.value);
   }
+  function syncSelUi(){
+    if(sel>=0) sels.add(sel);
+    if(elDelete) elDelete.disabled = sels.size===0 && sel<0;
+  }
+  function setSelection(indices, primary){
+    sels=new Set(indices||[]);
+    if(primary!=null && primary>=0) sel=primary;
+    else if(sels.size){ sel=[...sels].pop(); }
+    else sel=-1;
+    if(sel>=0) sels.add(sel);
+    syncSelUi();
+  }
+  function clearSelection(){ sels=new Set(); sel=-1; syncSelUi(); }
+  function cloneBlurBoxes(list){
+    return (list||[]).map(b=>({
+      x:+b.x||0, y:+b.y||0, w:+b.w||0, h:+b.h||0,
+      kind:b.kind==='plates'?'plates':'faces',
+      _auto:!!b._auto
+    })).filter(b=>b.w>0.001 && b.h>0.001);
+  }
+  function storeItemBlurBoxes(it, list){
+    if(!it) return;
+    const saved=cloneBlurBoxes(list);
+    it.blurBoxes=saved.length?saved:null;
+  }
+  function deleteSelectedBoxes(){
+    if(!sels.size && sel<0) return 0;
+    const drop=new Set(sels);
+    if(sel>=0) drop.add(sel);
+    const next=boxes.filter((_,i)=>!drop.has(i));
+    const n=boxes.length-next.length;
+    boxes=next;
+    clearSelection();
+    draw();
+    return n;
+  }
   function clearAutoFaceBoxes(){
     const next=boxes.filter(b=>!(b && b.kind==='faces' && b._auto));
     boxes=next;
-    if(sel>=boxes.length) sel=boxes.length?boxes.length-1:-1;
+    clearSelection();
+    if(sel>=boxes.length) setSelection([], boxes.length?boxes.length-1:-1);
   }
   function setBlurStatus(txt){
     if(!elStatus) return;
@@ -5066,11 +5770,12 @@ render();
     if(elSensField) elSensField.style.display = faces ? '' : 'none';
     syncSensLabel();
     if(elHint) elHint.textContent = method==='manual'
-      ? 'Scroll to zoom · Alt-drag (or middle-drag / Space-drag) to pan · drag to draw a blur box · Delete removes selected'
+      ? 'Click a blur to select · Shift-click multi-select · Delete / Delete button removes selected · Clear all removes every box · drag empty area to draw'
       : (faces
-        ? 'Person-gated detect skips ceiling/floor/walls · + / − Sensitivity re-scans · Apply uses a fixed 6% blur'
-        : 'Auto boxes appear after detect — scroll to zoom, then drag to adjust · Apply blur when ready');
+        ? 'Person-gated detect skips ceiling/floor/walls · + / − Sensitivity re-scans · select boxes to delete · Apply uses a fixed 6% blur'
+        : 'Auto boxes appear after detect — select any to delete · scroll to zoom, then drag to adjust · Apply blur when ready');
     syncZoomLabel();
+    syncSelUi();
     updateCursor();
   }
   function updateCursor(){
@@ -5161,7 +5866,7 @@ render();
     mode=which==='plates'?'plates':'faces';
     method='manual';
     curItem=items[currentIndex];
-    boxes=[]; sel=-1; drag=null;
+    boxes=[]; clearSelection(); drag=null;
     view.z=1; view.panX=0; view.panY=0;
     elRevert.style.display = curItem._blurOrig ? '' : 'none';
     elStyle.value='blur';
@@ -5172,16 +5877,28 @@ render();
     busy(true,'Loading photo…');
     try{
       await ensureMeta(curItem);
-      baseBmp=await decodeImage(curItem.file);
+      // Edit from original when available so auto-blur boxes can be removed/re-baked
+      const srcFile=curItem._blurOrig || curItem.file;
+      if(!curItem._blurOrig && ((+curItem.blurFaces||0)>0 || (+curItem.blurPlates||0)>0)){
+        toast('This photo is already baked-blurred (no original in memory). Re-upload or use Revert if available — detecting on blurred faces often finds 0.', true);
+      }
+      baseBmp=await decodeImage(srcFile);
       baseW=baseBmp.naturalWidth||baseBmp.width; baseH=baseBmp.naturalHeight||baseBmp.height;
+      boxes=cloneBlurBoxes(curItem.blurBoxes);
+      clearSelection();
       layout(); draw();
+      if(boxes.length){
+        method='manual';
+        syncEditorUi();
+        toast(boxes.length+' saved blur'+(boxes.length>1?'s':'')+' loaded — select to delete, then Apply.');
+      }
     }catch(e){ console.error(e); toast('Could not load this photo for blurring.', true); closeEditor(); }
     busy(false);
   }
   function closeEditor(){
     overlay.classList.remove('show');
     if(baseBmp && baseBmp.close){ try{ baseBmp.close(); }catch(_){} }
-    baseBmp=null; boxes=[]; sel=-1; drag=null; curItem=null;
+    baseBmp=null; boxes=[]; clearSelection(); drag=null; curItem=null;
     view.z=1; view.panX=0; view.panY=0;
   }
 
@@ -5240,7 +5957,7 @@ render();
     ctx.imageSmoothingEnabled=true;
     ctx.drawImage(baseBmp, fit.ox, fit.oy, baseW*fit.s, baseH*fit.s);
     boxes.forEach(previewBox);
-    boxes.forEach((b,i)=>outlineBox(b,i===sel));
+    boxes.forEach((b,i)=>outlineBox(b, sels.has(i) || i===sel));
   }
   function previewBox(b){
     const p=boxPx(b); if(p.w<2||p.h<2) return;
@@ -5276,6 +5993,12 @@ render();
     else ctx.strokeRect(p.x,p.y,p.w,p.h);
     ctx.setLineDash([]);
     if(active){ ctx.fillStyle='#2dd4bf'; handlePts(p).forEach(h=>ctx.fillRect(h.x-4,h.y-4,8,8)); }
+    // Tiny kind tag for auto vs manual
+    if(b && b._auto){
+      ctx.fillStyle=active?'rgba(45,212,191,.9)':'rgba(230,237,243,.55)';
+      ctx.font='10px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillText('auto', p.x+4, p.y+12);
+    }
   }
 
   function evPos(e){ const r=canvas.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
@@ -5310,15 +6033,28 @@ render();
     const hk=hitHandle(cx,cy);
     if(hk){ drag={type:'resize',k:hk}; return; }
     const hb=hitBox(cx,cy);
-    if(hb>=0){ sel=hb; const [bx,by]=c2b(cx,cy); drag={type:'move',dx:bx-boxes[hb].x,dy:by-boxes[hb].y}; draw(); return; }
+    if(hb>=0){
+      if(e.shiftKey){
+        if(sels.has(hb)){ sels.delete(hb); sel=sels.size?[...sels].pop():-1; }
+        else { sels.add(hb); sel=hb; }
+        syncSelUi(); draw(); return;
+      }
+      setSelection([hb], hb);
+      const [bx,by]=c2b(cx,cy); drag={type:'move',dx:bx-boxes[hb].x,dy:by-boxes[hb].y}; draw(); return;
+    }
+    // Click empty — clear multi-select unless starting a new box
+    if(!e.shiftKey) clearSelection();
     const [nx,ny]=c2b(cx,cy);
     // Only start a new box if click is roughly on the image
     if(nx<-0.02||ny<-0.02||nx>1.02||ny>1.02){
       // Clicked empty margin while zoomed — pan instead
       if(view.z>1.001){ drag={type:'pan', x:cx, y:cy, panX:view.panX, panY:view.panY}; updateCursor(); }
+      draw();
       return;
     }
-    boxes.push({x:clamp01(nx),y:clamp01(ny),w:0,h:0,kind:mode==='plates'?'plates':'faces'}); sel=boxes.length-1; drag={type:'new',ox:nx,oy:ny}; draw();
+    boxes.push({x:clamp01(nx),y:clamp01(ny),w:0,h:0,kind:mode==='plates'?'plates':'faces'});
+    setSelection([boxes.length-1], boxes.length-1);
+    drag={type:'new',ox:nx,oy:ny}; draw();
   });
   canvas.addEventListener('pointermove',e=>{
     if(!drag) return;
@@ -5332,19 +6068,36 @@ render();
     let [nx,ny]=c2b(cx,cy); nx=clamp01(nx); ny=clamp01(ny);
     const b=boxes[sel]; if(!b) return;
     if(drag.type==='new'){ b.x=Math.min(drag.ox,nx); b.y=Math.min(drag.oy,ny); b.w=Math.abs(nx-drag.ox); b.h=Math.abs(ny-drag.oy); }
-    else if(drag.type==='move'){ b.x=clamp01(Math.min(nx-drag.dx,1-b.w)); b.y=clamp01(Math.min(ny-drag.dy,1-b.h)); }
+    else if(drag.type==='move'){
+      // Move all selected together
+      const dx=nx-drag.dx-b.x, dy=ny-drag.dy-b.y;
+      const moveIdx=sels.size?sels:new Set([sel]);
+      moveIdx.forEach(i=>{
+        const bb=boxes[i]; if(!bb) return;
+        bb.x=clamp01(Math.min(bb.x+dx,1-bb.w));
+        bb.y=clamp01(Math.min(bb.y+dy,1-bb.h));
+      });
+      drag.dx=nx-b.x; drag.dy=ny-b.y;
+    }
     else if(drag.type==='resize'){ let x0=b.x,y0=b.y,x1=b.x+b.w,y1=b.y+b.h; const k=drag.k; if(k[0]==='n')y0=ny; else y1=ny; if(k[1]==='w')x0=nx; else x1=nx; b.x=Math.min(x0,x1); b.y=Math.min(y0,y1); b.w=Math.abs(x1-x0); b.h=Math.abs(y1-y0); }
     draw();
   });
   canvas.addEventListener('pointerup',()=>{
-    if(drag && drag.type==='new'){ const b=boxes[sel]; if(b&&(b.w<0.005||b.h<0.005)){ boxes.pop(); sel=-1; draw(); } }
+    if(drag && drag.type==='new'){ const b=boxes[sel]; if(b&&(b.w<0.005||b.h<0.005)){ boxes.pop(); clearSelection(); draw(); } }
     drag=null; updateCursor();
   });
   window.addEventListener('keydown',e=>{
     if(!overlay.classList.contains('show')) return;
     if(e.code==='Space' && !e.repeat){ spaceDown=true; updateCursor(); e.preventDefault(); }
     if(e.key==='Escape'){ closeEditor(); }
-    else if((e.key==='Delete'||e.key==='Backspace')&&sel>=0){ boxes.splice(sel,1); sel=-1; draw(); e.preventDefault(); }
+    else if((e.key==='Delete'||e.key==='Backspace')&&(sel>=0||sels.size)){
+      const n=deleteSelectedBoxes();
+      if(n) toast('Removed '+n+' blur'+(n>1?'s':'')+'.');
+      e.preventDefault();
+    }
+    else if((e.key==='a'||e.key==='A') && (e.ctrlKey||e.metaKey) && boxes.length){
+      setSelection(boxes.map((_,i)=>i), boxes.length-1); draw(); e.preventDefault();
+    }
     else if((e.key==='='||e.key==='+') && (e.ctrlKey||e.metaKey)){ e.preventDefault(); zoomAt(fit.cw/2, fit.ch/2, 1.25); }
     else if((e.key==='-'||e.key==='_') && (e.ctrlKey||e.metaKey)){ e.preventDefault(); zoomAt(fit.cw/2, fit.ch/2, 1/1.25); }
     else if(e.key==='0' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); resetZoom(); }
@@ -5358,7 +6111,17 @@ render();
     elStr.oninput=()=>syncSensLabel();
     elStr.addEventListener('change', ()=>{ if(mode==='faces' && baseBmp) void rescanFacesAtSensitivity(); });
   }
-  elClear.onclick=()=>{ boxes=[]; sel=-1; draw(); };
+  elClear.onclick=()=>{
+    if(!boxes.length) return;
+    const n=boxes.length;
+    boxes=[]; clearSelection(); draw();
+    toast('Cleared '+n+' blur'+(n>1?'s':'')+'.');
+  };
+  if(elDelete) elDelete.onclick=()=>{
+    const n=deleteSelectedBoxes();
+    if(n) toast('Removed '+n+' blur'+(n>1?'s':'')+'.');
+    else toast('Select a blur box first.', true);
+  };
   elCancel.onclick=closeEditor;
   if(elZoomIn) elZoomIn.onclick=()=>zoomAt(fit.cw/2, fit.ch/2, 1.25);
   if(elZoomOut) elZoomOut.onclick=()=>zoomAt(fit.cw/2, fit.ch/2, 1/1.25);
@@ -5466,16 +6229,18 @@ render();
       const suppress=keep.some(k=>{
         // Head fallback never knocks out a real face detection
         if(b._personHead && !k._personHead){
-          return boxIou(k,b)>0.15; // drop fallback if a real face already covers it
+          return boxIou(k,b)>0.12; // drop fallback if a real face already covers it
         }
         if(!b._personHead && k._personHead) return false;
         const iou=boxIou(k,b);
-        if(iou<0.22) return false;
+        if(iou>=0.28) return true; // strong overlap = same face
+        if(iou<0.18) return false;
         const cx1=k.x+k.w/2, cy1=k.y+k.h/2, cx2=b.x+b.w/2, cy2=b.y+b.h/2;
         const dist=Math.hypot(cx1-cx2, cy1-cy2);
         const sep=Math.min(k.w,k.h,b.w,b.h);
-        if(dist > sep*0.40) return false; // distinct people in a group
-        return iou>0.35;
+        // Only keep both when clearly separated (hallway neighbours)
+        if(dist > sep*0.65) return false;
+        return true;
       });
       if(suppress) continue;
       keep.push(b);
@@ -5486,9 +6251,10 @@ render();
   function personHeadSlots(people){
     const slots=[];
     for(const p of people||[]){
-      // ~0.35 of person height ≈ one head width in a standing crop
-      const est=Math.max(1, Math.min(5, Math.round(p.w/Math.max(0.02, p.h*0.32))));
-      const n=p.w>=0.12 ? Math.max(est, 3) : (p.w>=0.07 ? Math.max(est, 2) : est);
+      // Prefer one slot; only split clearly wide crowd strips
+      let n=1;
+      if(p.w>=0.20) n=3;
+      else if(p.w>=0.12) n=2;
       for(let i=0;i<n;i++){
         const sw=p.w/n;
         slots.push({x:p.x+i*sw, y:p.y, w:sw, h:p.h});
@@ -5499,34 +6265,77 @@ render();
   /** After face NMS: guarantee a blur on every person-head slot that still has none. */
   function ensurePersonHeadBlurs(faces, people){
     const out=(faces||[]).slice();
+    const real=out.filter(f=>!f._personHead);
+    let added=0;
+    const maxAdd=Math.max(0, Math.min(2, (people||[]).length - real.length));
+    if(maxAdd<=0) return out;
     for(const s of personHeadSlots(people)){
+      if(added>=maxAdd) break;
+      // Skip fallback if any real face already sits on this person region
+      const personBox={x:s.x, y:s.y, w:s.w, h:s.h};
+      if(real.some(f=>boxIou(f, personBox)>0.05 || (
+        (f.x+f.w*0.5)>=s.x && (f.x+f.w*0.5)<=s.x+s.w &&
+        (f.y+f.h*0.5)>=s.y && (f.y+f.h*0.5)<=s.y+s.h*0.55
+      ))) continue;
       const head={
-        x:clamp01(s.x+s.w*0.12),
-        y:clamp01(s.y-s.h*0.02),
+        x:clamp01(s.x+s.w*0.18),
+        y:clamp01(s.y+s.h*0.02),
         w:0, h:0,
         score:0.13,
         _personHead:true,
         kind:'faces'
       };
-      head.w=Math.min(s.w*0.76, 0.07, 1-head.x);
-      head.h=Math.min(s.h*0.42, 0.09, 1-head.y);
-      if(head.w<0.003 || head.h<0.003) continue;
-      const covered=out.some(f=>{
-        const fcx=f.x+f.w*0.5, fcy=f.y+f.h*0.5;
-        if(fcx>=head.x && fcx<=head.x+head.w && fcy>=head.y && fcy<=head.y+head.h) return true;
-        return boxIou(f, head)>0.08;
-      });
-      if(!covered) out.push(head);
+      head.w=Math.min(s.w*0.64, 0.055, 1-head.x);
+      head.h=Math.min(s.h*0.36, 0.07, 1-head.y);
+      if(head.w<0.004 || head.h<0.004) continue;
+      const covered=out.some(f=>boxIou(f, head)>0.12 || (
+        Math.hypot((f.x+f.w*0.5)-(head.x+head.w*0.5), (f.y+f.h*0.5)-(head.y+head.h*0.5)) < Math.min(f.w,head.w)*0.7
+      ));
+      if(!covered){ out.push(head); added++; }
+    }
+    return out;
+  }
+  /**
+   * Looking-down faces in a group are often missed between two hits.
+   * Only fill between two real face detections (not fallbacks).
+   */
+  function fillFaceClusterGaps(faces){
+    const list=(faces||[]).filter(f=>f && !f._personHead).slice().sort((a,b)=>(a.x+a.w*0.5)-(b.x+b.w*0.5));
+    if(list.length<2) return (faces||[]).slice();
+    const out=(faces||[]).slice();
+    for(let i=0;i<list.length-1;i++){
+      const a=list[i], b=list[i+1];
+      const acx=a.x+a.w*0.5, bcx=b.x+b.w*0.5;
+      const acy=a.y+a.h*0.5, bcy=b.y+b.h*0.5;
+      const gap=bcx-(a.x+a.w);
+      const faceW=Math.max(a.w,b.w), faceH=Math.max(a.h,b.h);
+      if(Math.abs(acy-bcy)>faceH*0.55) continue;
+      // Only a clear single-face gap
+      if(gap<faceW*0.55 || gap>faceW*1.6) continue;
+      if(bcx-acx>faceW*2.4) continue;
+      const mx=(acx+bcx)*0.5, my=(acy+bcy)*0.5;
+      const nw=Math.min(faceW*0.9, 0.055), nh=Math.min(faceH*0.95, 0.07);
+      const gapBox={
+        x:clamp01(mx-nw*0.5), y:clamp01(my-nh*0.5),
+        w:nw, h:nh, score:0.12, _personHead:true, kind:'faces'
+      };
+      gapBox.w=Math.min(gapBox.w, 1-gapBox.x);
+      gapBox.h=Math.min(gapBox.h, 1-gapBox.y);
+      const covered=out.some(f=>boxIou(f, gapBox)>0.15 || (
+        Math.hypot((f.x+f.w*0.5)-mx, (f.y+f.h*0.5)-my) < Math.min(f.w,f.h)*0.6
+      ));
+      if(!covered && gapBox.w>0.004 && gapBox.h>0.004) out.push(gapBox);
     }
     return out;
   }
   /** Equirect ceiling/floor poles are almost never faces indoors. */
   function equirectFaceZoneOk(fy, fh, nearPerson){
     const cy=fy+fh*0.5;
-    if(cy<0.08 || cy>0.92) return false; // extreme poles always reject
-    if(nearPerson) return true;
-    // Orphan detections: human-height band (skip ceiling / floor tile false positives)
-    return cy>=0.12 && cy<=0.86;
+    // Hard reject ceiling / floor poles (fire alarms, tiles, lights)
+    if(cy<0.14 || cy>0.90) return false;
+    if(nearPerson) return cy>=0.16 && cy<=0.88;
+    // Orphans: stay clearly below ceiling line / above floor
+    return cy>=0.22 && cy<=0.82;
   }
   /** True if face is near a person box (generous — COCO boxes on equirect are often loose). */
   function faceNearPerson(face, people){
@@ -5563,13 +6372,15 @@ render();
       const iw=Math.max(4, Math.floor(w*0.72)), ih=Math.max(4, Math.floor(h*0.72));
       const data=cv.getContext('2d',{willReadFrequently:true}).getImageData(ix,iy,iw,ih).data;
       const n=iw*ih;
-      let sum=0, sum2=0, skin=0, hEdge=0, vEdge=0, bright=0;
+      let sum=0, sum2=0, skin=0, hEdge=0, vEdge=0, bright=0, hotRed=0;
       const rowEdges=new Float32Array(ih), colEdges=new Float32Array(iw);
       for(let i=0;i<data.length;i+=4){
         const r=data[i], g=data[i+1], b=data[i+2];
         const yv=0.299*r+0.587*g+0.114*b;
         sum+=yv; sum2+=yv*yv;
         if(yv>210) bright++;
+        // Fire alarm / red beacon on ceiling — not skin
+        if(r>140 && r>g*1.35 && r>b*1.25) hotRed++;
         const rg=r-g, rb=r-b;
         // Skin tones incl. darker / olive / warm indoor / cooler LED
         if(r>45 && g>20 && b>10 && r>=g*0.95 && rg>4 && rb>6 && rb<165) skin++;
@@ -5593,22 +6404,25 @@ render();
         }
       }
       const mean=sum/n, variance=sum2/n-mean*mean;
-      const skinRatio=skin/n, brightRatio=bright/n;
+      const skinRatio=skin/n, brightRatio=bright/n, redRatio=hotRed/n;
       const hEdgeRatio=hEdge/Math.max(1,(iw-1)*ih);
       const vEdgeRatio=vEdge/Math.max(1,iw*(ih-1));
       const edgeRatio=(hEdgeRatio+vEdgeRatio)*0.5;
 
-      // Flat wall / smooth metal
-      if(variance<(strict?240:100)) return false;
-      if(skinRatio<(strict?0.06:0.015) && edgeRatio<0.08) return false;
-      if(skinRatio<(strict?0.035:0.01) && variance<(strict?1100:450)) return false;
+      // Flat wall / smooth metal / blanking plate
+      if(variance<(strict?220:80)) return false;
+      if(skinRatio<(strict?0.05:0.008) && edgeRatio<0.06) return false;
+      if(skinRatio<(strict?0.028:0.005) && variance<(strict?900:350)) return false;
 
-      // White dispenser / glossy fixture / empty bright wall patch
-      if(strict && brightRatio>0.45 && skinRatio<0.08) return false;
-      if(strict && mean>185 && skinRatio<0.07 && variance<2500) return false;
+      // Ceiling tiles / lights / fire alarms (always — even loose mode)
+      if(redRatio>0.15 && skinRatio<0.08) return false;
+      if(strict && brightRatio>0.45 && skinRatio<0.06) return false;
+      if(strict && mean>180 && skinRatio<0.06 && variance<2500) return false;
+      // Tiny wall plate with screw "eyes"
+      if(strict && skinRatio<0.06 && mean>145 && mean<210 && variance<1600 && edgeRatio<0.12) return false;
 
-      // Orphans must show real skin — kills door frames / wall blobs
-      if(strict && skinRatio<0.055) return false;
+      // Orphans: prefer some skin, but allow dark/looking-down faces with structure
+      if(strict && skinRatio<0.035 && edgeRatio<0.09) return false;
 
       // Ceiling/floor tile grids: regular H+V peaks, little skin
       if(skinRatio<0.05 && hEdgeRatio>0.11 && vEdgeRatio>0.11){
@@ -5628,7 +6442,7 @@ render();
       const out=[];
       const addPreds=(preds, ox, oy, scaleX, scaleY)=>{
         for(const p of preds){
-          if(p.class!=='person' || p.score<0.25) continue;
+          if(p.class!=='person' || p.score<0.18) continue;
           const [bx,by,bw,bh]=p.bbox;
           out.push({
             x:(ox+bx*scaleX)/scanW,
@@ -5644,7 +6458,7 @@ render();
       const pw=Math.min(scanW, 1400), ph=Math.max(1,Math.round(scanH*(pw/scanW)));
       const fullCv=document.createElement('canvas'); fullCv.width=pw; fullCv.height=ph;
       fullCv.getContext('2d',{alpha:false}).drawImage(full,0,0,pw,ph);
-      addPreds(await _cocoModel.detect(fullCv, 30, 0.25), 0, 0, scanW/pw, scanH/ph);
+      addPreds(await _cocoModel.detect(fullCv, 30, 0.18), 0, 0, scanW/pw, scanH/ph);
 
       // Left / right halves at higher res
       const halfSrc=Math.ceil(scanW/2)+60;
@@ -5653,7 +6467,7 @@ render();
         const hcw=Math.min(tw, 1200), hch=Math.max(1,Math.round(scanH*(hcw/tw)));
         const hc=document.createElement('canvas'); hc.width=hcw; hc.height=hch;
         hc.getContext('2d',{alpha:false}).drawImage(full, ox,0,tw,scanH, 0,0,hcw,hch);
-        addPreds(await _cocoModel.detect(hc, 30, 0.25), ox, 0, tw/hcw, scanH/hch);
+        addPreds(await _cocoModel.detect(hc, 30, 0.18), ox, 0, tw/hcw, scanH/hch);
       }
 
       // Mid-band (hallway standing height)
@@ -5662,7 +6476,7 @@ render();
         const mw=Math.min(scanW, 1600), mh=Math.max(1,Math.round(midH*(mw/scanW)));
         const mc=document.createElement('canvas'); mc.width=mw; mc.height=mh;
         mc.getContext('2d',{alpha:false}).drawImage(full, 0,midY,scanW,midH, 0,0,mw,mh);
-        addPreds(await _cocoModel.detect(mc, 30, 0.25), 0, midY, scanW/mw, midH/mh);
+        addPreds(await _cocoModel.detect(mc, 30, 0.18), 0, midY, scanW/mw, midH/mh);
       }
 
       out.sort((a,b)=>(b.score||0)-(a.score||0));
@@ -5683,7 +6497,6 @@ render();
     // sensitivity 0..1 — higher finds more faces (lower score floor). Default ~0.35.
     const sens=Math.max(0, Math.min(1, opts&&typeof opts.sensitivity==='number' ? opts.sensitivity : 0.35));
     const aggressive=sens>=0.7;
-    const personGated=!!(opts&&opts.personGated); // keep only faces attached to a detected person
     await ensureFaceModel();
     const iw=source.naturalWidth||source.width, ih=source.naturalHeight||source.height;
     if(!iw||!ih) return [];
@@ -5694,18 +6507,36 @@ render();
     const full=document.createElement('canvas'); full.width=scanW; full.height=scanH;
     const fullCtx=full.getContext('2d',{alpha:false});
     fullCtx.drawImage(source,0,0,scanW,scanH);
+    // Dark hallways: detect on a *separate* brightened copy — never filter the master
+    // (CSS filter + ImageBitmap has caused black/corrupt outputs in Chromium).
+    let detectFull=full;
+    try{
+      const sw=Math.min(48,scanW), sh=Math.min(48,Math.max(8,Math.floor(scanH*0.4)));
+      const sy=Math.floor(scanH*0.25);
+      const smp=fullCtx.getImageData(0,sy,sw,sh).data;
+      let lum=0, n=0;
+      for(let i=0;i<smp.length;i+=16){ lum+=0.299*smp[i]+0.587*smp[i+1]+0.114*smp[i+2]; n++; }
+      if(n && lum/n<85){
+        const bright=document.createElement('canvas'); bright.width=scanW; bright.height=scanH;
+        const bctx=bright.getContext('2d',{alpha:false});
+        bctx.filter='brightness(1.55) contrast(1.28)';
+        bctx.drawImage(full,0,0);
+        bctx.filter='none';
+        detectFull=bright;
+      }
+    }catch(_){}
 
-    // People first — boosts angled faces; orphans need strict appearance (kills wall FPs)
+    // People first — boosts angled faces; orphans need appearance gate (kills wall FPs)
     if(onProg) onProg(0, 1);
-    const people=await detectPeopleNorm(full, scanW, scanH);
+    const people=await detectPeopleNorm(detectFull, scanW, scanH);
 
     // Editor + auto: lower face floor near people; mid-band orphans OK if skin-real (groups)
-    const scoreThreshold=(fast?0.50:0.48) - sens*(fast?0.50:0.50);
-    const minKeep=Math.max(fast?0.06:0.05, scoreThreshold - (aggressive?0.10:0.06));
-    const personMinKeep=Math.max(0.04, minKeep*0.45);
-    const orphanMinKeep=Math.max(minKeep+0.10, aggressive?0.14:(fast?0.24:0.26));
-    // Hallway group faces often lack a COCO person box — allow mid-band with skin gate
-    const midOrphanMin=Math.max(0.10, minKeep);
+    const scoreThreshold=(fast?0.48:0.45) - sens*0.50;
+    const minKeep=Math.max(0.04, scoreThreshold - (aggressive?0.12:0.08));
+    const personMinKeep=Math.max(0.03, minKeep*0.40);
+    const orphanMinKeep=Math.max(minKeep+0.08, aggressive?0.12:(fast?0.20:0.22));
+    // Hallway group faces often lack a COCO person box — allow mid-band with looser floor
+    const midOrphanMin=Math.max(0.06, minKeep*0.85);
     const tile=fast?(aggressive?480:480):(aggressive?560:640);
     const step=fast?(aggressive?220:260):(aggressive?240:320); // denser for groups
     const inputSize=fast?(aggressive?512:480):(aggressive?608:512);
@@ -5736,7 +6567,7 @@ render();
       const near=forceNear || faceNearPerson(cand, people);
       if(!equirectFaceZoneOk(fy, fh, near)) return;
       const cy=fy+fh*0.5;
-      const midBand=cy>=0.16 && cy<=0.80;
+      const midBand=cy>=0.22 && cy<=0.78;
       if(near){
         if(sc<personMinKeep) return;
         cand.score=Math.max(sc, minKeep);
@@ -5755,9 +6586,9 @@ render();
         const cy=(y+th*0.5)/scanH;
         const nearP=tileOverlapsPeople(x,y,tw,th, scanW,scanH, people);
         // Skip ceiling / floor tiles unless a person is there
-        if(!nearP && (cy<0.12 || cy>0.88)){ done++; if(onProg) onProg(done, total); continue; }
+        if(!nearP && (cy<0.20 || cy>0.86)){ done++; if(onProg) onProg(done, total); continue; }
         tileCv.width=tw; tileCv.height=th;
-        tctx.drawImage(full, x,y,tw,th, 0,0,tw,th);
+        tctx.drawImage(detectFull, x,y,tw,th, 0,0,tw,th);
         try{
           const dets=await faceapi.detectAllFaces(tileCv, optsDet);
           dets.forEach(d=>{
@@ -5774,7 +6605,7 @@ render();
     try{
       const passW=Math.min(scanW, aggressive?2200:2000), passH=Math.max(1,Math.round(scanH*(passW/scanW)));
       const pass=document.createElement('canvas'); pass.width=passW; pass.height=passH;
-      pass.getContext('2d',{alpha:false}).drawImage(full,0,0,passW,passH);
+      pass.getContext('2d',{alpha:false}).drawImage(detectFull,0,0,passW,passH);
       const detsHi=await faceapi.detectAllFaces(pass, new faceapi.TinyFaceDetectorOptions({inputSize:608, scoreThreshold:Math.max(0.05, scoreThreshold-0.05)}));
       detsHi.forEach(d=>{
         const b=d.box;
@@ -5793,11 +6624,11 @@ render();
       }
 
       // Mid-band crop for hallway groups
-      const midY=Math.round(scanH*0.12), midH=Math.round(scanH*0.72);
+      const midY=Math.round(scanH*0.20), midH=Math.round(scanH*0.62);
       if(midH>200){
         const mid=document.createElement('canvas');
         mid.width=Math.min(scanW, aggressive?2800:2400); mid.height=Math.max(1, Math.round(midH*(mid.width/scanW)));
-        mid.getContext('2d',{alpha:false}).drawImage(full, 0,midY,scanW,midH, 0,0,mid.width,mid.height);
+        mid.getContext('2d',{alpha:false}).drawImage(detectFull, 0,midY,scanW,midH, 0,0,mid.width,mid.height);
         const sx=scanW/mid.width, sy=midH/mid.height;
         const detsMid=await faceapi.detectAllFaces(mid, new faceapi.TinyFaceDetectorOptions({inputSize:608, scoreThreshold:Math.max(0.03, scoreThreshold-0.10)}));
         detsMid.forEach(d=>{
@@ -5822,7 +6653,7 @@ render();
           if(sw<160) continue;
           const scv=document.createElement('canvas');
           scv.width=Math.min(640, sw*2); scv.height=Math.min(480, Math.round(midH*(scv.width/sw)));
-          scv.getContext('2d',{alpha:false}).drawImage(full, sx0,midY,sw,midH, 0,0,scv.width,scv.height);
+          scv.getContext('2d',{alpha:false}).drawImage(detectFull, sx0,midY,sw,midH, 0,0,scv.width,scv.height);
           try{
             const dets=await faceapi.detectAllFaces(scv, new faceapi.TinyFaceDetectorOptions({inputSize:416, scoreThreshold:Math.max(0.03, scoreThreshold*0.55)}));
             dets.forEach(d=>{
@@ -5841,7 +6672,7 @@ render();
       try{
         const personPassW=Math.min(scanW, 1600), personPassH=Math.max(1,Math.round(scanH*(personPassW/scanW)));
         const personCv=document.createElement('canvas'); personCv.width=personPassW; personCv.height=personPassH;
-        personCv.getContext('2d',{alpha:false}).drawImage(full,0,0,personPassW,personPassH);
+        personCv.getContext('2d',{alpha:false}).drawImage(detectFull,0,0,personPassW,personPassH);
         const headCv=document.createElement('canvas');
         const headThr=Math.max(0.03, scoreThreshold*0.32);
         const scaleX=scanW/personPassW, scaleY=scanH/personPassH;
@@ -5892,7 +6723,7 @@ render();
           const fw=b.width*(scanW/passW)/scanW, fh=b.height*(scanH/passH)/scanH;
           const near=faceNearPerson({x:fx,y:fy,w:fw,h:fh}, people);
           const cy=fy+fh*0.5;
-          if(!near && (cy<0.16 || cy>0.80)) return;
+          if(!near && (cy<0.22 || cy>0.78)) return;
           pushDet(b.x*(scanW/passW), b.y*(scanH/passH), b.width*(scanW/passW), b.height*(scanH/passH), scanW, scanH, (d.score||0)*0.92, near);
         });
         done++; if(onProg) onProg(done, total);
@@ -5925,7 +6756,7 @@ render();
           zcv.width=Math.min(640, Math.max(256, pw*2)); zcv.height=Math.min(640, Math.max(256, ph*2));
           const zctx=zcv.getContext('2d',{alpha:false});
           zctx.filter='brightness(1.28) contrast(1.15)';
-          zctx.drawImage(full, px,py,pw,ph, 0,0,zcv.width,zcv.height);
+          zctx.drawImage(detectFull, px,py,pw,ph, 0,0,zcv.width,zcv.height);
           zctx.filter='none';
           try{
             const dets=await faceapi.detectAllFaces(zcv, new faceapi.TinyFaceDetectorOptions({inputSize:416, scoreThreshold:0.04}));
@@ -5948,29 +6779,42 @@ render();
     }catch(e){ console.error('full-frame face detect', e); }
 
     // NMS → zone + appearance gates
-    const merged=mergeFaceBoxes(raw).filter(b=>{
+    let merged=mergeFaceBoxes(raw).filter(b=>{
       const near=b._personHead || faceNearPerson(b, people);
       const cy=b.y+b.h*0.5;
-      const midBand=!!b._midBand || (cy>=0.16 && cy<=0.80);
-      if(personGated && !near) return false; // require a detected person beneath the face
+      const midBand=!!b._midBand || (cy>=0.20 && cy<=0.80);
       if(!equirectFaceZoneOk(b.y, b.h, near)) return false;
+      // Extra ceiling guard — fire alarms / tiles
+      if(cy<0.16) return false;
       if(near){
         if((b.score||0)<personMinKeep) return false;
-        if(!b._personHead && !faceCropLooksReal(full, b.x, b.y, b.w, b.h, false)){
-          if((b.score||0)<0.25) return false;
-        }
+        // Person-near: keep looking-down / dark faces (skip skin unless very low score)
+        if(!b._personHead && (b.score||0)<0.12 && !faceCropLooksReal(full, b.x, b.y, b.w, b.h, false)) return false;
       }else if(midBand){
-        // Group faces without COCO person — require skin, not a high score
         if((b.score||0)<midOrphanMin) return false;
-        if(!faceCropLooksReal(full, b.x, b.y, b.w, b.h, true)) return false;
+        // Loose appearance for mid-band (dark hallways); still kills ceiling/red/grid
+        if(!faceCropLooksReal(full, b.x, b.y, b.w, b.h, false)) return false;
       }else{
         if((b.score||0)<orphanMinKeep) return false;
         if(!faceCropLooksReal(full, b.x, b.y, b.w, b.h, true)) return false;
       }
       return true;
     });
-    // Privacy guarantee: every person-head slot gets a blur if face-det missed it
-    const covered=ensurePersonHeadBlurs(merged, people);
+    // Privacy fallbacks (person-head slots / gap fill) — off for auto-blur to avoid 2× over-count
+    const useFallbacks=!(opts&&opts.fallbacks===false);
+    let covered=merged;
+    if(useFallbacks){
+      covered=fillFaceClusterGaps(ensurePersonHeadBlurs(merged, people));
+    }
+    // Cap extras: keep all real faces; at most +2 fallbacks, and never more than people+2
+    {
+      const real=covered.filter(f=>!f._personHead);
+      const fake=covered.filter(f=>f._personHead).sort((a,b)=>(b.score||0)-(a.score||0));
+      const peopleN=(people&&people.length)||0;
+      const maxTotal=Math.max(real.length, Math.min(real.length+2, peopleN?peopleN+1:real.length+1));
+      const keepFake=fake.slice(0, Math.max(0, maxTotal-real.length));
+      covered=real.concat(keepFake);
+    }
     const padded=covered.map(b=>{
       const px=b.w*0.08, py=b.h*0.10;
       const x=clamp01(b.x-px), y=clamp01(b.y-py);
@@ -6113,7 +6957,7 @@ render();
     return {score, peaks, mean};
   }
   /** Sliding-window plate search over a canvas (vehicle crop or full tile). */
-  async function slideFindPlates(srcCanvas, ox, oy, scanW, scanH, opts){
+  function slideFindPlates(srcCanvas, ox, oy, scanW, scanH, opts){
     const w=srcCanvas.width, h=srcCanvas.height;
     if(w<48||h<28) return [];
     const contentScale=Math.max(1e-6, (opts&&opts.contentScale)||1); // crop pixels per scan pixel
@@ -6142,7 +6986,7 @@ render();
         Math.round(w*0.22), Math.round(w*0.30), Math.round(w*0.40),
         28, 36, 48, 64, 80, 96
       ].filter((pw,i,a)=>pw>=16 && pw<=bandW && a.indexOf(pw)===i);
-      for(const pw of pws){ await yieldToUi(); // keep UI responsive during the exhaustive plate search
+      for(const pw of pws){
         for(const ar of targetArs){
           const ph=Math.max(7, Math.round(pw/ar));
           if(ph>bandH || ph<6) continue;
@@ -6185,8 +7029,8 @@ render();
    * Search front/rear fascia bands of a vehicle crop with a sliding plate window.
    * Handles 3/4 views where the plate is off-center and blob-merge with road salt fails.
    */
-  async function findPlatesInVehicleFascia(srcCanvas, ox, oy, scanW, scanH, contentScale){
-    return await slideFindPlates(srcCanvas, ox, oy, scanW, scanH, {
+  function findPlatesInVehicleFascia(srcCanvas, ox, oy, scanW, scanH, contentScale){
+    return slideFindPlates(srcCanvas, ox, oy, scanW, scanH, {
       vehicleLocal:true,
       contentScale:contentScale||1,
       minScore:7,
@@ -6588,7 +7432,7 @@ render();
     return keep;
   }
   /** Zoom into one vehicle bbox, then search for a plate in the enlarged crop. */
-  async function findPlatesInZoomedVehicle(full, v, scanW, scanH){
+  function findPlatesInZoomedVehicle(full, v, scanW, scanH){
     const padX=v.w*0.08, padY=v.h*0.08;
     const sx=Math.max(0, v.x-padX), sy=Math.max(0, v.y-padY);
     const sw=Math.min(scanW-sx, v.w+2*padX), sh=Math.min(scanH-sy, v.h+2*padY);
@@ -6608,7 +7452,7 @@ render();
     // White plate on dark paint first (Tesla / NA plates)
     let got=findWhitePlateBlobs(crop, sx, sy, scanW, scanH, up);
     if(!got.length){
-      got=await slideFindPlates(crop, sx, sy, scanW, scanH, {
+      got=slideFindPlates(crop, sx, sy, scanW, scanH, {
         vehicleLocal:true,
         contentScale:up,
         minScore:5.5,
@@ -6655,7 +7499,7 @@ render();
     for(let i=0;i<vehicles.length;i++){
       const v=vehicles[i];
       try{
-        const got=await findPlatesInZoomedVehicle(full, v, scanW, scanH);
+        const got=findPlatesInZoomedVehicle(full, v, scanW, scanH);
         if(got.length) plates.push(...got);
       }catch(e){ console.error('zoomed plate search', e); }
       await yieldToUi();
@@ -6682,7 +7526,6 @@ render();
     await ensureFaceModel();
     busy(true,'Scanning for faces…');
     const found=await detectFacesTiled(baseBmp, {
-      personGated:faceSensitivity()<0.7, // 70%+ sensitivity re-enables off-person faces
       fast:false,
       sensitivity:faceSensitivity(),
       onProgress:(d,t)=>{ busy(true,'Scanning for faces… '+Math.round(d/Math.max(1,t)*100)+'%'); }
@@ -6714,7 +7557,7 @@ render();
     const prevAuto=boxes.filter(b=>b&&b.kind==='faces'&&b._auto).length;
     try{
       const n=await detectFaces({replaceAuto:true});
-      sel=-1;
+      clearSelection();
       draw();
       const removed=Math.max(0, prevAuto-n);
       if(n) toast('Sensitivity '+elStr.value+'% — '+n+' face'+(n>1?'s':'')+(removed?' · removed '+removed+' excess box'+(removed>1?'es':''):'')+'.');
@@ -6790,19 +7633,35 @@ render();
   }
   async function rebuildCurrent(it){
     invalidateItemCache(it);
-    if(it===items[currentIndex]){ const res=await loadFull(it.file); cachePut(it,res); currentTexture=res.tex; uniforms.uTex.value=res.tex; }
+    if(it===items[currentIndex]){ const res=await loadFull(itemDisplayFile(it)); cachePut(it,res); currentTexture=res.tex; uniforms.uTex.value=res.tex; }
     it.thumbUrl=await makeThumb(it.file); if(it.el&&it.thumbUrl){ const im=it.el.querySelector('img'); if(im) im.src=it.thumbUrl; }
   }
 
   elApply.onclick=async()=>{
     if(!curItem) return;
-    if(!boxes.length){ toast('No blur boxes yet — drag on the photo (or use auto-detect) first.', true); return; }
     elApply.disabled=true; busy(true,'Applying blur…');
     try{
+      // No boxes left → restore original (removed all auto/manual blurs)
+      if(!boxes.length){
+        if(curItem._blurOrig){
+          curItem.file=curItem._blurOrig; curItem._blurOrig=null;
+          curItem.blurred=false; curItem.autoBlurred=false;
+          curItem._autoBlurDone=false; curItem._autoPlatesDone=false;
+          storeItemBlurBoxes(curItem, []);
+          setItemBlurCounts(curItem, 0, 0, {replaceAll:true});
+          await rebuildCurrent(curItem);
+          toast('All blurs removed — original restored. Save the project to keep it.');
+        }else{
+          toast('No blur boxes to apply.', true);
+        }
+        closeEditor();
+        return;
+      }
       const blob=await bake();
       if(!curItem._blurOrig) curItem._blurOrig=curItem.file;
       curItem.file=new File([blob], curItem.name, {type:'image/jpeg'});
       curItem.blurred=true; curItem._autoBlurDone=true;
+      storeItemBlurBoxes(curItem, boxes);
       const nf=boxes.filter(b=>(b.kind||mode)==='faces').length;
       const np=boxes.filter(b=>(b.kind||mode)==='plates').length;
       const hasF=boxes.some(b=>(b.kind||mode)==='faces');
@@ -6819,10 +7678,11 @@ render();
     busy(true,'Restoring original…');
     try{
       curItem.file=curItem._blurOrig; curItem._blurOrig=null; curItem.blurred=false; curItem.autoBlurred=false; curItem._autoBlurDone=false; curItem._autoPlatesDone=false;
+      storeItemBlurBoxes(curItem, []);
       setItemBlurCounts(curItem, 0, 0, {replaceAll:true});
       await rebuildCurrent(curItem);
       baseBmp=await decodeImage(curItem.file); baseW=baseBmp.naturalWidth||baseBmp.width; baseH=baseBmp.naturalHeight||baseBmp.height;
-      boxes=[]; sel=-1; elRevert.style.display='none'; layout(); draw();
+      boxes=[]; clearSelection(); elRevert.style.display='none'; layout(); draw();
       toast('Original photo restored.');
     }catch(e){ console.error(e); toast('Could not restore original.', true); }
     busy(false);
@@ -6906,7 +7766,7 @@ render();
     it._autoBlurDone=true;
     const qLabel = (_abTotal>1) ? (' ('+Math.min(_abDone+1,_abTotal)+'/'+_abTotal+')') : '';
     setBlurStatus('Auto-blur'+qLabel+'\u2026');
-    let fullImg=null;
+    let fullImg=null, bakeSrc=null;
     try{
       await ensureMeta(it);
       await yieldToUi();
@@ -6915,13 +7775,38 @@ render();
 
       let found=[], faceErr=false;
       fullImg=await decodeImage(it.file);
+      // Snapshot ImageBitmap → opaque canvas immediately. Detect/bake never touch the
+      // bitmap again (Chromium can yield black frames after filtered draws from bitmaps).
+      {
+        const iw0=fullImg.naturalWidth||fullImg.width, ih0=fullImg.naturalHeight||fullImg.height;
+        if(!iw0||!ih0){ it._autoBlurDone=false; return; }
+        bakeSrc=document.createElement('canvas');
+        bakeSrc.width=iw0; bakeSrc.height=ih0;
+        const bctx=bakeSrc.getContext('2d',{alpha:false});
+        bctx.fillStyle='#000'; bctx.fillRect(0,0,iw0,ih0);
+        bctx.drawImage(fullImg,0,0);
+        if(fullImg.close) try{fullImg.close();}catch(_){}
+        fullImg=null;
+        // Abort if decode produced a near-black frame (corrupt / empty)
+        try{
+          const sw=Math.min(64,iw0), sh=Math.min(64,ih0);
+          const smp=bctx.getImageData(0,0,sw,sh).data;
+          let lum=0, n=0;
+          for(let i=0;i<smp.length;i+=16){ lum+=0.299*smp[i]+0.587*smp[i+1]+0.114*smp[i+2]; n++; }
+          if(n && lum/n<4){
+            console.warn('auto-blur: source looks black, skipping', it.name);
+            it._autoBlurDone=false;
+            return;
+          }
+        }catch(_){}
+      }
 
       if(doF){
         try{
-          const faces=await detectFacesTiled(fullImg, {
-            personGated:true, // never blur off-person wall / ceiling textures
+          const faces=await detectFacesTiled(bakeSrc, {
             fast:true,
-            sensitivity:0.60, // denser mid-band + cluster refine for hallway groups
+            sensitivity:0.45,
+            fallbacks:false, // no person-head / gap inventing on auto (was 12 from ~5)
             onProgress:(d,t)=>{ setBlurStatus('Faces'+qLabel+'… '+Math.round(d/Math.max(1,t)*100)+'%'); }
           });
           if(Array.isArray(faces)) faces.forEach(b=>{ b.kind='faces'; found.push(b); });
@@ -6934,7 +7819,7 @@ render();
         try{
           setBlurStatus('Cars'+qLabel+'…');
           const plates=await Promise.race([
-            detectPlatesTiled(fullImg, {
+            detectPlatesTiled(bakeSrc, {
               fast:true,
               onProgress:(d,t)=>{
                 const pct=Math.round(d/Math.max(1,t)*100);
@@ -6958,18 +7843,20 @@ render();
 
       setBlurStatus('Applying blur'+qLabel+'\u2026');
       await yieldToUi();
-      const iw=fullImg.naturalWidth||fullImg.width, ih=fullImg.naturalHeight||fullImg.height;
+      const iw=bakeSrc.width, ih=bakeSrc.height;
       const out=document.createElement('canvas'); out.width=iw; out.height=ih;
-      const octx=out.getContext('2d'); octx.drawImage(fullImg,0,0);
+      const octx=out.getContext('2d',{alpha:false});
+      octx.drawImage(bakeSrc,0,0);
       const strength=FACE_BLUR_STRENGTH; // 6% strength
       const up=Math.max(1, iw/1400);
       const blurPx=Math.max(3, Math.round((strength/2)*up));
       const blurred=document.createElement('canvas'); blurred.width=iw; blurred.height=ih;
-      const bc=blurred.getContext('2d');
+      const bc=blurred.getContext('2d',{alpha:false});
       bc.filter='blur('+blurPx+'px)';
-      bc.drawImage(fullImg,0,0);
+      bc.drawImage(bakeSrc,0,0);
       bc.filter='none';
       let n=0, nFaces=0, nPlates=0;
+      const kept=[];
       found.forEach(b=>{
         const x=Math.round(b.x*iw), y=Math.round(b.y*ih), w=Math.round(b.w*iw), h=Math.round(b.h*ih);
         if(w<3||h<3) return;
@@ -6977,17 +7864,31 @@ render();
         const isFace=b.kind==='faces' || (b.kind!=='plates' && (b.w/Math.max(1e-6,b.h))<1.55);
         if(isFace){ blitRounded(octx, blurred, x,y,w,h); nFaces++; }
         else { octx.drawImage(blurred, x,y,w,h, x,y,w,h); nPlates++; }
+        kept.push({x:b.x, y:b.y, w:b.w, h:b.h, kind:isFace?'faces':'plates', _auto:true});
         n++;
       });
-      if(fullImg.close) try{fullImg.close();}catch(_){}
-      fullImg=null;
       if(!n) return;
+
+      // Refuse to replace the photo if the bake went black
+      try{
+        const sw=Math.min(64,iw), sh=Math.min(64,ih);
+        const smp=octx.getImageData(Math.floor((iw-sw)/2), Math.floor((ih-sh)/2), sw, sh).data;
+        let lum=0, nn=0;
+        for(let i=0;i<smp.length;i+=16){ lum+=0.299*smp[i]+0.587*smp[i+1]+0.114*smp[i+2]; nn++; }
+        if(nn && lum/nn<4){
+          console.warn('auto-blur: bake looks black, keeping original', it.name);
+          it._autoBlurDone=false;
+          toast('Skipped a dark/corrupt bake for '+((it.name||'').slice(0,28)), true);
+          return;
+        }
+      }catch(_){}
 
       const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',0.90));
       if(!blob || items.indexOf(it)<0) return;
       if(!it._blurOrig) it._blurOrig=it.file;
       it.file=new File([blob], it.name, {type:'image/jpeg'});
       it.blurred=true; it.autoBlurred=true; it._autoBlurDone=true;
+      storeItemBlurBoxes(it, kept);
       setItemBlurCounts(it, doF?nFaces:null, doP?nPlates:null);
       try{ await rebuildCurrent(it); }catch(e){}
       flashBlurStatus('Blurred '+n+' area'+(n>1?'s':'')+qLabel, 2800);
@@ -6997,6 +7898,7 @@ render();
       it._autoBlurDone=false;
     }finally{
       if(fullImg && fullImg.close) try{fullImg.close();}catch(_){}
+      bakeSrc=null;
     }
   }
   _autoBlurHook=scheduleAutoBlur;
@@ -7005,62 +7907,203 @@ render();
   if(bF) bF.onclick=()=>openEditor('faces');
 })();
 
-/* ===== Embed mode (building-map-explorer sphere gateway) ===== */
-(function(){
-  const params=new URLSearchParams(location.search);
-  if(!params.get('embed')) return;
-  document.body.classList.add('embed');
+// Bridge: BME gate integration runs in a classic <script> and cannot see module scope.
+window.openProject = openProject;
+window.rememberLastProject = rememberLastProject;
+window.idbSet = idbSet;
+window.idbGet = idbGet;
+window.readBoundGateProject = readBoundGateProject;
+window.toast = toast;
+window.mergeBuildingRtus = mergeBuildingRtus;
+window.updateDbStatus = updateDbStatus;
+window.refreshGeoReadout = refreshGeoReadout;
+Object.defineProperty(window, 'geoIndex', {
+  configurable: true,
+  get(){ return geoIndex; },
+  set(v){ geoIndex = v; }
+});
+</script>
 
-  const title=params.get('title');
-  const gateLabel=title || params.get('suite') || '';
-  if(gateLabel){
-    const el=document.getElementById('projName');
-    if(el){
-      el.style.display='';
-      const b=document.createElement('b');
-      b.textContent=gateLabel;
-      el.innerHTML='';
-      el.appendChild(b);
-    }
+<script>
+/* __BME_INSP360_INTEGRATION__ */
+(function(){
+  const VERSION="v1.1.16";
+  const params=new URLSearchParams(location.search);
+  const isEmbed=params.get('embed')==='1';
+  const gateKey=(params.get('gate')||'').trim();
+  const projectUrl=(params.get('project')||'').trim();
+  const photoName=(params.get('photo')||'').trim();
+  const pageTitle=(params.get('title')||'').trim();
+  const pageAddress=(params.get('address')||'').trim();
+  const boundNameParam=(params.get('boundName')||'').trim();
+  window.embedGateKey = gateKey || null;
+  window.embedBuildingAddress = pageAddress || null;
+  window.embedGateTitle = pageTitle || null;
+  window.__bmeHostGeoReady = false;
+  window._gateLinkedThisSession = false;
+  window._gateHostConfirmed = false;
+  window._gatePreferLiveOpen = false;
+
+  if(isEmbed) document.body.classList.add('embed');
+  if(pageTitle || pageAddress){
+    try{
+      const label=[pageAddress, pageTitle].filter(Boolean).join(' \u2014 ');
+      document.title = label + ' · INSP 360 ' + VERSION;
+    }catch(e){}
+  }
+  try{ const v=document.getElementById('appVer'); if(v) v.textContent=VERSION; }catch(e){}
+
+  function applyHostGeo(geo){
+    if(!geo || !Array.isArray(geo.buildings) || !Array.isArray(geo.polys)) return false;
+    try{
+      window._embeddedGeo = geo;
+      geoIndex = geo;
+      window.__bmeHostGeoReady = true;
+      try{ mergeBuildingRtus(geoIndex); }catch(e){}
+      const btn=document.getElementById('planGeo');
+      if(btn){
+        btn.classList.add('on');
+        btn.title='Address DB from Building Map Explorer ('+geo.buildings.length+' buildings, '+geo.polys.length+' tenant polygons'+(Array.isArray(geo.rooms)?', '+geo.rooms.length+' utility rooms':'')+').';
+      }
+      try{ updateDbStatus(); }catch(e){}
+      try{ refreshGeoReadout(); }catch(e){}
+      return true;
+    }catch(e){ console.warn('host geo apply failed', e); return false; }
   }
 
-  const gateKey=(params.get('gate')||'').trim();
-  embedGateKey=gateKey || null;
-
-  // Gateway empty state: only Open project for this gate (no Recent list).
-  const emptyTitle=document.querySelector('#empty h1');
-  const emptyCopy=document.querySelector('#empty > div > p');
-  if(emptyTitle) emptyTitle.textContent='Open a QR-360\u00b0 project';
-  if(emptyCopy) emptyCopy.innerHTML=gateKey
-    ? 'Choose the <b>.insp360</b> tour for this gate. Next time you open this gateway, that project will load automatically.'
-    : 'Choose the <b>.insp360</b> tour for this gate.';
-
-  const dash=document.getElementById('dash');
-  const emptyRoot=document.getElementById('empty');
-  if(dash) dash.classList.remove('show');
-  if(emptyRoot) emptyRoot.classList.remove('has-dash');
-  void renderDashboard();
-
-  async function tryOpenGateHandle(handle, interactive){
-    if(!handle) return false;
-    try{
-      const opt={mode:'read'};
-      let perm=await handle.queryPermission(opt);
-      if(perm!=='granted'){
-        if(!interactive) return false;
-        perm=await handle.requestPermission(opt);
+  window.addEventListener('message', function(ev){
+    const data=ev && ev.data;
+    if(!data) return;
+    if(data.type==='insp360:setGeoIndex'){
+      const wasReady=!!window.__bmeHostGeoReady;
+      if(applyHostGeo(data.geoIndex) && !wasReady){
+        try{ toast('Address DB loaded from Building Map Explorer.'); }catch(e){}
       }
-      if(perm!=='granted'){
-        if(interactive) toast('Permission needed to open the linked project.');
-        return false;
-      }
-      await openProject(await handle.getFile(), handle);
-      return true;
-    }catch(e){
-      console.warn('gate-linked project open failed', e);
-      if(interactive) toast('Couldn\u2019t reopen the linked project \u2014 use Open project to pick it again.', true);
-      return false;
+      return;
     }
+    if(data.type==='insp360:openGateHandle'){
+      (async ()=>{
+        if(document.body.classList.contains('proj-open')) return;
+        if(data.gateKey && gateKey && String(data.gateKey)!==String(gateKey)) return;
+        const displayName=data.name||boundNameParam||'saved project';
+        const liveHandle=data.handle||null;
+        const liveFile=data.file||null;
+        let ok=false;
+        try{
+          // Interrupt any hung IDB auto-open so the freshly picked File can load.
+          window._gatePreferLiveOpen=true;
+          window._gateOpenInFlight=false;
+          window._gateOpenPromise=null;
+          const openFn=typeof window.openProject==='function'?window.openProject:null;
+          const rememberFn=typeof window.rememberLastProject==='function'?window.rememberLastProject:null;
+          const idbSetFn=typeof window.idbSet==='function'?window.idbSet:null;
+          // Open the live File FIRST — remembering the handle must never block opening.
+          if(liveFile && liveFile.size && openFn){
+            await openFn(liveFile, liveHandle||null, { resumePhoto:true, quiet:false, skipGateBind:true });
+            ok=document.body.classList.contains('proj-open');
+          }
+          if(liveHandle){
+            if(idbSetFn){
+              try{ await idbSetFn('gateProj:'+gateKey, liveHandle); }catch(_){}
+              try{ await idbSetFn('gateProjName:'+gateKey, displayName); }catch(_){}
+            }
+            try{ if(rememberFn) rememberFn(liveHandle); }catch(_){}
+          }
+          if(!ok && liveHandle){
+            ok=await openGateHandle(liveHandle, true);
+          }
+          if(!ok){
+            const h=await idbGet('gateProj:'+gateKey);
+            if(h) ok=await openGateHandle(h, true);
+          }
+        }catch(e){
+          console.warn('openGateHandle msg failed', e);
+        }
+        if(ok){
+          try{ toast('Opened linked tour for this gate.'); }catch(_){}
+        } else if(!document.body.classList.contains('proj-open')){
+          showGateContinue(liveHandle||null, displayName, liveHandle?async ()=>openGateHandle(liveHandle, true):null, { forcePicker:!liveHandle });
+        }
+      })();
+      return;
+    }
+    if(data.type==='insp360:openGateProject'){
+      (async ()=>{
+        const alreadyOpen=document.body.classList.contains('proj-open');
+        if(alreadyOpen) return;
+        if(data.gateKey && gateKey && String(data.gateKey)!==String(gateKey)) return;
+        const displayName=data.name||boundNameParam||'saved project';
+        let ok=false;
+        if(data.buffer && data.buffer.byteLength>0){
+          if(window._gateOpenInFlight){
+            const start=Date.now();
+            while(window._gateOpenInFlight && Date.now()-start<120000){
+              await new Promise(function(r){ setTimeout(r, 200); });
+              if(document.body.classList.contains('proj-open')){ ok=true; break; }
+            }
+            if(ok || document.body.classList.contains('proj-open')){
+              try{ toast('Opened linked tour for this gate.'); }catch(_){}
+              return;
+            }
+          }
+          window._gateOpenInFlight=true;
+          try{
+            ok=await openGateProjectFromHost(data.buffer, displayName);
+          } finally {
+            window._gateOpenInFlight=false;
+          }
+        } else {
+          ok=await openGateFromCache(displayName);
+        }
+        if(ok){
+          try{ toast('Opened linked tour for this gate.'); }catch(_){}
+        } else if(!document.body.classList.contains('proj-open')){
+          showGateContinue(null, displayName, null, { forcePicker:true });
+        }
+      })();
+      return;
+    }
+    if(data.type==='insp360:staleGateLink'){
+      if(document.body.classList.contains('proj-open')) return;
+      const label=data.name||boundNameParam||'saved project';
+      showGateContinue(null, label, null, { forcePicker:true });
+      const empty=document.getElementById('empty');
+      const h1=empty && empty.querySelector('h1');
+      const p=empty && empty.querySelector('p');
+      if(h1) h1.textContent='Restore linked tour';
+      if(p) p.textContent='This gate remembers “'+String(label).replace(/\.(insp360|zip)$/i,'')+'”, but the file is missing. Open the .insp360 once to restore auto-open.';
+      return;
+    }
+    if(data.type==='insp360:prepareClose'){
+      (async ()=>{
+        const linkGate = data.linkGate === true;
+        try{
+          try{ await _projectSaveChain; }catch(_){}
+          // Only re-mirror to the gate when there are genuinely unsaved edits. A resumed,
+          // unedited linked tour is already stored, so skip the (slow) rebuild and close fast.
+          const needMirror = linkGate && window.embedGateKey
+            && document.body.classList.contains('proj-open')
+            && (window._gateMirrorDirty === true || window._gateHostConfirmed !== true);
+          if(needMirror){
+            try{
+              showSaveProgress(0, Math.max(2, items.length+2), 'Linking to this gate\u2026');
+              const ok=await mirrorCurrentProjectToGate();
+              endSaveProgress();
+              if(!ok){
+                try{ toast('Could not store this tour for the gate. Try Save, then close again.', true); }catch(_){}
+              }
+            }catch(e){ try{ endSaveProgress(); }catch(_){} }
+          }
+        }finally{
+          try{ if(ev.source) ev.source.postMessage({ type:'insp360:readyToClose' }, '*'); }catch(_){}
+        }
+      })();
+      return;
+    }
+  });
+
+  function requestHostGeo(){
+    try{ if(window.parent && window.parent!==window) window.parent.postMessage({type:'insp360:requestGeoIndex'}, '*'); }catch(e){}
   }
 
   function showLinkedButton(handle){
@@ -7080,46 +8123,355 @@ render();
     btn.appendChild(svg);
     btn.appendChild(document.createTextNode('Open '+label));
     empty.classList.add('show-linked');
-    btn.onclick=()=>{ void tryOpenGateHandle(handle, true); };
+    btn.onclick=()=>openGateHandle(handle, true);
   }
 
-  const projectUrl=params.get('project');
-  const photoName=params.get('photo')||params.get('scene');
+  async function openGateHandle(handle, interactive){
+    if(!handle) return false;
+    try{
+      const o={mode:'read'};
+      let perm='prompt';
+      try{ perm=await handle.queryPermission(o); }catch(_){}
+      if(perm!=='granted'){
+        try{ perm=await handle.requestPermission(o); }catch(_){}
+      }
+      if(perm!=='granted'){
+        if(interactive) toast('Permission needed to reopen that project.', true);
+        return false;
+      }
+      await openProject(await handle.getFile(), handle, { resumePhoto:true, quiet:!interactive, skipGateBind:true });
+      window._gateLinkedThisSession=true;
+      return true;
+    }catch(e){
+      console.warn('gate open failed', e);
+      if(interactive) toast('Could not reopen the linked project.', true);
+      return false;
+    }
+  }
 
-  void (async function(){
-    // 1) Settings / Tour URL linked on the gate
-    if(projectUrl){
-      try{
-        toast('Loading QR-360\u00b0 tour\u2026');
-        const resp=await fetch(projectUrl);
-        if(!resp.ok) throw new Error('HTTP '+resp.status);
-        const blob=await resp.blob();
-        let fname='project.insp360';
+
+  function showGateContinue(handle, displayName, resumeFn, opts){
+    opts=opts||{};
+    const empty=document.getElementById('empty');
+    const btn=document.getElementById('gateContinue');
+    if(!empty||!btn) return;
+    const label=(displayName||(handle&&handle.name)||boundNameParam||'saved project').replace(/\.(insp360|zip)$/i,'');
+    const forcePicker=opts.forcePicker===true;
+    if(forcePicker){
+      btn.innerHTML='<b>Open \u201C'+String(label).replace(/</g,'&lt;')+'\u201D</b><span>Click to choose the .insp360 file and restore this gate link. Auto-open will work after you Link on close.</span>';
+    } else {
+      btn.innerHTML='<b>Continue \u201C'+String(label).replace(/</g,'&lt;')+'\u201D</b><span>Click once if the project did not open automatically. Or use Open existing project to pick another file.</span>';
+    }
+    btn.disabled=false;
+    btn.onclick=(ev)=>{
+      try{ if(ev && ev.preventDefault) ev.preventDefault(); }catch(_){}
+      // Prefer a synchronous file-input click (keeps the user gesture).
+      const pickNow=()=>{
         try{
-          const u=new URL(projectUrl, location.href);
-          fname=u.pathname.split('/').pop()||fname;
+          const input=document.getElementById('projFile');
+          if(input){ input.value=''; input.click(); return true; }
+        }catch(e){ }
+        return false;
+      };
+      if(forcePicker){
+        try{
+          if(window.parent && window.parent!==window){
+            window.parent.postMessage({
+              type:'insp360:requestHostFilePick',
+              gateKey: window.embedGateKey||gateKey||'',
+              name: label
+            }, '*');
+          }
         }catch(_){}
-        const file=new File([blob], fname, {type:blob.type||'application/zip'});
-        await openProject(file);
-        if(photoName){
-          const needle=photoName.toLowerCase();
-          const idx=items.findIndex(it=>it.name===photoName || it.name.toLowerCase()===needle || it.name.toLowerCase().includes(needle));
-          if(idx>=0) selectImage(idx);
+        // Also try File System Access here so we can remember the on-disk path.
+        if(typeof window.showOpenFilePicker==='function'){
+          void (async ()=>{
+            try{
+              const [h]=await window.showOpenFilePicker({
+                multiple:false,
+                types:[{description:'INSP360 project', accept:{'application/zip':['.insp360','.zip']}}]
+              });
+              if(window.embedGateKey){
+                try{ await idbSet('gateProj:'+window.embedGateKey, h); }catch(_){}
+                try{ await idbSet('gateProjName:'+window.embedGateKey, h.name||label); }catch(_){}
+              }
+              rememberLastProject(h);
+              await openProject(await h.getFile(), h, { resumePhoto:true, quiet:false, skipGateBind:true });
+            }catch(err){
+              if(err && err.name==='AbortError') return;
+              const openedInput=pickNow();
+              if(!openedInput) void openProjectPicker();
+            }
+          })();
+          return;
         }
+        const openedInput=pickNow();
+        if(openedInput){
+          try{ toast('Choose the .insp360 file for \u201C'+label+'\u201D\u2026'); }catch(_){}
+          return;
+        }
+        void openProjectPicker();
         return;
-      }catch(e){
-        console.error('embed project load failed', e);
-        toast('Could not load the linked tour — use Open project to pick a local .insp360 file.', true);
+      }
+      // Non-force path: try handle/cache async, but fall back to sync picker on failure.
+      btn.disabled=true;
+      (async ()=>{
+        let ok=false;
+        try{
+          if(typeof resumeFn==='function') ok=!!(await resumeFn());
+          else if(handle) ok=await openGateHandle(handle, true);
+          else ok=await openGateFromCache(label);
+        }catch(e){
+          ok=false;
+        }
+        if(ok) return;
+        btn.disabled=false;
+        if(!pickNow()){
+          try{ await openProjectPicker(); }catch(_){}
+        }
+        if(!document.body.classList.contains('proj-open')){
+          try{ toast('Could not open that tour. Use \u201COpen project\u201D and pick the .insp360 file.', true); }catch(_){}
+        }
+      })();
+    };
+    empty.classList.add('has-gate-proj');
+    if(handle) showLinkedButton(handle);
+    const h1=empty.querySelector('h1');
+    const p=empty.querySelector('p');
+    if(forcePicker){
+      if(h1) h1.textContent='Restore linked tour';
+      if(p) p.textContent='This gate remembers \u201C'+String(label).replace(/</g,'&lt;')+'\u201D, but the file is not in this browser yet. Open the .insp360 once, then Link on close.';
+    } else {
+      if(h1) h1.textContent='Welcome back';
+      if(p) p.textContent='This gate already has a saved 360\u00b0 project. It should open automatically \u2014 or Continue / choose a different one.';
+    }
+  }
+
+  async function openGateFromCache(displayName){
+    if(document.body.classList.contains('proj-open')) return true;
+    if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+    // Promise single-flight: boot poll + host message share one unzip.
+    if(window._gateOpenPromise) return window._gateOpenPromise;
+    window._gateOpenPromise=(async ()=>{
+      try{
+        if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+        // Prefer the remembered on-disk file handle — IDB blob open hangs on ~100MB tours.
+        try{
+          const h=await idbGet('gateProj:'+gateKey);
+          if(h){
+            let perm='prompt';
+            try{ perm=await h.queryPermission({mode:'read'}); }catch(_){}
+            if(perm==='granted'){
+              if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+              const okHandle=await openGateHandle(h, false);
+              if(okHandle) return true;
+            }
+          }
+        }catch(_){}
+        if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+        const cached=await Promise.race([
+          readBoundGateProject(gateKey),
+          new Promise(function(resolve){ setTimeout(function(){ resolve(null); }, 8000); })
+        ]);
+        if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
+        if(!cached || !cached.size) return false;
+        const name=(displayName||cached.name||'project.insp360');
+        const fileName=/\.insp360$/i.test(name)?name:name+'.insp360';
+        const file=(typeof File!=='undefined' && cached instanceof File)
+          ? cached
+          : (cached.name ? cached : Object.assign(cached, { name: fileName }));
+        await openProject(file, null, { resumePhoto:true, quiet:true, skipGateBind:true });
+        const ok=document.body.classList.contains('proj-open');
+        return ok;
+      } finally {
+        window._gateOpenPromise=null;
+        window._gateOpenInFlight=false;
+      }
+    })();
+    window._gateOpenInFlight=true;
+    return window._gateOpenPromise;
+  }
+
+  async function openGateProjectFromHost(buffer, displayName){
+    if(!buffer || !(buffer.byteLength>0)) return false;
+    const name=(displayName||boundNameParam||'project.insp360');
+    const fileName=/\.insp360$/i.test(name)?name:name+'.insp360';
+    try{
+      const file=new File([buffer], fileName, {type:'application/zip'});
+      await openProject(file, null, { resumePhoto:true, quiet:true, skipGateBind:true });
+      if(!document.body.classList.contains('proj-open')) return false;
+      // Local cache only — do not re-notify host (avoids huge postMessage + ack loops).
+      try{
+        const key=window.embedGateKey;
+        const blob=new Blob([buffer],{type:'application/zip'});
+        if(key && blob.size){
+          try{ await writeGateIdbBlob(key, blob); }catch(_){}
+          try{ await writeGateOpfs(key, blob); }catch(_){}
+          try{ await writeGateCache(key, blob, fileName); }catch(_){}
+          try{ await idbSet('gateProjName:'+key, fileName); }catch(_){}
+          try{ await idbSet('gateProjBound:'+key, 1); }catch(_){}
+        }
+      }catch(_){}
+      window._gateLinkedThisSession=true;
+      return true;
+    }catch(e){
+      console.warn('host gate project open failed', e);
+      return false;
+    }
+  }
+
+  async function tryOpenGateRemembered(){
+    if(!gateKey) return false;
+    try{
+      let name=''; try{ name=await idbGet('gateProjName:'+gateKey); }catch(_){}
+      if(!name && boundNameParam) name=boundNameParam;
+      // Prefer remembered on-disk .insp360 handle — never block on huge IDB blob first.
+      const h=await idbGet('gateProj:'+gateKey);
+      if(h){
+        try{
+          const q=await h.queryPermission({mode:'read'});
+          if(q==='granted'){
+            if(await openGateHandle(h, false)){
+              return true;
+            }
+          }
+        }catch(e){}
+        // Need a user gesture to re-grant permission — Continue with this handle.
+        showGateContinue(h, name||h.name, async ()=>openGateHandle(h, true));
+        return 'pending';
+      }
+      try{
+        if(await openGateFromCache(name)){ return true; }
+      }catch(e){ console.warn('gate cache open failed', e); }
+      if(name){
+        try{
+          const empty=document.getElementById('empty');
+          const h1=empty && empty.querySelector('h1');
+          const p=empty && empty.querySelector('p');
+          if(h1) h1.textContent='Opening linked tour\u2026';
+          if(p) p.textContent='Loading \u201C'+String(name).replace(/\.(insp360|zip)$/i,'').replace(/</g,'&lt;')+'\u201D for this gate\u2026';
+        }catch(_){}
+        return 'pending';
+      }
+      return false;
+    }catch(e){ return false; }
+  }
+
+  async function tryOpenProjectUrl(){
+    if(!projectUrl) return false;
+    try{
+      const res=await fetch(projectUrl);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const blob=await res.blob();
+      const name=decodeURIComponent((projectUrl.split('/').pop()||'project.insp360').split('?')[0]);
+      const file=new File([blob], name, {type:'application/zip'});
+      await openProject(file, null);
+      if(photoName){
+        const idx=items.findIndex(it=>String(it.name||'').toLowerCase()===photoName.toLowerCase());
+        if(idx>=0) selectImage(idx);
+      }
+      return true;
+    }catch(e){
+      console.warn('embed project URL failed', e);
+      try{ toast('Could not open the linked tour URL.', true); }catch(_){}
+      return false;
+    }
+  }
+
+  async function waitForGateBytesAndOpen(displayName, maxWaitMs){
+    const label=displayName||boundNameParam||'project.insp360';
+    const start=Date.now();
+    // Prefer disk handle; only then try cache. Never block the loop on a hung IDB read.
+    while(Date.now()-start<maxWaitMs){
+      if(document.body.classList.contains('proj-open')) return true;
+      if(window._gateOpenPromise){
+        try{ if(await window._gateOpenPromise) return true; }catch(_){}
+        if(document.body.classList.contains('proj-open')) return true;
+      }
+      try{
+        const h=await idbGet('gateProj:'+gateKey);
+        if(h){
+          let perm='prompt';
+          try{ perm=await h.queryPermission({mode:'read'}); }catch(_){}
+          if(perm==='granted'){
+            if(await openGateHandle(h, false)) return true;
+          }
+        }
+      }catch(_){}
+      try{
+        if(await openGateFromCache(label)) return true;
+      }catch(_){}
+      await new Promise(function(r){ setTimeout(r, 500); });
+    }
+    try{ return await openGateFromCache(label); }catch(_){ return false; }
+  }
+
+  async function bootEmbed(){
+    if(isEmbed){
+      if(boundNameParam){
+        try{
+          const empty=document.getElementById('empty');
+          const h1=empty && empty.querySelector('h1');
+          const p=empty && empty.querySelector('p');
+          const createBtn=document.getElementById('createProj');
+          const openBtn=document.getElementById('openProject2');
+          const label=String(boundNameParam||'').replace(/\.(insp360|zip)$/i,'')||'linked tour';
+          if(h1) h1.textContent='Opening linked tour\u2026';
+          if(p) p.textContent='Loading \u201C'+label+'\u201D for this gate. This can take a moment for large projects.';
+          if(createBtn) createBtn.style.display='none';
+          if(openBtn) openBtn.style.display='none';
+        }catch(_){}
+      }
+        requestHostGeo();
+      setTimeout(requestHostGeo, 400);
+      setTimeout(requestHostGeo, 1200);
+      const gateOpened=await tryOpenGateRemembered();
+      if(gateOpened===true) return;
+      // Linked / remembered gate: host seeds shared IndexedDB then pings openGateProject.
+      // Wait before painting the empty create/open dashboard so linked tours preload.
+      if(boundNameParam || gateOpened==='pending'){
+        try{
+          const empty=document.getElementById('empty');
+          const h1=empty && empty.querySelector('h1');
+          const p=empty && empty.querySelector('p');
+          const label=String(boundNameParam||'').replace(/\.(insp360|zip)$/i,'')||'linked tour';
+          if(h1) h1.textContent='Opening linked tour\u2026';
+          if(p) p.textContent='Loading \u201C'+label+'\u201D for this gate. This can take a moment for large projects.';
+        }catch(_){}
+        const opened=await waitForGateBytesAndOpen(boundNameParam||'', 60000);
+        if(opened || document.body.classList.contains('proj-open')) return;
+        if(gateOpened==='pending' && !boundNameParam) return;
+        if(boundNameParam){
+          showGateContinue(null, boundNameParam, null, { forcePicker:true });
+          return;
+        }
+      }
+      if(!gateOpened) await tryOpenProjectUrl();
+      if(document.body.classList.contains('proj-open')) return;
+      // Linked gate: never fall through to Create/Open — host shows Restore if needed.
+      if(boundNameParam){
+        showGateContinue(null, boundNameParam, null, { forcePicker:true });
+        return;
+      }
+      const empty=document.getElementById('empty');
+      if(empty && !projectUrl){
+        const h1=empty.querySelector('h1');
+        const p=empty.querySelector('p');
+        if(h1) h1.textContent='This gate\u2019s 360\u00b0 project';
+        if(p) p.textContent='Create a new .insp360 for this sphere, or open an existing one. When you close, you can link it so it reopens automatically next time.';
+        const createBtn=document.getElementById('createProj');
+        if(createBtn){
+          createBtn.style.display='inline-flex';
+          createBtn.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create project';
+        }
+        const openBtn=document.getElementById('openProject2');
+        if(openBtn) openBtn.innerHTML='<svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open existing project';
       }
     }
+  }
 
-    // 2) Local project previously opened through this same gateway
-    if(!gateKey) return;
-    const handle=await idbGet('gateProj:'+gateKey);
-    if(!handle) return;
-    const opened=await tryOpenGateHandle(handle, false);
-    if(!opened) showLinkedButton(handle);
-  })();
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(bootEmbed, 0); });
+  else setTimeout(bootEmbed, 0);
 })();
 </script>
 </body>

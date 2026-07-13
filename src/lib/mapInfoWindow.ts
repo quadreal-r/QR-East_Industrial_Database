@@ -61,11 +61,10 @@ function assignPendingPictureButton(count: number): string {
 }
 
 function inspection360TourButton(hasTour: boolean): string {
-  const label = hasTour ? 'Enter QR-360° tour' : 'Open QR-360° viewer'
   const title = hasTour
-    ? 'Open the linked QR-360° inspection tour'
-    : 'Open the QR-360° viewer (link a tour file in Settings first)'
-  return `<button type="button" class="iw-pic-btn" data-iw-action="inspection360-open" title="${title}">🌐 ${label}</button>`
+    ? 'Open the hooked QR-360° tour for this gate'
+    : 'Open the QR-360° tour viewer and open or create a project for this gate'
+  return `<button type="button" class="iw-pic-btn" data-iw-action="inspection360-open" title="${title}">🌐 Enter QR-360° Tour</button>`
 }
 
 function sphereGateBadgeLabel(layerKey: LayerKey): string {
@@ -145,7 +144,8 @@ function copySource(text: string): string {
 }
 
 function plainRow(label: string, value: string): string {
-  return `${label.padEnd(12)}${value}`
+  const width = Math.max(12, label.length + 1)
+  return `${label.padEnd(width)}${value}`
 }
 
 function plainDetailLines(desc: string): string[] {
@@ -182,6 +182,15 @@ function isPolygonVacant(polygon: Polygon): boolean {
   return VACANT_RE.test((polygon.description ?? '').trim())
 }
 
+function buildingOperatorDisplay(building: Building): string {
+  const name = building.buildingOperator?.trim() || ''
+  const phone = building.operatorPhone?.trim() || ''
+  if (name && phone) return `${name} · ${phone}`
+  if (name) return name
+  if (phone) return phone
+  return '—'
+}
+
 export function buildBuildingInfoPlainText(
   building: Building,
   tenantPolygons: Polygon[] = [],
@@ -193,6 +202,7 @@ export function buildBuildingInfoPlainText(
   lines.push(
     plainRow('Manager', resolveManagerDisplayName(building.manager ?? '', managerRenames) || '—'),
   )
+  lines.push(plainRow('Operator', buildingOperatorDisplay(building)))
   lines.push(plainRow('Sq Ft', building.sqft || '—'))
 
   if (building.rtus?.length) {
@@ -307,6 +317,7 @@ export function buildBuildingInfoHtml(
 ): string {
   const bColor = getColor(building.park)
   const managerLabel = resolveManagerDisplayName(building.manager ?? '', managerRenames) || '—'
+  const operatorLabel = buildingOperatorDisplay(building)
 
   let badges = `<span class="iw-badge" style="background:${bColor}22;color:${bColor};border:1px solid ${bColor}44">${escapeHtml(building.park.replace(/\s*\(x\s*\d+\)/, ''))}</span>`
   if (building.cluster?.trim()) {
@@ -318,6 +329,7 @@ export function buildBuildingInfoHtml(
     `<div class="iw-row"><strong>BU #</strong><span class="iw-val">${escapeHtml(building.bu || '—')}</span></div>`,
     `<div class="iw-row"><strong>Portfolio</strong><span class="iw-val">${escapeHtml(building.cluster || building.park || '—')}</span></div>`,
     `<div class="iw-row"><strong>Manager</strong><span class="iw-val">${escapeHtml(managerLabel)}</span></div>`,
+    `<div class="iw-row"><strong>Operator</strong><span class="iw-val">${escapeHtml(operatorLabel)}</span></div>`,
     `<div class="iw-row"><strong>Sq Ft</strong><span class="iw-val">${escapeHtml(building.sqft || '—')}</span></div>`,
   ].join('')
 
@@ -392,6 +404,9 @@ export function buildDetailInfoHtml(
     showEdit?: boolean
     buildingAddress?: string
     pendingPictureAssignCount?: number
+    /** Local gate hook or remote tour — when set, overrides inspection_url for Tour row/button. */
+    tourConnected?: boolean
+    tourLabel?: string
   },
 ): string {
   const cfg = LAYER_COLORS[layerKey]
@@ -403,8 +418,13 @@ export function buildDetailInfoHtml(
   if (layerKey === 'inspection360') {
     const entrance = data as SuiteEntrance
     const tenantLine = desc.split(/\r?\n/).filter(Boolean)[0] ?? ''
-    const tourStatus = entrance.inspection_url
-      ? `<div class="iw-row"><strong>Tour</strong><span class="iw-val">Connected</span></div>`
+    const hasTour =
+      options?.tourConnected ?? Boolean(entrance.inspection_url?.trim())
+    const tourText =
+      options?.tourLabel ||
+      (hasTour ? 'Connected' : 'Not connected yet')
+    const tourStatus = hasTour
+      ? `<div class="iw-row"><strong>Tour</strong><span class="iw-val">${escapeHtml(tourText)}</span></div>`
       : `<div class="iw-row"><strong>Tour</strong><span class="iw-val" style="opacity:.75">Not connected yet</span></div>`
     const buildingRow = options?.buildingAddress
       ? `<div class="iw-row"><strong>Building</strong><span class="iw-val">${escapeHtml(options.buildingAddress)}</span></div>`
@@ -417,7 +437,7 @@ export function buildDetailInfoHtml(
           'iw-building': options?.buildingAddress ?? '',
         })
       : ''
-    const tourBtn = inspection360TourButton(Boolean(entrance.inspection_url?.trim()))
+    const tourBtn = inspection360TourButton(hasTour)
     const plainText = buildDetailInfoPlainText(layerKey, data, options)
     const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">${sphereGateBadgeLabel(layerKey)}</span></div>`
     const body = [
@@ -432,8 +452,13 @@ export function buildDetailInfoHtml(
 
   if (isUtilitySphereGate(layerKey) && 'utility_type' in data) {
     const utility = data as Utility
-    const tourStatus = utility.inspection_url
-      ? `<div class="iw-row"><strong>Tour</strong><span class="iw-val">Connected</span></div>`
+    const hasTour =
+      options?.tourConnected ?? Boolean(utility.inspection_url?.trim())
+    const tourText =
+      options?.tourLabel ||
+      (hasTour ? 'Connected' : 'Not connected yet')
+    const tourStatus = hasTour
+      ? `<div class="iw-row"><strong>Tour</strong><span class="iw-val">${escapeHtml(tourText)}</span></div>`
       : `<div class="iw-row"><strong>Tour</strong><span class="iw-val" style="opacity:.75">Not connected yet</span></div>`
     const lines = desc.split(/\r?\n/).filter(Boolean)
     const noteRows = lines
@@ -457,7 +482,7 @@ export function buildDetailInfoHtml(
       options?.showDelete === false || !showEdit
         ? ''
         : `<button class="iw-del-btn" data-iw-action="delete" data-iw-layer="${layerKey}" data-iw-name="${escapeHtml(name)}" data-iw-building="${escapeHtml(options?.buildingAddress ?? '')}" title="Delete this marker">🗑 Delete</button>`
-    const tourBtn = inspection360TourButton(Boolean(utility.inspection_url?.trim()))
+    const tourBtn = inspection360TourButton(hasTour)
     const plainText = buildDetailInfoPlainText(layerKey, data, options)
     const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">${sphereGateBadgeLabel(layerKey)}</span></div>`
     return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${noteRows}${tourStatus}</div>${actionFooter(`${copyButton()}${tourBtn}${moveBtn}${deleteBtn}`)}</div>`

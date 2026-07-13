@@ -2,7 +2,6 @@ import { useEffect, type RefObject } from 'react'
 import { applyStoredRotation, installRotationGuard, resetMapRotationPreserveView } from '@/lib/mapRotation'
 import { useMapRotationStore } from '@/stores/mapRotationStore'
 import { useSelectionStore } from '@/stores/selectionStore'
-import { useFilterStore } from '@/stores/filterStore'
 import { useMapSavePositionStore } from '@/stores/mapSavePositionStore'
 
 /** Minimum heading change (deg) during a gesture before offering to save the position. */
@@ -15,10 +14,7 @@ function offerSavePositionAfterRotation(startHeading: number, endHeading: number
   const address = useSelectionStore.getState().currentBuilding?.address
   if (address) {
     useMapSavePositionStore.getState().requestBuildingPrompt(address)
-    return
   }
-  const { park, cluster, manager } = useFilterStore.getState()
-  useMapSavePositionStore.getState().requestPortfolioPrompt({ park, cluster, manager })
 }
 
 const ROT_SCALE = 0.3

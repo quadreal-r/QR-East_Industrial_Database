@@ -18,6 +18,13 @@ export const MARKER_SHAPES: MarkerShape[] = [
   { label: '▲  Triangle', path: 'M 0,-1.1 1,0.8 -1,0.8 Z', isBuiltin: false },
 ]
 
+/** Location-pin path for building/address markers (distinct from RTU circles). */
+export const BUILDING_MARKER_PATH =
+  'M 0,-1 C -0.7,-1 -1.05,-0.5 -1.05,0 C -1.05,0.45 0,1.15 0,1.15 C 0,1.15 1.05,0.45 1.05,0 C 1.05,-0.5 0.7,-1 0,-1 Z'
+
+/** ~20% larger than the previous circle scale of 9. */
+export const BUILDING_MARKER_SCALE = 11
+
 let markerShapeIdx = 0
 let markerScale = 9
 
@@ -38,10 +45,10 @@ export function setMarkerScale(scale: number): void {
 }
 
 export function getMarkerIcon(color: string, isSelected = false): google.maps.Symbol {
-  const scale = isSelected ? 9 * 1.55 : 9
-  const strokeWeight = isSelected ? 3 : 1.5
+  const scale = isSelected ? BUILDING_MARKER_SCALE * 1.55 : BUILDING_MARKER_SCALE
+  const strokeWeight = isSelected ? 3.5 : 2.25
   return {
-    path: google.maps.SymbolPath.CIRCLE,
+    path: BUILDING_MARKER_PATH,
     fillColor: color,
     fillOpacity: isSelected ? 1 : 0.95,
     strokeColor: '#fff',

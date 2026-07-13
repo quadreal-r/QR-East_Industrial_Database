@@ -54,6 +54,51 @@
   cursor: pointer;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.restoreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(45, 212, 191, 0.14);
+  border: 1px solid #2dd4bf;
+  color: #5eead4;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.restoreBtn:hover:not(:disabled) {
+  background: rgba(45, 212, 191, 0.24);
+  color: #fff;
+}
+
+.restoreBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.hiddenFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+}
+
 .closeBtn:hover {
   background: #5a2a2f;
   border-color: #ff6b73;
@@ -64,6 +109,111 @@
   flex: 1;
   min-height: 0;
   position: relative;
+}
+
+.restorePanel {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(11, 14, 18, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.restorePanelCard {
+  width: min(440px, 100%);
+  padding: 22px 20px;
+  border-radius: 14px;
+  border: 1px solid #2dd4bf;
+  background: #151a21;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.restorePanelTitle {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 650;
+  color: #e6edf3;
+}
+
+.restorePanelMessage {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #8b98a5;
+}
+
+.restorePanelBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 650;
+  border-radius: 10px;
+  border: 1px solid #2dd4bf;
+  background: rgba(45, 212, 191, 0.18);
+  color: #5eead4;
+  cursor: pointer;
+}
+
+.restorePanelBtn:hover:not(:disabled) {
+  background: rgba(45, 212, 191, 0.3);
+  color: #fff;
+}
+
+.restorePanelBtn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.openingPanel {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 8, 12, 0.82);
+}
+
+.openingPanelCard {
+  width: min(420px, 100%);
+  background: #151a21;
+  border: 1px solid #2a333f;
+  border-radius: 12px;
+  padding: 20px 18px;
+  text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.openingPanelTitle {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 650;
+  color: #e6edf3;
+}
+
+.openingPanelMessage {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #8b98a5;
+}
+
+.openingPanelActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .frame {
@@ -94,4 +244,84 @@
 
 .noTour strong {
   color: #2dd4bf;
+}
+
+.linkPrompt {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 8, 12, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.linkPromptCard {
+  width: min(420px, 100%);
+  background: #151a21;
+  border: 1px solid #2a333f;
+  border-radius: 12px;
+  padding: 18px 18px 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+.linkPromptTitle {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 650;
+  color: #e6edf3;
+}
+
+.linkPromptMessage {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #a7b4c2;
+}
+
+.linkPromptError {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ffb3b8;
+}
+
+.linkPromptActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.linkPromptCancel,
+.linkPromptConfirm {
+  min-width: 96px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.linkPromptCancel {
+  background: transparent;
+  border: 1px solid #3a4553;
+  color: #c5d0db;
+}
+
+.linkPromptCancel:hover {
+  border-color: #5a6878;
+  color: #fff;
+}
+
+.linkPromptConfirm {
+  background: #1d4d4a;
+  border: 1px solid #2dd4bf;
+  color: #dffcf7;
+}
+
+.linkPromptConfirm:hover {
+  background: #246b66;
 }

@@ -15,6 +15,17 @@ import {
   polygonCentroid,
   tenantPolygonCount,
 } from '@/lib/polygonBuildings'
+import {
+  build360GatewayExportRows,
+  buildBuildingOperatorExportRows,
+  BUILDING_OPERATOR_EXPORT_HEADERS,
+  GATEWAY_EXPORT_HEADERS,
+} from '@/lib/portfolioExcelExtraSheets'
+import {
+  applyBuildingOperatorSheet,
+  BUILDING_OPERATOR_SHEET,
+  parseBuildingOperatorSheetRow,
+} from '@/lib/buildingOperators'
 import { loadRtuPictureManifest, rtuPictureKey } from '@/lib/rtuPictures'
 import { buildRtuPictureExportBundle } from '@/lib/rtuPictureExport'
 import { injectFreezePanes } from '@/lib/xlsxFreeze'
@@ -51,6 +62,8 @@ const COL_WIDTHS = {
   rtuPictures: [32.875, 28.875, 20.875, 18.875, 23.375, 36.875, 40.875, 12.875, 28.875, 16, 48, 72],
   polygons: [32.875, 12.875, 28.875, 16.875, 48.875, 36.875, 12.125, 8.875, 14.875, 14.875, 14.875],
   utilities: [20.875, 38.875, 40.875, 14.875, 14.875],
+  gateways: [12.875, 32.875, 28.875, 36.875, 14.875, 14.875, 48.875, 12.875, 12.875, 10.875],
+  operators: [32.875, 12.875, 28.875, 22.875, 22.875, 18.875, 24.875, 18.875, 14.875],
 } as const
 
 function str(value: unknown): string {
@@ -269,15 +282,23 @@ export function exportDatabaseExcelFilename(date = new Date()): string {
   return `QuadReal_Industrial_DB_Export_${year}.${month}.${day}.xlsx`
 }
 
+export interface ExportPortfolioExcelOptions {
+  managerRenames?: Record<string, string>
+}
+
 /** Export portfolio data to an Excel workbook (legacy-compatible sheets + RTU pictures). */
 export async function exportPortfolioExcel(
   data: PortfolioData,
   filename = exportDatabaseExcelFilename(),
+  options: ExportPortfolioExcelOptions = {},
 ): Promise<void> {
   const { buildings, utilities, polygons } = data
+  const managerRenames = options.managerRenames ?? {}
   const polygonIndex = buildPolygonBuildingIndex(buildings, polygons)
   const manifest = await loadRtuPictureManifest()
   const pictureExport = buildRtuPictureExportBundle(data, manifest)
+  const gatewayRows = build360GatewayExportRows(data)
+  const operatorRows = buildBuildingOperatorExportRows(buildings, managerRenames)
 
   const buildingsRows: unknown[][] = []
   const rtusRows: unknown[][] = []
@@ -492,6 +513,19 @@ export async function exportPortfolioExcel(
     ),
     'Utilities',
   )
+  XLSX.utils.book_append_sheet(
+    wb,
+    buildSheet([...GATEWAY_EXPORT_HEADERS], gatewayRows, COL_WIDTHS.gateways, {
+      numFmtMap: { 4: FMT_COORD, 5: FMT_COORD },
+      autofilterCols: GATEWAY_EXPORT_HEADERS.length,
+    }),
+    '360 Gateways',
+  )
+  XLSX.utils.book_append_sheet(
+    wb,
+    buildSheet([...BUILDING_OPERATOR_EXPORT_HEADERS], operatorRows, COL_WIDTHS.operators),
+    BUILDING_OPERATOR_SHEET,
+  )
 
   // SheetJS can't emit frozen panes, so write to a buffer, inject them, then download.
   const raw = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
@@ -501,6 +535,8 @@ export async function exportPortfolioExcel(
     'RTU Pictures': 7,
     'Tenant Polygons': 1,
     Utilities: 1,
+    '360 Gateways': 1,
+    [BUILDING_OPERATOR_SHEET]: 1,
   })
   downloadXlsx(frozen, filename)
 }
@@ -609,27 +645,32 @@ export function importPortfolioExcel(buffer: ArrayBuffer): PortfolioData {
     rtusByAddress.set(address, list)
   }
 
-  const buildings: Building[] = buildingRows.map((row) => {
-    const address = str(row['Building Address'])
-    const legacy: LegacyBuildingJson = {
-      park: str(row['Portfolio']),
-      address,
-      bu: str(row['BU #']),
-      lat: flt(row['Latitude']),
-      lng: flt(row['Longitude']),
-      sqft: str(row['Sq Ft']),
-      cluster: str(row['Cluster']),
-      manager: str(row['Manager']),
-      sold: str(row['Status']).toUpperCase() === 'SOLD',
-      rtus: (rtusByAddress.get(address) ?? []).map((r) => ({
-        name: r.name,
-        desc: r.description,
-        lat: r.lat,
-        lng: r.lng,
-      })),
-    }
-    return normalizeLegacyBuilding(legacy)
-  })
+  const buildings: Building[] = applyBuildingOperatorSheet(
+    buildingRows.map((row) => {
+      const address = str(row['Building Address'])
+      const legacy: LegacyBuildingJson = {
+        park: str(row['Portfolio']),
+        address,
+        bu: str(row['BU #']),
+        lat: flt(row['Latitude']),
+        lng: flt(row['Longitude']),
+        sqft: str(row['Sq Ft']),
+        cluster: str(row['Cluster']),
+        manager: str(row['Manager']),
+        sold: str(row['Status']).toUpperCase() === 'SOLD',
+        rtus: (rtusByAddress.get(address) ?? []).map((r) => ({
+          name: r.name,
+          desc: r.description,
+          lat: r.lat,
+          lng: r.lng,
+        })),
+      }
+      return normalizeLegacyBuilding(legacy)
+    }),
+    wb.SheetNames.includes(BUILDING_OPERATOR_SHEET)
+      ? sheetToObjects(wb.Sheets[BUILDING_OPERATOR_SHEET]!).map(parseBuildingOperatorSheetRow)
+      : [],
+  )
 
   const polygons: Polygon[] = polygonRows
     .map((row) => {

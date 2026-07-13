@@ -17,6 +17,7 @@ interface FilterStoreState {
   park: string
   cluster: string
   manager: string
+  buildingOperator: string
   adv: AdvFilterState
   advPanelOpen: boolean
   setSearchInput: (value: string) => void
@@ -26,6 +27,7 @@ interface FilterStoreState {
   setPark: (park: string) => void
   setCluster: (cluster: string) => void
   setManager: (manager: string) => void
+  setBuildingOperator: (buildingOperator: string) => void
   setAdvFilter: (key: keyof AdvFilterState, value: AdvFilterValue) => void
   clearAdvFilters: () => void
   toggleAdvPanel: () => void
@@ -40,6 +42,7 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
   park: '',
   cluster: '',
   manager: '',
+  buildingOperator: '',
   adv: { ...DEFAULT_ADV_FILTERS },
   advPanelOpen: false,
 
@@ -71,6 +74,7 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
   setPark: (park) => set({ park }),
   setCluster: (cluster) => set({ cluster }),
   setManager: (manager) => set({ manager }),
+  setBuildingOperator: (buildingOperator) => set({ buildingOperator }),
 
   setAdvFilter: (key, value) =>
     set((state) => ({
@@ -89,6 +93,7 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
       park: '',
       cluster: '',
       manager: '',
+      buildingOperator: '',
       adv: { ...DEFAULT_ADV_FILTERS },
     }),
 }))

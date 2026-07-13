@@ -3,4 +3,5 @@ export const STORAGE_KEYS = {
   settings: 'bme-settings',
   searchHistory: 'bme-search-history',
   hardRefreshView: 'bme-hard-refresh-view',
+  lastExcelImportFile: 'bme-last-excel-import-file',
 } as const

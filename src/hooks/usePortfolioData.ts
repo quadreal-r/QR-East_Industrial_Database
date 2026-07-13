@@ -4,12 +4,9 @@ import {
   savePortfolio,
   savePortfolioChanges,
   saveBuildingMapView,
-  savePortfolioMapView,
   type BuildingMapView,
 } from '@/data/portfolioApi'
 import type { PortfolioData } from '@/types/domain'
-import { serializePortfolioFilterKey } from '@/lib/portfolioMapView'
-import type { PortfolioFilterKey } from '@/lib/portfolioMapView'
 import { useAuth } from '@/hooks/useAuth'
 
 export type { PortfolioData } from '@/types/domain'
@@ -93,48 +90,6 @@ export function useSaveBuildingMapView() {
               : building,
           ),
         }
-      })
-    },
-  })
-}
-
-export interface SavePortfolioMapViewInput {
-  filter: PortfolioFilterKey
-  view: BuildingMapView | null
-}
-
-/** Persist (or clear) one portfolio filter's saved map camera. */
-export function useSavePortfolioMapView() {
-  const queryClient = useQueryClient()
-  const { isAuthenticated } = useAuth()
-
-  return useMutation({
-    mutationFn: async ({ filter, view }: SavePortfolioMapViewInput) => {
-      if (!isAuthenticated) {
-        throw new Error('Sign in to save map position.')
-      }
-      const filterKey = serializePortfolioFilterKey(filter)
-      await savePortfolioMapView(filterKey, view)
-      return { filterKey, view }
-    },
-    retry: false,
-    onSuccess: ({ filterKey, view }) => {
-      queryClient.setQueryData<PortfolioData>(PORTFOLIO_QUERY_KEY, (prev) => {
-        if (!prev) return prev
-        const portfolioMapViews = { ...(prev.portfolioMapViews ?? {}) }
-        if (view) {
-          portfolioMapViews[filterKey] = {
-            mapLat: view.lat,
-            mapLng: view.lng,
-            mapZoom: view.zoom,
-            mapHeading: view.heading,
-            mapTilt: view.tilt,
-            mapImageryMode: view.imageryMode,
-          }
-        } else {
-          delete portfolioMapViews[filterKey]
-        }
-        return { ...prev, portfolioMapViews }
       })
     },
   })

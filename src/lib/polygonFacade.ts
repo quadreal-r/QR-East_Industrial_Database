@@ -14,7 +14,15 @@ interface Edge {
   start: LatLng
   end: LatLng
   midpoint: LatLng
+  /** Approximate length² in meters (for comparing short vs long walls). */
   lengthSq: number
+}
+
+function edgeLengthSqMeters(start: LatLng, end: LatLng): number {
+  const midLat = ((start.lat + end.lat) / 2) * (Math.PI / 180)
+  const latM = (start.lat - end.lat) * 111_320
+  const lngM = (start.lng - end.lng) * 111_320 * Math.cos(midLat)
+  return latM * latM + lngM * lngM
 }
 
 function polygonEdges(paths: LatLng[]): Edge[] {
@@ -27,7 +35,7 @@ function polygonEdges(paths: LatLng[]): Edge[] {
       start,
       end,
       midpoint: { lat: (start.lat + end.lat) / 2, lng: (start.lng + end.lng) / 2 },
-      lengthSq: (start.lat - end.lat) ** 2 + (start.lng - end.lng) ** 2,
+      lengthSq: edgeLengthSqMeters(start, end),
     })
   }
   return edges
@@ -310,36 +318,10 @@ function idealFacadeLinePoint(
   }
 }
 
-function closestPointOnSegment(point: LatLng, start: LatLng, end: LatLng): LatLng {
-  const dx = end.lng - start.lng
-  const dy = end.lat - start.lat
-  const lenSq = dx * dx + dy * dy
-  if (lenSq < 1e-18) return start
-  let t = ((point.lng - start.lng) * dx + (point.lat - start.lat) * dy) / lenSq
-  t = Math.max(0, Math.min(1, t))
-  return { lat: start.lat + t * dy, lng: start.lng + t * dx }
-}
-
-/** Nearest point that actually lies on the polygon's own boundary line. */
-function closestPointOnPolygonBoundary(paths: LatLng[], target: LatLng): LatLng {
-  const edges = polygonEdges(paths)
-  let best = edges[0]?.start ?? target
-  let bestDistSq = Infinity
-  for (const edge of edges) {
-    const candidate = closestPointOnSegment(target, edge.start, edge.end)
-    const distSq = (candidate.lat - target.lat) ** 2 + (candidate.lng - target.lng) ** 2
-    if (distSq < bestDistSq) {
-      bestDistSq = distSq
-      best = candidate
-    }
-  }
-  return best
-}
-
 /**
- * Gate on the suite's own outside wall — snapped onto the polygon boundary so
- * it never floats off the building, while staying aligned with neighboring
- * suite spheres on the same facade row as closely as the shape allows.
+ * Gate on the suite polygon's shortest outside wall segment (door / end wall).
+ * Shared walls between neighboring suites are skipped. Length ties break toward
+ * the wing's outward facade so stacked middle suites still line up.
  */
 export function facadeEntrancePosition(
   polygon: Polygon,
@@ -356,7 +338,38 @@ export function facadeEntrancePosition(
   const componentBounds = boundsOfPolygons(component)
   const suiteBounds = boundsOfPolygon(paths)
   const facadeSide = pickFacadeSideForComponent(component, siblings, anchor)
-
   const idealPoint = idealFacadeLinePoint(suiteBounds, componentBounds, facadeSide)
-  return closestPointOnPolygonBoundary(paths, idealPoint)
+
+  const allEdges = polygonEdges(paths)
+  if (!allEdges.length) return polygonCentroid(paths)
+
+  const exterior = allEdges.filter(
+    (edge) => !isSharedInteriorEdge(edge, polygon, siblings, tolerance),
+  )
+  const pool = exterior.length > 0 ? exterior : allEdges
+
+  // Ignore digitization specks; keep real short door/end walls.
+  const longest = Math.max(...pool.map((edge) => Math.sqrt(edge.lengthSq)))
+  const minMeaningful = longest * 0.02
+  const meaningful = pool.filter((edge) => Math.sqrt(edge.lengthSq) >= minMeaningful)
+  const candidates = meaningful.length > 0 ? meaningful : pool
+
+  let shortestLen = Infinity
+  for (const edge of candidates) {
+    shortestLen = Math.min(shortestLen, edge.lengthSq)
+  }
+  // Near-ties (within 5%) — prefer the edge closest to the outward facade.
+  const shortEdges = candidates.filter((edge) => edge.lengthSq <= shortestLen * 1.05)
+
+  let best = shortEdges[0]!
+  let bestDistSq = Infinity
+  for (const edge of shortEdges) {
+    const distSq =
+      (edge.midpoint.lat - idealPoint.lat) ** 2 + (edge.midpoint.lng - idealPoint.lng) ** 2
+    if (distSq < bestDistSq) {
+      bestDistSq = distSq
+      best = edge
+    }
+  }
+  return best.midpoint
 }
