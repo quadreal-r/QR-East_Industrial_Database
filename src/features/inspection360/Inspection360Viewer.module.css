@@ -2,11 +2,11 @@
   position: fixed;
   inset: 0;
   z-index: 21000;
-  background: #0b0e12;
+  background: #132049;
   display: flex;
   flex-direction: column;
-  font-family: Inter, sans-serif;
-  color: #e6edf3;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #ffffff;
 }
 
 .header {
@@ -15,8 +15,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  background: #151a21;
-  border-bottom: 1px solid #2a333f;
+  background: #173073;
+  border-bottom: 1px solid #2947A3;
   flex-shrink: 0;
 }
 
@@ -31,7 +31,7 @@
 
 .subtitle {
   font-size: 12px;
-  color: #8b98a5;
+  color: #B7C9FF;
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -69,7 +69,7 @@
   font-size: 12px;
   font-weight: 600;
   background: rgba(45, 212, 191, 0.14);
-  border: 1px solid #2dd4bf;
+  border: 1px solid #4974FF;
   color: #5eead4;
   border-radius: 8px;
   cursor: pointer;
@@ -127,8 +127,8 @@
   width: min(440px, 100%);
   padding: 22px 20px;
   border-radius: 14px;
-  border: 1px solid #2dd4bf;
-  background: #151a21;
+  border: 1px solid #4974FF;
+  background: #173073;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   text-align: center;
 }
@@ -144,7 +144,7 @@
   margin: 0 0 16px;
   font-size: 13px;
   line-height: 1.45;
-  color: #8b98a5;
+  color: #B7C9FF;
 }
 
 .restorePanelBtn {
@@ -157,7 +157,7 @@
   font-size: 14px;
   font-weight: 650;
   border-radius: 10px;
-  border: 1px solid #2dd4bf;
+  border: 1px solid #4974FF;
   background: rgba(45, 212, 191, 0.18);
   color: #5eead4;
   cursor: pointer;
@@ -185,9 +185,9 @@
 }
 
 .openingPanelCard {
-  width: min(420px, 100%);
-  background: #151a21;
-  border: 1px solid #2a333f;
+  width: min(480px, 100%);
+  background: #173073;
+  border: 1px solid #2947A3;
   border-radius: 12px;
   padding: 20px 18px;
   text-align: center;
@@ -206,7 +206,61 @@
   margin: 0 0 14px;
   font-size: 13px;
   line-height: 1.45;
-  color: #8b98a5;
+  color: #B7C9FF;
+}
+
+.openingPanelLocation {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #9aa7b5;
+}
+
+.openingPanelMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 14px;
+  text-align: left;
+}
+
+.openingPanelMetaRow {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.openingPanelMetaLabel {
+  color: #6b7785;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+.openingPanelMetaValue {
+  color: #d6dee8;
+  overflow-wrap: anywhere;
+}
+
+.openingProgressTrack {
+  height: 8px;
+  margin: 0 0 10px;
+  border-radius: 999px;
+  background: #0f1a3a;
+  border: 1px solid #2947A3;
+  overflow: hidden;
+}
+
+.openingProgressFill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #385ED0, #4974FF);
+  transition: width 180ms ease;
 }
 
 .openingPanelActions {
@@ -222,7 +276,7 @@
   width: 100%;
   height: 100%;
   border: 0;
-  background: #0b0e12;
+  background: #132049;
 }
 
 .noTour {
@@ -238,12 +292,12 @@
 
 .noTour p {
   max-width: 420px;
-  color: #8b98a5;
+  color: #B7C9FF;
   line-height: 1.5;
 }
 
 .noTour strong {
-  color: #2dd4bf;
+  color: #4974FF;
 }
 
 .linkPrompt {
@@ -260,8 +314,8 @@
 
 .linkPromptCard {
   width: min(420px, 100%);
-  background: #151a21;
-  border: 1px solid #2a333f;
+  background: #173073;
+  border: 1px solid #2947A3;
   border-radius: 12px;
   padding: 18px 18px 16px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
@@ -319,10 +373,10 @@
 
 .linkPromptConfirm {
   background: #1d4d4a;
-  border: 1px solid #2dd4bf;
+  border: 1px solid #4974FF;
   color: #dffcf7;
 }
 
 .linkPromptConfirm:hover {
-  background: #246b66;
+  background: #2947A3;
 }

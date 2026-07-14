@@ -1,16 +1,23 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>INSP 360 Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0b0e12; --surface:rgba(21,26,33,.82); --surface-solid:#151a21;
-    --border:#2a333f; --border-soft:#212a34; --text:#e6edf3; --muted:#8b98a5;
-    --muted-dim:#5a6672; --accent:#2dd4bf; --accent-dim:#1c8578; --danger:#e5688a;
-    --font: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* QuadReal Visual Brand V2.4 — Nov 2025 */
+    --qr-blue:#4974FF; --qr-midnight:#173073; --qr-blue1:#132049; --qr-blue3:#2947A3; --qr-blue4:#385ED0;
+    --qr-light:#B7C9FF; --qr-blue6:#83A6FF; --qr-teal:#00B6D3; --qr-coral:#FE727D; --qr-yellow:#FFDE69;
+    --bg:#132049; --surface:rgba(23,48,115,.78); --surface-solid:#173073;
+    --border:#2947A3; --border-soft:#1e3568; --text:#ffffff; --muted:#B7C9FF;
+    --muted-dim:#83A6FF; --accent:#4974FF; --accent-dim:#385ED0; --danger:#FE727D;
+    --font: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --sans: Arial, Helvetica, sans-serif; /* GT Good Sans substitute per brand guidelines */
+    --display: "Playfair Display", Georgia, "Times New Roman", serif;
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html,body{height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:var(--sans)}
@@ -21,14 +28,18 @@
   .topbar{
     position:fixed; top:0; left:0; right:0; height:52px; z-index:20;
     display:flex; align-items:center; gap:5px; padding:0 14px;
-    background:linear-gradient(180deg, rgba(11,14,18,.92), rgba(11,14,18,0)); pointer-events:none;
+    background:linear-gradient(180deg, rgba(19,32,73,.92), rgba(19,32,73,0)); pointer-events:none;
   }
   .topbar > *{pointer-events:auto}
   body:not(.proj-open) .topbar .topbtn{display:none}
-  .brand{display:flex; align-items:center; gap:9px; font-family:var(--font); letter-spacing:.5px}
-  .brand .dot{width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent)}
-  .brand b{font-weight:600; font-size:13px}
-  .brand span{color:var(--muted-dim); font-size:11px}
+  body:not(.proj-open) #projName,
+  body:not(.proj-open) #btnProjInfo{display:none !important}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--sans); letter-spacing:.2px}
+  .brand img{width:26px; height:26px; object-fit:contain; flex:0 0 auto; display:block}
+  .brand .brand-text{display:flex; flex-direction:column; gap:1px; min-width:0}
+  .brand b{font-weight:600; font-size:13px; letter-spacing:-.02em; color:var(--text)}
+  .brand span{color:var(--muted); font-size:10px; letter-spacing:.04em}
+  .qr-mark{display:block; width:min(168px,52vw); height:auto; margin:0 auto 4px; object-fit:contain}
   #appVer{
     flex:0 0 auto; pointer-events:none; user-select:none;
     font-family:var(--font); font-size:11px; color:var(--muted-dim); letter-spacing:.04em;
@@ -53,7 +64,7 @@
     display:inline-flex; align-items:center; gap:8px; backdrop-filter:blur(8px);
     transition:border-color .15s, background .15s, color .15s; white-space:nowrap;
   }
-  .btn:hover{border-color:var(--accent-dim); background:rgba(27,133,120,.12)}
+  .btn:hover{border-color:var(--accent-dim); background:rgba(56,94,208,.12)}
   .btn:active{transform:translateY(1px)}
   .btn.icon{padding:9px; width:40px; justify-content:center}
   .btn.on{border-color:var(--accent); color:var(--accent)}
@@ -64,54 +75,71 @@
   #empty .ring::before,#empty .ring::after{content:""; position:absolute; border:1px solid var(--border-soft); border-radius:50%}
   #empty .ring::before{inset:-12px} #empty .ring::after{inset:-24px; border-color:rgba(42,51,63,.4)}
   #empty .ring svg{width:38px; height:38px; stroke:var(--accent); fill:none; stroke-width:1.4}
-  #empty h1{font-family:var(--font); font-weight:500; font-size:17px; letter-spacing:.4px}
+  #empty h1{font-family:var(--display); font-weight:500; font-size:22px; letter-spacing:0}
   #empty p{color:var(--muted); font-size:13px; max-width:360px; line-height:1.6}
   #empty .actions{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
   #empty .btn{padding:11px 16px; font-size:13px}
   #empty .hint{color:var(--muted-dim); font-size:11px; font-family:var(--font)}
-  #empty #dbStatus{display:inline-flex; align-items:center; gap:9px; margin:2px auto 4px; padding:7px 14px; border:1px solid var(--border-soft); border-radius:999px; background:rgba(45,212,191,.07); font-family:var(--font); font-size:12px; color:var(--text)}
+  #empty #dbStatus{display:inline-flex; align-items:center; gap:9px; margin:2px auto 4px; padding:7px 14px; border:1px solid var(--border-soft); border-radius:999px; background:rgba(73,116,255,.07); font-family:var(--font); font-size:12px; color:var(--text)}
   #empty #dbStatus .dot{width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); flex:none}
   #empty #dbStatus b{font-weight:600}
   #empty #dbStatus .sub{color:var(--muted)}
   #empty #dbStatus .warn{color:var(--danger)}
-  #dash{display:none; position:fixed; left:16px; top:68px; bottom:16px; width:252px; z-index:11; background:var(--surface-solid); border:1px solid var(--border); border-radius:12px; padding:14px 12px; overflow-y:auto; box-shadow:0 12px 36px rgba(0,0,0,.45); scrollbar-width:thin}
+  #loadProg{
+    display:none; width:min(420px, 92vw); margin:0 auto; padding:14px 16px 12px;
+    background:var(--surface-solid); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 12px 36px rgba(0,0,0,.35); text-align:left;
+  }
+  #loadProg.show{display:block}
+  #loadProg .lp-lbl{font-family:var(--font); font-size:12px; color:var(--text); margin:0 0 10px}
+  #loadProg .lp-track{height:7px; border-radius:4px; background:var(--border); overflow:hidden}
+  #loadProg .lp-fill{display:block; height:100%; width:0; background:var(--accent); transition:width .15s ease}
+  #loadProg .lp-meta{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; font-family:var(--font); font-size:11px}
+  #loadProg .lp-phase{color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #loadProg .lp-pct{flex:0 0 auto; color:var(--text); font-variant-numeric:tabular-nums; min-width:34px; text-align:right}
+  #empty.loading-tour .actions,
+  #empty.loading-tour #dash,
+  #empty.loading-tour .hint,
+  #empty.loading-tour #dbStatus,
+  #empty.loading-tour #gateContinue{pointer-events:none; opacity:.45}
+  #empty.loading-tour #loadProg{pointer-events:auto; opacity:1}
+  #dash{display:none; position:fixed; left:16px; top:68px; bottom:16px; width:302px; z-index:11; background:var(--surface-solid); border:1px solid var(--border); border-radius:12px; padding:14px 12px; overflow-y:auto; box-shadow:0 12px 36px rgba(0,0,0,.45); scrollbar-width:thin}
   #dash.show{display:block}
   #dash::-webkit-scrollbar{width:8px} #dash::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px}
-  .dash-title{font-family:var(--font); font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted-dim); margin:2px 4px 10px; text-align:left}
+  .dash-title{font-family:var(--sans); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0; text-align:left}
+  .dash-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:2px 4px 8px}
+  .dash-summary{font-family:var(--font); font-size:11px; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .dash-tools{display:flex; gap:8px; margin:0 0 10px; align-items:center}
+  .dash-sort{flex:1; min-width:0; box-sizing:border-box; padding:6px 8px; font-family:var(--font); font-size:11.5px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:7px; outline:none; cursor:pointer; -webkit-appearance:none; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2383A6FF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:22px}
+  .dash-sort:focus{border-color:var(--accent)}
+  .dash-sort option{background:var(--surface-solid); color:var(--text)}
   .dash-search{width:100%; box-sizing:border-box; margin:0 0 12px; padding:7px 10px; font-family:var(--font); font-size:12px; color:var(--text); background:var(--surface); border:1.5px solid rgba(255,255,255,.28); border-radius:8px; outline:none}
   .dash-search:focus{border-color:var(--accent)}
   .dash-search::placeholder{color:var(--muted-dim)}
   .dash-empty{font-family:var(--font); font-size:11px; color:var(--muted-dim); text-align:center; padding:14px 0}
   #dashGrid{display:flex; flex-direction:column; gap:11px}
   .dash-card{flex:0 0 auto; position:relative; display:flex; flex-direction:column; padding:0; overflow:hidden; background:var(--surface); border:1px solid var(--border); border-radius:10px; cursor:pointer; text-align:left; transition:border-color .15s, background .15s}
-  .dash-card:hover{border-color:var(--accent-dim); background:rgba(45,212,191,.06)}
+  .dash-card:hover{border-color:var(--accent-dim); background:rgba(73,116,255,.06)}
   .dash-card.dragging{opacity:.45}
   .dash-card.drop-before{box-shadow:inset 0 3px 0 var(--accent)}
   .dash-card.drop-after{box-shadow:inset 0 -3px 0 var(--accent)}
-  .dash-cover{width:100%; aspect-ratio:2/1; background:#0d1116 center/cover no-repeat; border-bottom:1px solid var(--border-soft)}
+  .dash-cover{position:relative; width:100%; aspect-ratio:2/1; background:var(--qr-blue1) center/cover no-repeat; border-bottom:1px solid var(--border-soft)}
+  .dash-tour{position:absolute; top:6px; left:6px; z-index:2; font-family:var(--font); font-size:10px; font-weight:600; letter-spacing:.04em; color:#fff; background:rgba(19,32,73,.82); border:1px solid var(--accent-dim); border-radius:6px; padding:2px 7px; font-variant-numeric:tabular-nums; pointer-events:none; box-shadow:0 2px 8px rgba(0,0,0,.35)}
   .dash-foot{display:flex; align-items:center; gap:8px; padding:8px 10px}
   .dash-grip{flex:0 0 auto; width:14px; display:grid; place-items:center; color:var(--muted-dim); cursor:grab}
+  .dash-card.no-drag .dash-grip{display:none}
   .dash-grip:active{cursor:grabbing}
   .dash-grip svg{width:11px; height:18px; fill:currentColor}
   .dash-meta{flex:1; min-width:0}
   .dash-name{font-family:var(--font); font-size:12px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .dash-sub{font-family:var(--font); font-size:9.5px; color:var(--muted); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .dash-del,.dash-edit,.dash-rename{position:absolute; top:6px; width:22px; height:22px; border-radius:6px; background:rgba(11,14,18,.82); border:1px solid var(--border); color:#cfd6dd; display:grid; place-items:center; cursor:pointer; opacity:0; font-size:13px; line-height:1; transition:opacity .15s, color .15s, border-color .15s}
+  .dash-del,.dash-edit,.dash-rename{position:absolute; top:6px; width:22px; height:22px; border-radius:6px; background:rgba(19,32,73,.82); border:1px solid var(--border); color:#cfd6dd; display:grid; place-items:center; cursor:pointer; opacity:0; font-size:13px; line-height:1; transition:opacity .15s, color .15s, border-color .15s}
   .dash-del{right:6px} .dash-edit{right:32px} .dash-rename{right:58px}
   .dash-edit svg,.dash-rename svg{width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
   .dash-card:hover .dash-del,.dash-card:hover .dash-edit,.dash-card:hover .dash-rename{opacity:1}
   .dash-del:hover{color:var(--danger); border-color:var(--danger)}
   .dash-edit:hover,.dash-rename:hover{color:var(--accent); border-color:var(--accent-dim)}
-  #empty.has-dash{padding-left:300px}
-  #resumeLast{
-    display:none; width:100%; box-sizing:border-box; margin:0 0 14px; padding:11px 14px;
-    font-family:var(--font); font-size:12px; color:var(--text); text-align:left; cursor:pointer;
-    background:rgba(45,212,191,.08); border:1px solid var(--accent-dim); border-radius:10px;
-  }
-  #resumeLast.show{display:block}
-  #resumeLast:hover{border-color:var(--accent); background:rgba(45,212,191,.14)}
-  #resumeLast b{color:var(--accent); font-weight:600}
-  #resumeLast .resume-sub{display:block; margin-top:4px; font-size:10.5px; color:var(--muted)}
+  #empty.has-dash{padding-left:360px}
 
   /* Left library panel */
   #library{position:fixed; top:52px; bottom:0; left:0; z-index:18; width:214px; display:none; flex-direction:column; background:rgba(17,21,27,.92); backdrop-filter:blur(10px); border-right:1px solid var(--border); transition:transform .22s ease}
@@ -121,12 +149,12 @@
   #library.collapsed{transform:translateX(-100%)}
   .lib-head{display:flex; align-items:center; gap:8px; padding:12px 12px 10px; border-bottom:1px solid var(--border-soft); flex:0 0 auto}
   .lib-title{font-family:var(--font); font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
-  .lib-count{font-family:var(--font); font-size:10px; color:var(--accent); background:rgba(45,212,191,.1); border:1px solid var(--accent-dim); border-radius:10px; padding:1px 7px}
+  .lib-count{font-family:var(--font); font-size:10px; color:var(--accent); background:rgba(73,116,255,.1); border:1px solid var(--accent-dim); border-radius:10px; padding:1px 7px}
   .lib-collapse{margin-left:auto; width:24px; height:24px; display:grid; place-items:center; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--muted); cursor:pointer}
   .lib-collapse:hover{border-color:var(--accent-dim); color:var(--accent)}
   .lib-collapse svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
   #libPreload.cached{color:var(--accent); border-color:var(--accent-dim)}
-  #libPreload.cached svg{fill:var(--accent); stroke:var(--accent); filter:drop-shadow(0 0 4px rgba(45,212,191,.6))}
+  #libPreload.cached svg{fill:var(--accent); stroke:var(--accent); filter:drop-shadow(0 0 4px rgba(73,116,255,.6))}
   .lib-list{flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:10px; display:flex; flex-direction:column; gap:9px; scrollbar-width:thin}
   .lib-search{margin:8px 10px 0; padding:6px 9px; font-family:var(--font); font-size:12px; color:var(--text); background:var(--surface); border:1.5px solid rgba(255,255,255,.28); border-radius:7px; outline:none}
   .lib-search:focus{border-color:var(--accent)}
@@ -135,25 +163,25 @@
   .lib-item{flex:0 0 auto; position:relative; border:1.5px solid transparent; border-radius:8px; overflow:hidden; cursor:pointer; background:var(--surface-solid); transition:border-color .15s}
   .lib-item:hover{border-color:var(--border)}
   .lib-item.active{border-color:var(--accent)}
-  .lib-item.scanning{border-color:var(--accent); box-shadow:0 0 0 2px rgba(45,212,191,.45), 0 0 14px rgba(45,212,191,.25); animation:libScanPulse 1.2s ease-in-out infinite}
+  .lib-item.scanning{border-color:var(--accent); box-shadow:0 0 0 2px rgba(73,116,255,.45), 0 0 14px rgba(73,116,255,.25); animation:libScanPulse 1.2s ease-in-out infinite}
   .lib-item.scanning .lib-thumb img{opacity:1}
   .lib-item.scanning .lib-name{color:var(--accent)}
-  .lib-item.scanning::before{content:'Scanning'; position:absolute; left:6px; bottom:28px; z-index:5; font-family:var(--font); font-size:9px; letter-spacing:.04em; text-transform:uppercase; color:#041016; background:var(--accent); border-radius:4px; padding:2px 6px; pointer-events:none; box-shadow:0 2px 8px rgba(0,0,0,.35)}
-  @keyframes libScanPulse{0%,100%{box-shadow:0 0 0 2px rgba(45,212,191,.35), 0 0 10px rgba(45,212,191,.18)} 50%{box-shadow:0 0 0 3px rgba(45,212,191,.7), 0 0 18px rgba(45,212,191,.4)}}
-  .lib-thumb{position:relative; width:100%; aspect-ratio:2/1; background:#0d1116; display:block}
+  .lib-item.scanning::before{content:'Scanning'; position:absolute; left:6px; bottom:28px; z-index:5; font-family:var(--font); font-size:9px; letter-spacing:.04em; text-transform:uppercase; color:var(--qr-blue1); background:var(--accent); border-radius:4px; padding:2px 6px; pointer-events:none; box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  @keyframes libScanPulse{0%,100%{box-shadow:0 0 0 2px rgba(73,116,255,.35), 0 0 10px rgba(73,116,255,.18)} 50%{box-shadow:0 0 0 3px rgba(73,116,255,.7), 0 0 18px rgba(73,116,255,.4)}}
+  .lib-thumb{position:relative; width:100%; aspect-ratio:2/1; background:var(--qr-blue1); display:block}
   .lib-thumb img{width:100%; height:100%; object-fit:cover; display:block; opacity:.85; transition:opacity .15s}
   .lib-item:hover .lib-thumb img,.lib-item.active .lib-thumb img{opacity:1}
   .lib-index{position:absolute; top:5px; left:5px; z-index:2; font-family:var(--font); font-size:9px; color:var(--text); background:rgba(0,0,0,.6); border-radius:4px; padding:1px 5px}
   .lib-blur{position:absolute; left:5px; bottom:5px; z-index:3; display:flex; flex-wrap:wrap; gap:3px; max-width:calc(100% - 10px); pointer-events:none}
-  .lib-blur span{font-family:var(--font); font-size:9px; line-height:1.2; color:#041016; background:var(--accent); border-radius:4px; padding:2px 5px; white-space:nowrap; box-shadow:0 1px 5px rgba(0,0,0,.4)}
+  .lib-blur span{font-family:var(--font); font-size:9px; line-height:1.2; color:var(--qr-blue1); background:var(--accent); border-radius:4px; padding:2px 5px; white-space:nowrap; box-shadow:0 1px 5px rgba(0,0,0,.4)}
   .lib-blur .lib-blur-p{background:#fbbf24; color:#1a1408}
   .lib-item.scanning .lib-blur{bottom:28px}
-  .lib-del{position:absolute; top:5px; right:5px; z-index:4; width:20px; height:20px; display:none; place-items:center; padding:0; line-height:1; font-family:var(--font); font-size:15px; color:#fff; background:rgba(11,14,18,.82); border:1px solid var(--border); border-radius:6px; cursor:pointer}
+  .lib-del{position:absolute; top:5px; right:5px; z-index:4; width:20px; height:20px; display:none; place-items:center; padding:0; line-height:1; font-family:var(--font); font-size:15px; color:#fff; background:rgba(19,32,73,.82); border:1px solid var(--border); border-radius:6px; cursor:pointer}
   .lib-item:hover .lib-del{display:grid}
-  .lib-del:hover{color:var(--danger); border-color:var(--danger); background:rgba(11,14,18,.96)}
-  .lib-rename{position:absolute; top:5px; right:29px; z-index:4; width:20px; height:20px; display:none; place-items:center; padding:0; background:rgba(11,14,18,.82); border:1px solid var(--border); border-radius:6px; cursor:pointer; color:#fff}
+  .lib-del:hover{color:var(--danger); border-color:var(--danger); background:rgba(19,32,73,.96)}
+  .lib-rename{position:absolute; top:5px; right:29px; z-index:4; width:20px; height:20px; display:none; place-items:center; padding:0; background:rgba(19,32,73,.82); border:1px solid var(--border); border-radius:6px; cursor:pointer; color:#fff}
   .lib-item:hover .lib-rename{display:grid}
-  .lib-rename:hover{color:var(--accent); border-color:var(--accent); background:rgba(11,14,18,.96)}
+  .lib-rename:hover{color:var(--accent); border-color:var(--accent); background:rgba(19,32,73,.96)}
   .lib-rename svg{width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
   .lib-name{font-family:var(--font); font-size:10px; color:var(--text); padding:6px 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .lib-item.active .lib-name{color:var(--accent)}
@@ -161,11 +189,11 @@
   .lib-item.drop-before{box-shadow:0 -3px 0 -1px var(--accent)}
   .lib-item.drop-after{box-shadow:0 3px 0 -1px var(--accent)}
   .lib-item.hasview::after{content:''; position:absolute; top:6px; right:6px; width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); z-index:3}
-  #linkHint{display:none; padding:8px 12px; font-family:var(--font); font-size:10px; color:var(--accent); background:rgba(45,212,191,.1); border-bottom:1px solid var(--border-soft); text-align:center; letter-spacing:.3px; flex:0 0 auto}
+  #linkHint{display:none; padding:8px 12px; font-family:var(--font); font-size:10px; color:var(--accent); background:rgba(73,116,255,.1); border-bottom:1px solid var(--border-soft); text-align:center; letter-spacing:.3px; flex:0 0 auto}
   #library.linking #linkHint{display:block}
   #library.linking .lib-item{cursor:crosshair}
-  .lib-item.target{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), 0 0 12px rgba(45,212,191,.5)}
-  .spin{position:absolute; inset:0; display:grid; place-items:center; background:rgba(11,14,18,.6)}
+  .lib-item.target{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), 0 0 12px rgba(73,116,255,.5)}
+  .spin{position:absolute; inset:0; display:grid; place-items:center; background:rgba(19,32,73,.6)}
   .spin i{width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   #libShow{position:fixed; top:64px; left:12px; z-index:19; display:none}
@@ -198,13 +226,13 @@
   /* Tour objects (hotspots) */
   #hotspots{position:fixed; inset:0; z-index:12; pointer-events:none; overflow:hidden}
   .hs{position:absolute; transform:translate(-50%,-50%); pointer-events:auto; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; filter:drop-shadow(0 2px 6px rgba(0,0,0,.65))}
-  .hs .hs-ico{width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:rgba(11,14,18,.4); border:2px solid currentColor; box-sizing:border-box}
+  .hs .hs-ico{width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:rgba(19,32,73,.4); border:2px solid currentColor; box-sizing:border-box}
   .hs .hs-ico svg{width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
   .hs.marker .hs-ico{border-radius:50% 50% 50% 0; transform:rotate(-45deg); margin-bottom:8px}
   .hs.marker .hs-ico svg{transform:rotate(45deg); fill:currentColor; stroke:none}
   .hs.label .hs-ico{border-radius:8px}
-  .hs .hs-preview{display:none; width:66px; height:42px; object-fit:cover; border-radius:6px; border:2px solid currentColor; box-sizing:border-box; background:#0d1116}
-  .hs .hs-lbl{font-family:var(--font); font-size:11px; color:#fff; background:rgba(11,14,18,.78); padding:3px 8px; border-radius:11px; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis}
+  .hs .hs-preview{display:none; width:66px; height:42px; object-fit:cover; border-radius:6px; border:2px solid currentColor; box-sizing:border-box; background:var(--qr-blue1)}
+  .hs .hs-lbl{font-family:var(--font); font-size:11px; color:#fff; background:rgba(19,32,73,.78); padding:3px 8px; border-radius:11px; white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis}
   .hs.selected .hs-ico{box-shadow:0 0 0 3px var(--accent), 0 0 16px var(--accent)}
   .hs.has-pic .hs-ico{display:none}
   .hs.has-pic.selected .hs-preview{box-shadow:0 0 0 3px var(--accent), 0 0 16px var(--accent)}
@@ -216,7 +244,7 @@
   body.editing #hud{display:none}
   #addbar button{font-family:var(--font); font-size:11px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px}
   #addbar button:hover{border-color:var(--accent-dim); color:var(--accent)}
-  #addbar button.on{border-color:var(--accent); color:var(--accent); background:rgba(45,212,191,.08)}
+  #addbar button.on{border-color:var(--accent); color:var(--accent); background:rgba(73,116,255,.08)}
   #addbar .sep{width:1px; background:var(--border); margin:3px 1px}
   #addbar svg{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
   /* Project mode: tour lives inside .insp360 — hide standalone JSON Save as / Load / Folder */
@@ -239,17 +267,17 @@
   #inspector .ins-imgs{flex:1; min-width:0; display:flex; flex-direction:column; gap:8px}
   #inspector .ins-thumbs{display:flex; flex-wrap:wrap; gap:6px}
   #inspector .ins-thumbs:empty{display:none}
-  .ins-thumb{position:relative; width:52px; height:34px; border-radius:5px; overflow:hidden; border:1px solid var(--border); background:#0d1116}
+  .ins-thumb{position:relative; width:52px; height:34px; border-radius:5px; overflow:hidden; border:1px solid var(--border); background:var(--qr-blue1)}
   .ins-thumb img{width:100%; height:100%; object-fit:cover; display:block}
-  .ins-thumb .x{position:absolute; top:1px; right:1px; width:15px; height:15px; border-radius:4px; background:rgba(11,14,18,.82); color:#cfd6dd; border:1px solid var(--border); display:grid; place-items:center; font-size:11px; line-height:1; cursor:pointer}
+  .ins-thumb .x{position:absolute; top:1px; right:1px; width:15px; height:15px; border-radius:4px; background:rgba(19,32,73,.82); color:#cfd6dd; border:1px solid var(--border); display:grid; place-items:center; font-size:11px; line-height:1; cursor:pointer}
   .ins-thumb .x:hover{color:var(--danger); border-color:var(--danger)}
   .ins-addimg{align-self:flex-start; font-family:var(--font); font-size:11px; color:var(--accent); background:transparent; border:1px dashed var(--accent-dim); border-radius:6px; padding:6px 10px; cursor:pointer}
-  .ins-addimg:hover{background:rgba(45,212,191,.08)}
+  .ins-addimg:hover{background:rgba(73,116,255,.08)}
   .hs .hs-ico{position:relative}
-  .hs-badge{display:none; position:absolute; top:-4px; right:-4px; min-width:15px; height:15px; padding:0 3px; box-sizing:border-box; border-radius:8px; background:var(--accent); color:#08110f; font-family:var(--font); font-size:9px; font-weight:600; line-height:15px; text-align:center; box-shadow:0 0 6px rgba(45,212,191,.6)}
+  .hs-badge{display:none; position:absolute; top:-4px; right:-4px; min-width:15px; height:15px; padding:0 3px; box-sizing:border-box; border-radius:8px; background:var(--accent); color:var(--qr-blue1); font-family:var(--font); font-size:9px; font-weight:600; line-height:15px; text-align:center; box-shadow:0 0 6px rgba(73,116,255,.6)}
   #lightbox{position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; background:rgba(6,8,11,.9); -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px)}
   #lightbox.show{display:flex}
-  #lbImg{max-width:92vw; max-height:88vh; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.6); background:#0d1116; touch-action:none; cursor:zoom-in; will-change:transform}
+  #lbImg{max-width:92vw; max-height:88vh; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.6); background:var(--qr-blue1); touch-action:none; cursor:zoom-in; will-change:transform}
   #lbImg.zoomed{cursor:grab}
   #lbImg.grabbing{cursor:grabbing}
   #lbClose{position:absolute; top:18px; right:20px; width:40px; height:40px; border-radius:9px; background:rgba(17,21,27,.8); border:1px solid var(--border); color:var(--text); font-size:24px; line-height:1; cursor:pointer}
@@ -277,7 +305,7 @@
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
   .toast.warn{border-left-color:var(--danger)}
 
-  #dropveil{position:fixed; inset:0; z-index:60; display:none; place-items:center; background:rgba(11,14,18,.85); border:2px dashed var(--accent); backdrop-filter:blur(2px)}
+  #dropveil{position:fixed; inset:0; z-index:60; display:none; place-items:center; background:rgba(19,32,73,.85); border:2px dashed var(--accent); backdrop-filter:blur(2px)}
   #dropveil.show{display:grid}
   #dropveil div{font-family:var(--font); color:var(--accent); font-size:16px; letter-spacing:.5px}
   input[type=file]{display:none}
@@ -296,38 +324,36 @@
   .plan-head{display:flex; align-items:center; flex-wrap:wrap; gap:8px; row-gap:6px; padding:8px 10px; cursor:move; background:linear-gradient(180deg,rgba(255,255,255,.03),transparent); border-bottom:1px solid var(--border-soft)}
   .plan-select{flex:0 1 auto; margin-left:auto; min-width:110px; max-width:300px; background:transparent; color:var(--text); border:1px solid var(--accent); border-radius:6px; font-family:var(--font); font-size:11.5px; letter-spacing:.3px; padding:4px 6px; cursor:pointer; -webkit-appearance:none; appearance:none; text-overflow:ellipsis}
   .plan-select:hover{border-color:var(--accent)}
-  .plan-select:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(45,212,191,.18)}
+  .plan-select:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(73,116,255,.18)}
   .plan-select:disabled{color:var(--muted); border-color:var(--border); cursor:default}
   .plan-select option{background:var(--surface-solid); color:var(--text)}
-  .plan-count{flex:0 0 auto; font-family:var(--font); font-size:10px; color:var(--accent); background:rgba(45,212,191,.1); border:1px solid var(--accent-dim); border-radius:20px; padding:2px 8px; white-space:nowrap}
+  .plan-count{flex:0 0 auto; font-family:var(--font); font-size:10px; color:var(--accent); background:rgba(73,116,255,.1); border:1px solid var(--accent-dim); border-radius:20px; padding:2px 8px; white-space:nowrap}
   .plan-count:empty{display:none}
   .plan-tools{display:flex; flex-wrap:wrap; gap:5px}
   .plan-tools button{width:36px; height:36px; display:grid; place-items:center; border-radius:7px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer}
   .plan-tools button:hover{border-color:var(--accent-dim); color:var(--accent)}
-  .plan-tools button.on{border-color:var(--accent); color:var(--accent); background:rgba(45,212,191,.10)}
+  .plan-tools button.on{border-color:var(--accent); color:var(--accent); background:rgba(73,116,255,.10)}
   .plan-tools svg{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
   .plan-tools .pin-dd{position:relative; display:inline-flex}
-  .plan-tools #planPinsBtn{width:auto; padding:0 8px; gap:2px}
-  .plan-tools #planPinsBtn .caret{width:12px; height:12px}
   .plan-tools .pin-dd.open #planPinsBtn{border-color:var(--accent); color:var(--accent)}
-  .plan-tools .pin-dd-menu{position:absolute; top:calc(100% + 6px); right:0; min-width:170px; display:none; flex-direction:column; gap:4px; padding:6px; background:var(--surface-solid); border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.5); z-index:30}
+  .plan-tools .pin-dd-menu{position:absolute; top:calc(100% + 6px); right:0; min-width:188px; display:none; flex-direction:column; gap:1px; padding:4px; background:var(--surface-solid); border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.5); z-index:30}
   .plan-tools .pin-dd.open .pin-dd-menu{display:flex}
-  .plan-tools .pin-dd-menu button{width:100%; height:auto; justify-content:flex-start; gap:9px; padding:8px 10px; font-family:var(--font); font-size:12px; color:var(--text)}
-  .plan-tools .pin-dd-menu button:hover{color:var(--accent)}
-  .plan-tools .pin-dd-menu button.danger:hover{border-color:var(--danger); color:var(--danger)}
-  .plan-body{position:relative; height:320px; overflow:hidden; background:#0f1319; touch-action:none; cursor:grab}
+  .plan-tools .pin-dd-menu button{display:flex; align-items:center; width:100%; height:auto; justify-content:flex-start; gap:9px; padding:8px 10px; border:1px solid transparent; background:transparent; font-family:var(--font); font-size:12px; line-height:1.2; color:var(--text); white-space:nowrap; border-radius:7px}
+  .plan-tools .pin-dd-menu button:hover{border-color:var(--accent-dim); color:var(--accent); background:rgba(73,116,255,.08)}
+  .plan-tools .pin-dd-menu button.danger:hover{border-color:var(--danger); color:var(--danger); background:rgba(239,68,68,.08)}
+  .plan-body{position:relative; height:320px; overflow:hidden; background:var(--qr-blue1); touch-action:none; cursor:grab}
   .plan-body.panning{cursor:grabbing}
   .plan-empty{padding:26px 20px; text-align:center; color:var(--muted)}
   .plan-empty svg{width:34px; height:34px; fill:none; stroke:var(--muted-dim); stroke-width:1.6; margin-bottom:10px}
   .plan-empty p{font-size:11px; line-height:1.6; color:var(--muted); margin-bottom:14px}
   .plan-empty b{color:var(--text); font-weight:600}
-  .plan-load-btn{font-family:var(--font); font-size:11px; color:var(--accent); background:rgba(45,212,191,.08); border:1px solid var(--accent-dim); border-radius:7px; padding:8px 14px; cursor:pointer}
-  .plan-load-btn:hover{background:rgba(45,212,191,.16)}
+  .plan-load-btn{font-family:var(--font); font-size:11px; color:var(--accent); background:rgba(73,116,255,.08); border:1px solid var(--accent-dim); border-radius:7px; padding:8px 14px; cursor:pointer}
+  .plan-load-btn:hover{background:rgba(73,116,255,.16)}
   .plan-stage{position:absolute; top:0; left:0; display:none; line-height:0; transform-origin:0 0; will-change:transform; backface-visibility:hidden}
   #planPanel.has-plan .plan-empty{display:none}
   #planPanel.has-plan .plan-stage{display:block}
   #planImg{display:block; width:100%; height:auto; background:#fff}
-  #planCanvas{display:none; width:100%; height:auto; background:#fff; vertical-align:top}
+  #planCanvas{display:none; width:100%; height:auto; background:#fff; vertical-align:top; image-rendering:auto}
   #planPanel.pdfplan #planImg{display:none}
   #planPanel.pdfplan #planCanvas{display:block}
   #planPanel.placing .plan-body{cursor:crosshair}
@@ -341,33 +367,47 @@
   .gm-card .gm-dim{opacity:.7}
   .gm-card input{width:100%; margin-top:5px; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:var(--sans); font-size:13px; box-sizing:border-box}
   .gm-card input:focus{outline:none; border-color:var(--accent)}
+  .pe-order-row{display:flex; align-items:stretch; gap:0; margin-top:5px; border:1px solid var(--border); border-radius:8px; background:var(--surface); overflow:hidden}
+  .pe-order-row:focus-within{border-color:var(--accent)}
+  .pe-order-row input{flex:1; min-width:0; margin:0; border:0; border-radius:0; background:transparent; text-align:center; font-size:14px; font-variant-numeric:tabular-nums; -moz-appearance:textfield}
+  .pe-order-row input::-webkit-outer-spin-button,
+  .pe-order-row input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  .pe-order-row input:focus{outline:none; border-color:transparent}
+  .pe-step{flex:0 0 44px; border:0; border-right:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; font-size:20px; line-height:1; font-family:var(--sans); display:flex; align-items:center; justify-content:center; padding:0}
+  .pe-step:last-child{border-right:0; border-left:1px solid var(--border)}
+  .pe-step:hover{color:var(--accent); background:rgba(255,255,255,.04)}
+  .pe-step:active{background:rgba(255,255,255,.08)}
   .gm-note{font-size:10.5px; color:var(--muted); margin:12px 0 0; line-height:1.45}
   .gm-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px}
   .gm-btn{padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font-family:var(--sans); font-size:12.5px}
-  .gm-btn.primary{background:var(--accent); border-color:var(--accent); color:#08131a; font-weight:600}
+  .gm-btn.primary{background:var(--accent); border-color:var(--accent); color:var(--qr-blue1); font-weight:600}
   .gm-btn:hover{border-color:var(--accent-dim)}
-  #planGmap{position:absolute; inset:0; display:none; background:#0b0e12}
+  #planGmap{position:absolute; inset:0; display:none; background:var(--bg)}
   .gm-ctl{display:flex; gap:4px; margin:10px}
   .gm-ctl-btn{width:34px; height:34px; border-radius:7px; border:1px solid var(--border); background:var(--surface-solid); color:var(--text); cursor:pointer; font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.45)}
   .gm-ctl-btn:hover{border-color:var(--accent); color:var(--accent)}
   .gm-ctl-btn.wide{width:auto; padding:0 12px; gap:6px; font-size:12px; font-family:var(--font); white-space:nowrap}
-  #gmOpacity{display:none; position:absolute; top:10px; right:128px; left:auto; z-index:8; align-items:center; flex-wrap:wrap; max-width:min(72vw,540px); gap:9px; padding:6px 10px; background:var(--surface-solid); border:1px solid var(--border); border-radius:9px; font-family:var(--font); font-size:10.5px; color:var(--muted); box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  #gmOpacity{display:none; align-items:center; flex-wrap:wrap; gap:9px; padding:6px 10px; background:var(--surface-solid); border:1px solid var(--border); border-radius:9px; font-family:var(--font); font-size:10.5px; color:var(--muted); box-shadow:0 6px 18px rgba(0,0,0,.45)}
   #gmSearch{display:none; position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:9; width:min(70%,320px); font-family:var(--font)}
   #gmMarkEditor{display:none; position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:10; width:min(90%,340px); border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 34px rgba(0,0,0,.55)}
   #planPanel.gm-editing #gmMarkEditor{display:block}
   #planPanel.livemap #gmSearch{display:block}
+  /* Compact preview is too tight for search / map-view controls — only show when expanded */
+  #planPanel.livemap:not(.full) #gmSearch,
+  #planPanel.livemap:not(.full) .gm-ctl{display:none !important}
   #gmSearchInput{width:100%; box-sizing:border-box; padding:8px 11px; border-radius:8px; border:1px solid var(--border); background:var(--surface-solid); color:var(--text); font-family:var(--font); font-size:12px; box-shadow:0 4px 14px rgba(0,0,0,.45)}
   #gmSearchInput:focus{outline:none; border-color:var(--accent)}
   #gmSearchResults{display:none; margin-top:4px; background:var(--surface-solid); border:1px solid var(--border); border-radius:8px; overflow:hidden; box-shadow:0 8px 22px rgba(0,0,0,.5); max-height:240px; overflow-y:auto}
   #gmSearchResults .gm-sres{padding:7px 11px; font-size:11.5px; color:var(--text); cursor:pointer; border-bottom:1px solid var(--border-soft)}
   #gmSearchResults .gm-sres:last-child{border-bottom:none}
-  #gmSearchResults .gm-sres:hover{background:rgba(45,212,191,.14); color:var(--accent)}
-  #planPanel.livemap.has-overlay #gmOpacity{display:flex}
-  #planPanel.livemap.has-overlay.ov-hidden #gmOpacity{display:none !important}
+  #gmSearchResults .gm-sres:hover{background:rgba(73,116,255,.14); color:var(--accent)}
+  /* Overlay controls live in View settings (Map & data) — never float on the map */
+  #planPanel.livemap.has-overlay #gmOpacity{display:none}
   #gmOpacity label{display:flex; align-items:center; gap:6px; color:var(--text)}
   #gmOpacity input[type=range]{width:96px; accent-color:var(--accent)}
   #gmOpacity select{max-width:150px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; font-family:var(--font); font-size:10.5px; padding:3px 5px}
-  #gmOpacity #ovRemove{background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:3px 8px; cursor:pointer}
+  #gmOpacity .ov-bar-acts{display:flex; align-items:center; gap:6px; min-width:0}
+  #gmOpacity #ovRemove{background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:3px 8px; cursor:pointer; flex:0 0 auto}
   #gmOpacity #ovRemove:hover{border-color:var(--accent); color:var(--accent)}
   .imgov{position:absolute; transform-origin:center center; touch-action:none}
   .imgov img{width:100%; height:100%; display:block; pointer-events:auto; cursor:move; -webkit-user-drag:none; user-select:none}
@@ -381,9 +421,9 @@
   .imgov .ov-rot::before{content:''; position:absolute; left:50%; top:12px; width:2px; height:16px; background:var(--accent); transform:translateX(-50%)}
   .imgov.locked img{cursor:default; pointer-events:none}
   .imgov.locked .ov-h, .imgov.locked .ov-rot{display:none}
-  #gmOpacity #ovLock{background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:3px 9px; cursor:pointer; white-space:nowrap}
+  #gmOpacity #ovLock{flex:1 1 auto; min-width:0; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:3px 9px; cursor:pointer; white-space:nowrap}
   #gmOpacity #ovLock:hover{border-color:var(--accent); color:var(--accent)}
-  #gmOpacity #ovLock.on{background:var(--accent); border-color:var(--accent); color:#0b0e12; font-weight:600}
+  #gmOpacity #ovLock.on{background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:600}
   #mapSettings, #privacySettings{position:absolute; right:12px; top:56px; z-index:11; width:296px; max-width:calc(100% - 24px); max-height:calc(100% - 68px); overflow-y:auto; display:none; background:var(--surface-solid); border:1px solid var(--border); border-radius:12px; box-shadow:0 16px 44px rgba(0,0,0,.5); font-family:var(--sans); padding:13px 15px; scrollbar-width:thin}
   #planPanel.show-mapset #mapSettings{display:block}
   #privacySettings.show{display:block; position:fixed; z-index:25; top:56px; right:12px}
@@ -395,7 +435,29 @@
   #mapSettings .ms-btn svg, #privacySettings .ms-btn svg{width:18px; height:18px; flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
   #mapSettings .ms-btn.mini, #privacySettings .ms-btn.mini{width:auto; padding:8px 12px; font-size:12.5px; font-weight:500; color:var(--muted)}
   #mapSettings .ms-range, #privacySettings .ms-range{width:130px; accent-color:var(--accent); cursor:pointer}
-  #gmOpacity{display:none !important}   /* overlay controls now live in the View settings panel */
+  /* Alignment overlay bar, hosted inside Map & data */
+  #mapSettings .ms-ov-slot{margin:8px 0 2px}
+  #mapSettings .ms-ov-slot #gmOpacity{
+    display:flex !important; flex-direction:column; align-items:stretch; flex-wrap:nowrap;
+    width:100%; max-width:none; gap:8px; padding:10px 11px; box-sizing:border-box;
+    box-shadow:none; background:var(--surface); font-family:var(--sans); font-size:12px;
+  }
+  #mapSettings .ms-ov-slot #gmOpacity select{
+    max-width:none; width:100%; box-sizing:border-box; font-family:var(--sans); font-size:12.5px;
+    padding:7px 9px; border-radius:7px; background:var(--surface-solid);
+  }
+  #mapSettings .ms-ov-slot #gmOpacity label{
+    width:100%; box-sizing:border-box; justify-content:space-between; gap:10px;
+    font-family:var(--sans); font-size:12.5px; font-weight:600; color:var(--text);
+  }
+  #mapSettings .ms-ov-slot #gmOpacity input[type=range]{flex:1 1 auto; width:auto; min-width:0}
+  #mapSettings .ms-ov-slot #gmOpacity .ov-bar-acts{width:100%}
+  #mapSettings .ms-ov-slot #gmOpacity #ovLock{
+    padding:8px 10px; border-radius:7px; font-family:var(--sans); font-size:12.5px; font-weight:600;
+  }
+  #mapSettings .ms-ov-slot #gmOpacity #ovRemove{
+    padding:8px 11px; border-radius:7px; font-size:13px; line-height:1;
+  }
   .pi-card{width:min(94vw,560px); background:linear-gradient(180deg,#212a35,#1a212a); border:1px solid #38434f; box-shadow:0 24px 70px rgba(0,0,0,.55)}
   .pi-head{display:flex; align-items:center; justify-content:space-between; margin:0 0 4px}
   .pi-head h3{margin:0; font-size:16px}
@@ -413,7 +475,7 @@
   .pi-ac .pi-ac-item span{font-size:12.5px; color:var(--text)}
   .pi-ac .pi-ac-item small{display:block; font-size:10.5px; color:var(--muted); margin-top:2px}
   .pi-ac .pi-ac-item:hover, .pi-ac .pi-ac-item.active{background:var(--accent)}
-  .pi-ac .pi-ac-item:hover span, .pi-ac .pi-ac-item.active span, .pi-ac .pi-ac-item:hover small, .pi-ac .pi-ac-item.active small{color:#08131a}
+  .pi-ac .pi-ac-item:hover span, .pi-ac .pi-ac-item.active span, .pi-ac .pi-ac-item:hover small, .pi-ac .pi-ac-item.active small{color:var(--qr-blue1)}
   #projInfo .pi-stats{display:flex; gap:10px; margin:16px 0 4px}
   #projInfo .pi-stat{flex:1 1 0; text-align:center; padding:11px 8px; border:1px solid #3a4552; border-radius:10px; background:#2a333f}
   #projInfo .pi-stat .pi-n{display:block; font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1}
@@ -444,11 +506,11 @@
   #planPanel.livemap #planGmap{display:block}
   #planPanel.livemap #planEmpty{display:none}
   #planGmap .gm-pin{transform:translate(-50%,-100%); font:600 11px/1 var(--sans,sans-serif); color:#fff; white-space:nowrap; display:flex; flex-direction:column; align-items:center; cursor:pointer}
-  #planGmap .gm-pin .gm-dot{width:20px; height:20px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); background:var(--accent); border:2px solid #0b0e12; box-shadow:0 2px 6px rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center}
+  #planGmap .gm-pin .gm-dot{width:20px; height:20px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); background:var(--accent); border:2px solid var(--bg); box-shadow:0 2px 6px rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center}
   #planGmap .gm-pin .gm-dot b{transform:rotate(45deg); font-size:10px}
   #planGmap .gm-pin .gm-cap{margin-top:3px; padding:1px 6px; border-radius:6px; background:rgba(13,17,23,.82); border:1px solid var(--border); max-width:160px; overflow:hidden; text-overflow:ellipsis}
   #planGmap .gm-pin.here .gm-dot{background:#fff; border-color:var(--accent)}
-  #planGmap .gm-pin.here .gm-dot b{color:var(--accent)}
+  #planGmap .gm-pin.here .gm-dot b{color:var(--bg)}
   #planVec{position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none}
   #planVec polygon, #planVec polyline{vector-effect:non-scaling-stroke}
   #vecPath polyline{fill:none; stroke:var(--accent); stroke-width:1.6; stroke-opacity:.85; vector-effect:non-scaling-stroke; stroke-linejoin:round; stroke-linecap:round}
@@ -467,16 +529,17 @@
   .pin{position:absolute; transform:translate(-50%,-100%); transform-origin:50% 100%; z-index:2;
     display:flex; flex-direction:column; align-items:center; cursor:pointer; line-height:1}
   .pin .pin-dot{width:22px; height:22px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
-    background:var(--accent); border:2px solid #0b0e12; box-shadow:0 2px 6px rgba(0,0,0,.55);
+    background:var(--accent); border:2px solid var(--bg); box-shadow:0 2px 6px rgba(0,0,0,.55);
     display:grid; place-items:center}
-  .pin .pin-dot b{transform:rotate(45deg); color:#08201d; font-size:10px; font-weight:700; font-family:var(--font)}
+  .pin .pin-dot b{transform:rotate(45deg); color:var(--bg); font-size:10px; font-weight:700; font-family:var(--font)}
   .pin .pin-cap{margin-top:3px; max-width:130px; font-family:var(--font); font-size:9.5px; color:#fff;
-    background:rgba(11,14,18,.82); border:1px solid var(--border); border-radius:4px; padding:1px 5px;
+    background:rgba(19,32,73,.82); border:1px solid var(--border); border-radius:4px; padding:1px 5px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:none}
   .pin:hover .pin-cap, .pin.sel .pin-cap{display:block}
   .pin:hover{z-index:4}
   .pin:hover .pin-dot{background:#fff}
-  .pin.here .pin-dot{background:#ffd75e; box-shadow:0 0 0 4px rgba(255,215,94,.28),0 2px 6px rgba(0,0,0,.55)}
+  .pin:hover .pin-dot b, .pin.here .pin-dot b, .pin.sel .pin-dot b{color:var(--bg)}
+  .pin.here .pin-dot{background:#fff; border-color:var(--accent); box-shadow:0 0 0 4px rgba(73,116,255,.28),0 2px 6px rgba(0,0,0,.55)}
   .pin.sel .pin-dot{background:var(--danger); box-shadow:0 0 0 4px rgba(229,104,138,.30)}
   #planPanel.placing .pin{cursor:grab}
   .pin.dragging{cursor:grabbing; z-index:6}
@@ -501,13 +564,12 @@
   body.embed #btnHome{display:none !important}
   body.embed #empty.has-dash{padding-left:24px}
   body.embed #projEmpty{display:none !important}
-  body.embed #resumeLast{display:none !important}
   #openLinkedProj{display:none !important}
   body.embed #empty.show-linked #openLinkedProj{display:inline-flex !important}
   body.embed #empty #createProj{display:inline-flex !important}
   #gateContinue{
     display:none; width:min(420px,92vw); margin:0 auto 14px; padding:16px 18px; text-align:left; cursor:pointer;
-    font-family:var(--font); color:var(--text); background:rgba(45,212,191,.12);
+    font-family:var(--font); color:var(--text); background:rgba(73,116,255,.12);
     border:1px solid var(--accent); border-radius:12px;
   }
   body.embed #empty.has-gate-proj #gateContinue{display:block}
@@ -529,7 +591,7 @@
 <div id="hotspots"></div>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span><b>INSP&nbsp;360</b><span>equirectangular viewer</span></div>
+  <div class="brand"><img src="data:image/png;base64,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" alt="QuadReal" width="26" height="26"><div class="brand-text"><b>INSP&nbsp;360</b><span>QuadReal · equirectangular viewer</span></div></div>
   <button class="btn" id="btnHome" style="display:none" title="Close photo & return to menu (Esc)"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Menu</button>
   <div id="projName" class="projname" style="display:none"></div>
   <button class="btn icon" id="btnProjInfo" style="display:none" title="Project details — info, stats, save / share / download"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg></button>
@@ -544,7 +606,7 @@
   <button class="btn topbtn" id="btnSaveView" title="Save the current angle &amp; zoom as this photo's view"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save view</button>
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-  <span id="appVer" title="INSP 360 Viewer">v1.1.17</span>
+  <span id="appVer" title="INSP 360 Viewer">v1.1.21</span>
 </div>
 
 <div id="privacySettings">
@@ -554,6 +616,7 @@
 
 <div id="empty">
   <div class="ring" id="loadDbRing" title="Load the address database (Excel .xlsx / .csv or QuadReal DB JSON)" style="cursor:pointer"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div>
+  <img class="qr-mark" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAAtCAYAAADr0SSvAAAVYklEQVR42u1deZhU1ZX/narqbhoaEFkUFXEfNKNRXDOJjk4CIhqXuHzGuGckLjiiIomZaDAuSdTBD9SgYjRi0KhoNC5MXIPKKCYuqIggAiIKCLIvXd1V9Zs/3u/q8Vlbd5fadup+3/uq+tZ7993tbL9zzm1DhQrJhJnlSBqAfQEMBTDDzO7X70kzy6JaquVrVKwChGEAYGYk2Q/AoQB6A/gIwBkA3gAwwsxWk0yZWaY67dXyT0EgQWro+2EABgNoBLAcwEoAGQC3AFgA4Ewze4pkQgSVq05/tbT3kmgDcSSlUm1K8hIAJwHIiUAMQCcAqwBcBWAHAE+QHG1mOT2XrE5/tXRIAgn2BMmBAMYD2A/A6libWQDdATwH4BkRzS9JPkayj55PVZegWjoMgZA0qVVZkseLOHoCWAMgn0TIAagDcBOAdQCaARwC4P9IDjSzTJVIqqVDEIi3HaRS/UYbPl2AOACAAOoBzAPwRwA1AJoAbA9gKskjqkRSLV97AnHGeJLkrQAuBLBCBFCqjSyAbgDuBPCBiCQDoAHAgySHVYmkWr62BOL8G50B/BnAaQCWSmqUg4JRRPGxVC3TeykV7GaSF30VRCKVMUkypU8rVt9Rixtryo+VZMLVl7q+FvOktf2kz7GxJsNnmJdUmcTRAOARAP8O4ENt+MYyCCNcGQCbAHgAwI8B9Fe9ScJcTbLWzK78MnwlWsiEHJefc16aGeP1mrScfutQpZADV1pDrqXQf/Ro+3QKa/0yBcb6mT1iZtlUiYGSZD2Ah0Uc60Qc6QIEESbUdF+d7jX9vhTAdQDG6r6EJFEWwBUks2b2my+SSJy6mCVZB2B/AAcC2BXAZrKZGtXXNwBMBfCsmTXGfT8dSIIMEQMzAFPN7EPV7yN7MVdCW2jWfM01syXtcZ604Umyu4AiyB5+zMwaSX5Pe+ADAFkzu5/kqaVUj6RgWZJsJtlI8iOS80jOIPkcyUdI/onkHSRvJnktyZEkjyO5L8mtSXYN4ptkJ5Jz1eZGkmm1u151Z6kPqS9CldBnLcnzSc5meWWO7q/17XQgApnrxnqUq5/ElpVV2i9DPLDTTsaY0Odurr9Zkr1V35vkxSR3Jfk4yUNJvpIqoH4kZRPcKWprlkTIOvg2q7ru+vtDAK+K6y4ws1V52k6JWm8EcA0i30nKSaD1AK4judjMHqykJHG+m28C+D2APVvw+I4AxgA4geSpZjazg8WWrXZr2+Tq16u+GZHjt1QJ3PkQkmPM7MJ2OE8ZN9ZV2ncws2Uk5yEKkXoUwGEAJufj0oE4fg3gREccQS+nEKgEgLcBPAXgbwBmBjUkHqfldL8gcu8CMAxAZwAbnPjOAdgIYBzJRWb2j0pMsCOO/WVLdZPqVye18VGNYY7+7oLI+3+QJqqr7t8LwLMkh5rZ9A6kbiXxKVRvMRAngDELALzsAJbA1JKIYu92BrCpU7MvEKO7tp0RibmxJmMSZorU69t0n32Ow+vzNKdW5UhmnFhaTXIyyR9In0MMCUgUQzOcqPstyQUkXyX5urteJfk2yWkk+7ZVVLv37SQVgFLrSPJ2ktuWeH5bkhNjz31Esl9wnHYAFes1t76HufpbXf2NJdroTfICqcsZXWtJ9okzy69YxfqGG9NKkr2K9S8R47IZkvsCuNmJoUBxTQAmARhiZseY2QOK0P2EKEKcVQmkx9SZ+xEFNK4HsNZdGyXmugC4yun91kbb4w6pAGkAtQDOM7PTzGx+DNJN+r/NbL6ZnQzgp3ouLY55a0dEtIqUOs1LXWyeklr7ZWY2BsCZDnhpADAkzq3bMwTsbHAjaQn3A0n2APAnZxekpGLdA+AAMzvRzF5wRny5RPEZSFH3vgpghghvjSOQNSKSRQAGADhLakyiFQNO6dkfIooXC2rVVWY2jmRNCJ0xs4w+s/5vEX+NmV0N4AaHzA0meagPvHTMIlGKoIP0CVcZfppU/Hsr/Bz++ZbOJwMsHpunrNChhGNE88RMCGC3Mv0veX0xpaRCoblpDUMNe9jMGK6EsztyAG4FsI2TGlMAHC3uuTAsph7OtpaDijM3S+8PBLLOXWulCy4EMITk/mGztvBVIYFrhBarFsBMAJdqMTOlbAgHCScBjALwnrPJznO6OByzKMkwNIef3F8AjqYj1kz8eyn100n2bJ7nc5V07mkMYczznPbRrYx+xfvGYgzAxQTmCs1NqTbKLamAFJEcBuAHqp8J4EZEkbgpAFsH30CFjNIwkS8AGOR8JfnuawRwEslZZrY84NktiADYFcAeMhyTAMaESOIWSL2c7t9IcjyiOLQcgO+Q3MrMFmmj7SCDHgAW5uuvw+M3AbBdQIvMbHaB7MyDAHxbjKtBzGM+gOfNbKruS+RxdPlcnQMBfE/vawbwFoBHzezNStsHztcQ1m9DPsBE3/eTD2pHjW0JgOnq2+oC4wrzSSGS/wFgJwEEjdI8/g7gSTNb11YgJRDHtiKItQAmIvJ4pwFs5RyAnRA50daXu0lLcBsAeBfAXOn0zQWIJCd75HgZiuYIDCXCaHIAvuO+rwfwmGu3NdLoLwCuVF09ovTiRdoYtwI4QL+dA+B3IspMDDHKKLnsHtW9DGAvtW/a9PsBGAdg7yJMYBqAc8xsRowgAoFthyi8Z1Cex0eTvNHMRubzLBewHZOKx2MeZChhZk16566yQZIAXsuDJu4F4GoRf77yPsn/NrM7YwQVmMtm2q9HFVG955P8qZnd1xYgJdgadwJ4R1j/AgA99OKs4wS1iLyt6yvo0c6QfBPAt9RuoYGsReTR3acV8Oq/OoKZY2ZLgu3UCh2cJN9F5G3dWvW7CHCAiJxlEqBXSZpjEPtAweed3f3rZJs1iDAhyfK0iGmu2wjURn0WwJZus2YFjHRRGxcqjKi5jPGnC4XmuDXdQgy2TvetEYT+if0pR+TduieUNepDT/3dD8BE5Q39TwjzEZF2B/CkW1c4Nb3WqXTbAriX5DHyite0gikiRfJsOUzGOnUqm2cx6wH01eaoZJkF4Bta/EQRlSwtlWamRGcpKRZ+6+vqPnDEkm2F6mDikkscgfSNcdKWqCsW+6SkyPUijiyA9wH8AsA0MZFukj5X6Z5NBTocG8KDNL5JIo4ATIyRAb1EaN73AVwC4CfanLkS87+9POSp2NwlpAHsDeAYAH0c8x0lB1yNmTWT3C0GAk2Xuvqy+rk9gJFS9ZsBXEvyRTObRrLOzNIkR4k40urHZZLqH0vLGSgJv7PmdSzJKWXEDhaUIN0APKiBJQrE3QQJ0h/APyqFqulzEYBlJTZWUhy0p3TWR1qgankPcLpCffcct76SQYMkBwhxCyrhYDN7x922DMB4kiu02QhgEMlNzWyFqOw4tdEs4jjFzCa6Nj4CMEYq2uOym7JFCCQL4GBdKMNTvQzANWZ2s7h/IKjrHbr1FIChZtYU69fRJCcBOEF1l8vOaJYUOFbt1QE40cwm5VHPXgPwusa1JYD9zOxptDLc/WHZGg26urrvvq4ewDYkuwRuWoGoSiAKc/hAxtyamE9knTbJ++rH9wHMbuG7Pefo0oow+HyQqieKjRWWqAO0LgkZ4u+Q7Kz4sRpdSakuqxxStKVr4zSXZnCvmU3U8wkHL9eZ2XRtQGuN+lGAkKB3XhezqfaWfRa0gZ8AyJCsd+PqJGf1RVp7Atif5E5SiTeT+pUUEU6WX6ZOz6ckrd4D8Ipjoju2xUifSXJPALuXsAMoDt5fKEi5HLycCMsPxRGanJqS1OZrktS4EMBIbZhyQhcCES1xdf0CvFgG8WYLhKt0BrCF+2lJhR1VUxXSkhRHhZltyHNvDyfJLOj00tEHuvHfJNUr6+yuECWRkNp1qRhQMUY6C8DT6pcPNUmJgW4rqQUA58kuGuxQrCGurw+b2bt5GEwYz4ckn9XZainNxxzZT/8W9oaZpQvMY0NMfW114Gt48BFBoT20MQqhSQ1CKN6qMNf8CEAvTVBKYnqNJn2EROyTcu61NK7nLdf/HcSBFhaDRkkegihvZaU23t/N7HptqAHiZBn19W1UNl9hpXTy0KedEAVW7iK7Zwu9v7fmjLH12sIZu2sVI5eLS91QJxthFoB9ShDI02Y2vASBHwJgsiTXvgAuMLPRDswI6/AvJH/vVPp86OMOYo4JZ+9tNLNXYqDAXtqT22jsm2tu+ro1apMfJGFmK0jeD+C/ihzAEOyQPUneX+F8jVWSXgGN6AbgRwBO0feVAE4PHv9yYVl9TosdIHGoDpvItzgUETwvAvlP1Z9EsreZXUrycCflmgC8VEn6CAibDsUYLmlQX4YtFwigwa3fahFJwY1PMofoHLNSpV7qTyoPLEypUlNI3iMVLyd74nIxtB7u3t1QxMOep2yqzxoAaZLfkhp2oGu3kD3UppJyjqbnpScerA2bKrAYA+SYeasS0azSpzfI+VWPKHr2LJeoA4WbvN8S6eG45utyfO6i/p9LckJAjDwSJnUPZrYWwDEkr9cmbQRwiZLHDndI0YtmtqCVYfmdC6iFJHkLolMpEUPgFiit4AMxlIvEtBADIujUrtoidlKArssBGnKCoJFvrC585UkRSELqeB8Aix1AYpLqb5SwfVJunl/WWqXl0B4fMwU+RhTh8L7etchlrraNQGKc8xbZIv21aZMxjp2VL+QgZ4e0NrIy2AJZ+Z0Gy7m2u1voOgDjzeyeVm7C4Ff4nRxLacF/PzezX8lwbc5DJMHxda76NlzcaKSbhyQiR6AP+mSMO1sZ/pk4inWmiKNJ77gdwB8AvGlmq90c9gdwsSMGOpRrneyCnrK71sRtRhd/V9cWIzZGbDn5icJcdJXKs1gbOGz4qWZ2div2ze6IAmkDUT2BKD5uupktjd17elsORvxMNK8L0lovDLlWoquLBhmu7hJzg0l20oJaC5GhEOCYVabhqcLDJ4g4cg6efFEGX7KlfouwkUWMt8vIC0DAaJLHm1mTCCLlEB5/aEGdmZ0L4Feaq2YRSlLG9GS1n3MOr1D6a14tT7RoAsARBY6APVXt1QC40szOMLNpCr0wx+1PUZ/iTGMpIqdv2IxHqh+pPNoDhSxtVaazsBzYfpn6FMbUS5/PubqhMfTJRwbXaJw9SPYlubnCciC1O5QnzGywmf0lEIfaSym0ZrsYiNG2U01C8JqZzQFwhSi/IUYg3bRwuwl+s2JU6iBF8wGOJHckORLRiYu3yQj1BwTUCB06VkGNbE1oS9igZrbR6cWB2O4m+QsRQSYEGLorK5Fe79QW72CcJww/4RZgnjuo4kiNuzlAkOpLRsDDTvFNqfncxLX5v1rwzvIB1CgebHMAZ+PThCXITxBU3gfdgRgjSPaTg/OTU0jUr5QYYiXC9j1sv87VB3TscUmSnDSUYUKhcs6mS2i9uymeapaIfXfnlA3r8LeAWAWY2MzSmt9fxuzQTMXydlzS1HlKjnqH5Hx3zSW5jOTEeDSpj6PP024f5fleR3I6yUUkFyv5KO1yhLNKutmvUvnfLhz9FJcs06TPmSRHkdxLST9dSfYiuafqZ7nkMca+j1O7IWflkFhi1XiSnWJ6+jkao29nurvnGf2eE9KTL4HrRfeenL4PdpGymyk5LLT/Jsk9Yu30I/mQG1OmRMLUhGJnBTjp2InkQvfcye6eYa7fjSRPy9NOX5JT3POzg9QkeZnbJ6+R7BJ7tovrc5Mb/xXunhYlTBU8N0jfx6qhxSSXizDCtYLkzoWy6kTVW5I8SAce3KZk+Oe1wK+TfE/txDMXj670wQ2OSI4m+bGbaMYmbIn6xDybZxHJP8aIYKx7R602YziQIizwbbpmuPfeqU3SLI82YkQc2n+M5LkkzyB5I8mlqn+I5L1qa4M25SiXOXdirO9pzf9NJB/QGlIMb47bUIe6vtyiumaSN5e7JsoKDc+dH2Mif9B7A2G/pH12meZkqZv3NMlvu3Z3ju2TGSR/TvLHJK8Qs6MY+a/1vZHkGpJ3qI1dXN+WtZhAYvZCQum1JLlOHU67E0jGO2KoE+cdQPK7JE8neakGP0Fpq/eR/KsIZKYWdYUWJwz6zC/hVJOQRpsu87SOJi1efz1/eez3+0h21W8DxUyKtXUCyaGu7i2XQJRwKb6Fyuske2qefXk06OL6HO4kZb6yQKd4vFHgVJO7Xf1dpdbFze/D7rnHYygXSF6dhznFyyKSB7t5SboxFSsrSB5AspsII5QN+PypJnSnmlgxFCtfYF7QDX8knXCQc7yEeJqTBEmukn64ia6uLthundqplb6cKHCeVo085Td9UediCRhImtl8ACfrYIqjhMrtKLw92CirEIXiPwPgATOb6bIULyG5WLZYWoDG7gCeM7NXlLZ8sRycvTS+j+WTucHMXlLI903q2nyvM5vZyfIkny6HWQAX5gN4CMD1ZrYGwFMkfwjgOD0/yencSTO7QdJphM7/6qn5XowoGe4aM1tM8j75fqAxh/KoO7X/+TKilIMdMk5QNAGscOncwc8ziuS98jPtL3s3JTh6nsKfJiifxoe7JzSm2UpW20M2Tk5jehrA2BC7prOuhmtPvqC+LXfzvqFUqJCVmXRUr4UZFDsCKMCQo+XJ7JTHqI8b+v7qont6APiZmf32SzpZ8XOn/8lW2MQ5wlbLuP/MQXohvbSQ/yeWl1HnvNorQ3ul/DneP0Oyp+Y1bWbL8/1nr1KnubjxBQJZJmP4KzngLdavpJhICsAGRRKg0DzF5rcbPg20XB72jV+rL/w/TDkiqQNwH6KAwWYnfTYAOFIct1cegmgoQhzdJXkuUCjHl/ov2jSRCTnBci35XQvr5y/rNnXe4zf1DJ0TMxnL9y551KlUHP+uZNwXUc5RoL792Fji40g4R2GuhfOad2wl+hXmpWBKt5/HYvXhHTENws87Su03a+E/6Aw+hZPdGVkpZSBeKviucxkE0lnE1B3A+WZ291f9/wudDmoux5yVbLM17YWI2LZyRNcOKsVdv4h5b0m//NxUYr3KtkGKhG3QzE5R9O3P3MHUhwt7X1giKjTEx3SR5BlmZlPbwz/3dJPL9tRmyL+uUF/YTg+TbtUcfRljSrR0INILL9bJiMFoN0SBjrky8gV6IMpFP669EEe1VEtF/gVb8DBrU08A8F1EMTZJRGHHQ4V6JAtE1vZAFD9zqsvrqBJHtaDD/Rtod1zQZogCyI5QWPpwSZUe7oCBPlKr/mxmkzvqvxGoliqBFIPrRgC4FlF4+eWIEpMaEGHcKwHcZWazKwnBVUu1tGsC8UiCDPlvIgqZn4soerMPonOR/qrAv6rUqJZ/LgLJo3IlEHluNwKYYmYLqipVtXxdy/8D9uXfO0lEADcAAAAASUVORK5CYII=" alt="QuadReal" width="168" height="40">
   <div>
     <h1>Load a 360° photos</h1>
     <p>Open one or more <b>equirectangular</b> panoramas (2:1 <b>.jpg</b> / <b>.png</b>) — the stitched output exported from Insta360 Studio or your camera. Drag to look, scroll to zoom.</p>
@@ -566,8 +629,29 @@
     <button class="btn" id="openLinkedProj" type="button"><svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open linked project</button>
     <button class="btn" id="openProject2"><svg viewBox="0 0 24 24"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2z"/><path d="M3 11h18"/></svg>Open project</button>
   </div>
+  <div id="loadProg" aria-live="polite">
+    <div class="lp-lbl">Opening tour…</div>
+    <div class="lp-track"><span class="lp-fill" id="loadProgFill"></span></div>
+    <div class="lp-meta"><span class="lp-phase" id="loadProgPhase"></span><span class="lp-pct" id="loadProgPct">0%</span></div>
+  </div>
   <div class="hint">drop equirectangular photos anywhere &nbsp;·&nbsp; <span class="kbd">drag</span> look &nbsp; <span class="kbd">scroll</span> zoom</div>
-  <div id="dash"><div class="dash-title">Recent projects</div><button type="button" id="resumeLast"></button><input id="dashSearch" class="dash-search" type="search" placeholder="Search projects…" autocomplete="off"><div id="dashGrid"></div><div id="dashEmpty" class="dash-empty" style="display:none">No matches</div></div>
+  <div id="dash">
+    <div class="dash-head">
+      <div class="dash-title">Recent projects</div>
+      <div class="dash-summary" id="dashSummary">0 projects</div>
+    </div>
+    <div class="dash-tools">
+      <select id="dashSort" class="dash-sort" title="Sort projects" aria-label="Sort projects">
+        <option value="date">Sort: Date</option>
+        <option value="name">Sort: Name</option>
+        <option value="tour">Sort: Tour #</option>
+        <option value="manual">Sort: Custom</option>
+      </select>
+    </div>
+    <input id="dashSearch" class="dash-search" type="search" placeholder="Search projects…" autocomplete="off">
+    <div id="dashGrid"></div>
+    <div id="dashEmpty" class="dash-empty" style="display:none">No matches</div>
+  </div>
 </div>
 
 <div id="hud">
@@ -638,10 +722,10 @@
   #blurEditor .be-seg{display:inline-flex; gap:4px}
   #blurEditor .be-label{font-family:var(--font); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-dim); margin-right:2px}
   #blurEditor .be-btn{font-family:var(--font); font-size:12px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:7px 11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap}
-  #blurEditor .be-btn:hover{border-color:var(--accent-dim); background:rgba(27,133,120,.12)}
+  #blurEditor .be-btn:hover{border-color:var(--accent-dim); background:rgba(56,94,208,.12)}
   #blurEditor .be-btn:disabled{opacity:.5; cursor:default}
   #blurEditor .be-btn.primary{border-color:var(--accent); color:var(--accent)}
-  #blurEditor .be-btn.on{border-color:var(--accent); color:var(--accent); background:rgba(45,212,191,.1)}
+  #blurEditor .be-btn.on{border-color:var(--accent); color:var(--accent); background:rgba(73,116,255,.1)}
   #blurEditor .be-btn.ghost{color:var(--muted)}
   #blurEditor .be-field{display:inline-flex; align-items:center; gap:6px; font-family:var(--font); font-size:11px; color:var(--muted)}
   #blurEditor .be-field select{font-family:var(--font); font-size:12px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 7px}
@@ -723,11 +807,11 @@
       <button id="planDbPoly" title="Overlay this building's tenant polygons from the DB onto the plan"><svg viewBox="0 0 24 24"><path d="M12 2l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 17l9 4.5 9-4.5"/></svg></button>
       <button id="planBldgs" title="Show every DB building address as a marker on the map (map floor)"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01M9 15h.01M15 15h.01M10 21v-3h4v3"/></svg></button>
       <div class="pin-dd" id="planPins">
-        <button id="planPinsBtn" title="Photo markers — add, edit, clear"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.3"/></svg><svg class="caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button id="planPinsBtn" title="Photo markers — add, edit, clear"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.3"/></svg></button>
         <div class="pin-dd-menu" id="planPinsMenu">
-          <button data-act="gps"><svg viewBox="0 0 24 24"><path d="M15.5 14s3.5-3.25 3.5-6a3.5 3.5 0 1 0-7 0c0 2.75 3.5 6 3.5 6z"/><path d="M9 19s4.3-4 4.3-7.4a4.3 4.3 0 1 0-8.6 0C4.7 15 9 19 9 19z"/><circle cx="9" cy="11.4" r="1.5"/></svg>Add from GPS</button>
-          <button data-act="edit"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit / place pins</button>
-          <button data-act="clear" class="danger"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><path d="M9 9l6 6M15 9l-6 6"/></svg>Clear pins</button>
+          <button data-act="gps"><svg viewBox="0 0 24 24"><path d="M15.5 14s3.5-3.25 3.5-6a3.5 3.5 0 1 0-7 0c0 2.75 3.5 6 3.5 6z"/><path d="M9 19s4.3-4 4.3-7.4a4.3 4.3 0 1 0-8.6 0C4.7 15 9 19 9 19z"/><circle cx="9" cy="11.4" r="1.5"/></svg>Add Pins from GPS</button>
+          <button data-act="edit"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit Pins</button>
+          <button data-act="clear" class="danger"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><path d="M9 9l6 6M15 9l-6 6"/></svg>Clear All Pins</button>
         </div>
       </div>
       <button id="planGps" title="Auto-place a pin for every GPS-tagged photo (fits their real positions onto this plan, north up)"><svg viewBox="0 0 24 24"><path d="M15.5 14s3.5-3.25 3.5-6a3.5 3.5 0 1 0-7 0c0 2.75 3.5 6 3.5 6z"/><path d="M9 19s4.3-4 4.3-7.4a4.3 4.3 0 1 0-8.6 0C4.7 15 9 19 9 19z"/><circle cx="9" cy="11.4" r="1.5"/></svg></button>
@@ -736,7 +820,7 @@
       <button id="planPath" title="Show the path — thin arrows connecting the markers in order (1 &rarr; 2 &rarr; 3 &hellip;)"><svg viewBox="0 0 24 24"><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="6" r="2.2"/><path d="M6.7 16.3C9.5 13.5 8.8 9 12.5 7.2"/><path d="M16.9 6.6l1.4-.6M18 8l.4-1.5"/></svg></button>
       <button id="planElec" title="Show electrical rooms from the DB on the map floor (loaded from the DB, like building addresses)"><svg viewBox="0 0 24 24"><path d="M13 2L5 13h5l-1 9 8-11h-5l1-9z"/></svg></button>
       <button id="planSprk" title="Show sprinkler rooms from the DB on the map floor (loaded from the DB, like building addresses)"><svg viewBox="0 0 24 24"><path d="M12 3s6 6.4 6 10.5a6 6 0 0 1-12 0C6 9.4 12 3 12 3z"/><path d="M12 8s2.5 2.8 2.5 4.8"/></svg></button>
-      <button id="planOverlay" title="Show / hide the overlay controls — the aligned floor-plan drawing stays on the map either way. Use the ✕ on the controls bar to remove the drawing."><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg></button>
+      <button id="planOverlay" title="Overlay a floor plan on the map — controls are in View settings → Map &amp; data"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg></button>
       <button id="planSettings" title="View settings — all map layers &amp; options in one panel"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button id="planBig" title="Expand plan to full window (click a pin to jump &amp; minimize)"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
       <button id="planClose" title="Hide floor plan (P)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -774,8 +858,10 @@
     <div id="gmOpacity">
       <select id="ovSrc" title="Which floor plan to overlay"></select>
       <label>Opacity<input type="range" id="ovOpacity" min="10" max="100" step="1" value="60"></label>
-      <button id="ovLock" type="button" title="Lock this overlay permanently in place so it stays put through view changes, floor switches and reloads. You can Edit position later.">Lock placement</button>
-      <button id="ovRemove" type="button" title="Remove the alignment overlay">✕</button>
+      <div class="ov-bar-acts">
+        <button id="ovLock" type="button" title="Lock this overlay permanently in place so it stays put through view changes, floor switches and reloads. You can Edit position later.">Lock placement</button>
+        <button id="ovRemove" type="button" title="Remove the alignment overlay">✕</button>
+      </div>
     </div>
     <div id="mapSettings">
       <div class="ms-title"><div class="ms-h" style="margin:0">View settings</div><button class="ms-close" id="msClose" title="Close" type="button">×</button></div>
@@ -813,7 +899,11 @@
     <label>Name <span class="gm-dim">(the image file type is kept)</span>
       <input type="text" id="peName" spellcheck="false" autocomplete="off"></label>
     <label>Order number <span class="gm-dim" id="peOrderOf">(1 of 1)</span>
-      <input type="number" id="peOrder" min="1" step="1" inputmode="numeric"></label>
+      <div class="pe-order-row">
+        <button type="button" class="pe-step" id="peOrderDown" aria-label="Decrease order">−</button>
+        <input type="number" id="peOrder" min="1" step="1" inputmode="numeric">
+        <button type="button" class="pe-step" id="peOrderUp" aria-label="Increase order">+</button>
+      </div></label>
     <p class="gm-note">Set the order number to move this photo to that position in the sequence. Numbering, map-pin numbers and the delivery order all follow it.</p>
     <div class="gm-actions"><button id="peCancel" class="gm-btn">Cancel</button><button id="peSave" class="gm-btn primary">Save</button></div>
   </div>
@@ -1089,7 +1179,7 @@ async function runPrefetch(){
     for(const t of wants){
       if(texCache.has(t)) continue;
       if(cacheBytes>CACHE_BUDGET*0.9) break;         // leave headroom for the live view
-      try{ const res=await loadFull(itemDisplayFile(t)); if(!texCache.has(t)) cachePut(t,res); else res.tex.dispose(); }catch(e){}
+      try{ await materializeItem(t); const res=await loadFull(itemDisplayFile(t)); if(!texCache.has(t)) cachePut(t,res); else res.tex.dispose(); }catch(e){}
     }
   } finally { prefetchBusy=false; updatePreloadState(); }
 }
@@ -1102,7 +1192,7 @@ async function preloadAll(){
   for(const it of order){
     if(texCache.has(it)){ done++; continue; }
     if(cacheBytes>CACHE_BUDGET*0.92){ skipped++; continue; }
-    try{ const res=await loadFull(itemDisplayFile(it)); if(!texCache.has(it)) cachePut(it,res); else res.tex.dispose(); done++; }
+    try{ await materializeItem(it); const res=await loadFull(itemDisplayFile(it)); if(!texCache.has(it)) cachePut(it,res); else res.tex.dispose(); done++; }
     catch(e){ skipped++; }
   }
   updatePreloadState();
@@ -1232,7 +1322,9 @@ async function makeThumb(file){
 async function selectImage(idx, opts){
   opts=opts||{};
   if(idx<0||idx>=items.length) return;
-  if(planPanel && planPanel.classList.contains('full')) setPlanFull(false);   // reveal the chosen photo
+  // Keep maximized map open while placing/editing pins so thumbnail browse can highlight pins
+  const keepFull = !!(opts.keepPlanFull || ((planEdit || (typeof _gmapPlace!=='undefined' && _gmapPlace)) && planPanel && planPanel.classList.contains('full')));
+  if(planPanel && planPanel.classList.contains('full') && !keepFull) setPlanFull(false);   // reveal the chosen photo
   if(lockView && currentIndex>=0 && items[currentIndex])                 // remember where we were looking
     items[currentIndex].lastView={lon:view.lon, lat:view.lat, fov:view.targetFov};
   currentIndex=idx;
@@ -1243,6 +1335,7 @@ async function selectImage(idx, opts){
   const cached=texCache.get(it);
   const spin=it.el && it.el.querySelector('.spin'); if(!cached && spin) spin.style.display='grid';
   try{
+    await materializeItem(it);                              // zip-slice -> standalone blob (progressive open)
     const res = cached || await loadFull(itemDisplayFile(it));
     if(!cached) cachePut(it,res); else cacheTouch(it);
     currentTexture=res.tex; uniforms.uTex.value=res.tex;
@@ -1298,12 +1391,17 @@ function openPhotoEdit(it){
   const ov=document.getElementById('photoEdit');
   const ni=document.getElementById('peName'), oi=document.getElementById('peOrder'), ofLbl=document.getElementById('peOrderOf');
   const save=document.getElementById('peSave'), cancel=document.getElementById('peCancel');
+  const down=document.getElementById('peOrderDown'), up=document.getElementById('peOrderUp');
   const pos=items.indexOf(it)+1, n=items.length;
   ni.value=(it.name||'').replace(/(\.(?:jpe?g|png))$/i,'');
   oi.value=pos; oi.min=1; oi.max=n; ofLbl.textContent='('+pos+' of '+n+')';
+  const clampOrder=v=>{ const t=parseInt(v,10); return isFinite(t)?Math.min(n,Math.max(1,t)):1; };
+  const bump=d=>{ oi.value=clampOrder((parseInt(oi.value,10)||pos)+d); oi.focus(); oi.select(); };
   ov.classList.add('show'); setTimeout(()=>{ ni.focus(); ni.select(); }, 30);
-  const done=()=>{ ov.classList.remove('show'); save.onclick=null; cancel.onclick=null; ov.onclick=null; document.removeEventListener('keydown',onKey,true); };
+  const done=()=>{ ov.classList.remove('show'); save.onclick=null; cancel.onclick=null; ov.onclick=null; if(down) down.onclick=null; if(up) up.onclick=null; document.removeEventListener('keydown',onKey,true); };
   const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); done(); } else if(e.key==='Enter'){ e.preventDefault(); save.onclick(); } };
+  if(down) down.onclick=e=>{ e.preventDefault(); bump(-1); };
+  if(up) up.onclick=e=>{ e.preventDefault(); bump(1); };
   save.onclick=()=>{
     const msg=[];
     const before=it.name;
@@ -1355,6 +1453,18 @@ function addThumbEl(it){
       if(insTarget) insTarget.value=it.name;
       renderOneHotspot(selectedHS); markLinkTarget(); refreshPathIfOn();
       toast((selectedHS.type==='marker'?'Marker':'Arrow')+' now links to '+it.name+'.');
+      return;
+    }
+    // Maximized map + pin edit: browse thumbnails without collapsing — highlight the matching pin
+    if(planPanel && planPanel.classList.contains('full') && (planEdit || (typeof _gmapPlace!=='undefined' && _gmapPlace))){
+      const idx=items.indexOf(it);
+      selectImage(idx, { keepPlanFull:true }).then(()=>{
+        const p=activePlan(); if(!p) return;
+        const m=(p.markers||[]).find(x=>x.target===it.name);
+        if(!m) return;
+        if(p.isLiveMap){ try{ editGmapMarker(m); }catch(_){ } }
+        else if(typeof selectPin==='function') selectPin(m);
+      });
       return;
     }
     if(planLinking()){                       // a map pin is selected -> pick its photo from the library
@@ -1435,6 +1545,7 @@ function renamePhoto(it, rawName){
   items.forEach(o=>{ (o.hotspots||[]).forEach(h=>{ if(h.target===old) h.target=nn; }); });
   try{ if(planState && planState.plans) planState.plans.forEach(p=>p.markers.forEach(m=>{ if(m.target===old) m.target=nn; })); }catch(_){ }
   it.name = nn;
+  _projPhotosDirty=true;
   // refresh the library card
   if(it.el){ const nm=it.el.querySelector('.lib-name'); if(nm) nm.textContent=nn; it.el.title=nn; it.el.dataset.name=nn.toLowerCase(); }
   // refresh any open target dropdowns (option values ARE the photo name)
@@ -1468,6 +1579,7 @@ async function deleteItem(it){
   // drop from model + DOM
   if(it.el) it.el.remove();
   items.splice(idx,1);
+  _projPhotosDirty=true;
 
   // fix up the current selection — stay in the project even when the library is empty
   if(items.length===0){
@@ -1524,6 +1636,7 @@ async function ingest(fileList){
   if(!files.length){ toast('No .jpg / .png images in that selection.', true); return; }
   const firstNew=items.length;
   for(const file of files){ const it={file,name:file.name,thumbUrl:null,el:null,hotspots:[],view0:null,lastView:null,headingTag:null,gps:null,gpsBearing:null,metaRead:false}; items.push(it); addThumbEl(it); }
+  _projPhotosDirty=true;
   enterProjectMode();
   if(currentIndex<0) selectImage(firstNew);
   for(let i=firstNew;i<items.length;i++){ const it=items[i]; it.thumbUrl=await makeThumb(it.file); if(it.el&&it.thumbUrl) it.el.querySelector('img').src=it.thumbUrl; }
@@ -1578,11 +1691,16 @@ function goHome(opts){
   opts=opts||{};
   // Inside a gateway overlay the host owns navigation — block Menu/Esc unless explicitly forced (e.g. Create project).
   if(!opts.force && document.body.classList.contains('embed') && document.body.classList.contains('proj-open')) return;
+  _projBgGen++;                                  // cancel progressive warm-up
   clearCache(); currentTexture=null;
   uniforms.uTex.value=null;
   // Keep last project in IndexedDB so the gateway can resume it next open —
   // only clear the in-session handles.
   setEdit(false, {skipSave:true}); deselectHotspot(); hotspotsLayer.innerHTML=''; tourHandle=null; projHandle=null; northCal=null; projectMeta=null;
+  photoSourceHint=null;
+  // Don't carry a previous .insp360 into a different / new project Save prompt
+  projHandleRemembered=null;
+  try{ idbSet('projHandle', null); }catch(_){}
   items=[]; currentIndex=-1;
   libList.innerHTML=''; libCount.textContent='0'; document.getElementById('libSearch').value='';
   library.classList.remove('show'); libShow.classList.remove('show');
@@ -1597,7 +1715,6 @@ function goHome(opts){
   try{ syncTourSaveUi(); }catch(e){}
   try{ updateDbStatus(); }catch(e){}
   renderDashboard();
-  try{ updateResumeBanner(); }catch(e){}
 }
 document.getElementById('btnHome').onclick=goHome;
 function toggleFull(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
@@ -1617,8 +1734,61 @@ document.getElementById('libPreload').onclick=preloadAll;
 libShow.onclick=()=>{ library.classList.remove('collapsed'); libShow.classList.remove('show'); if(lbOpen()) lbLayout(); };
 
 const fileInput=document.getElementById('fileInput'), folderInput=document.getElementById('folderInput');
-document.getElementById('openFiles').onclick=()=>fileInput.click();
-document.getElementById('openFolder').onclick=()=>folderInput.click();
+async function rememberPhotoSource(handle){
+  if(!handle) return;
+  photoSourceHint=handle;
+  startHint=handle;
+  try{ idbSet('startHint', handle); }catch(_){}
+  // If we got a directory, also treat it as the working folder for saves
+  if(handle.kind==='directory'){
+    projectDir=handle;
+    try{ idbSet('projectDir', handle); }catch(_){}
+    try{ updateFolderUI(); }catch(_){}
+  }
+}
+async function pickAndIngestPhotos(mode){
+  // FS Access: remember a file/dir handle so Save opens in that folder
+  if(typeof window.showOpenFilePicker==='function' && mode!=='folder'){
+    try{
+      const handles=await window.showOpenFilePicker({
+        multiple:true,
+        types:[{description:'Images', accept:{'image/*':['.jpg','.jpeg','.png']}}],
+        excludeAcceptAllOption:false,
+        startIn: photoSourceHint||projectDir||startHint||'documents'
+      });
+      if(handles && handles.length){
+        await rememberPhotoSource(handles[0]);
+        const files=[];
+        for(const h of handles){ try{ files.push(await h.getFile()); }catch(_){} }
+        if(files.length){ await ingest(files); return; }
+      }
+      return;
+    }catch(err){ if(err && err.name==='AbortError') return; /* fall through to <input> */ }
+  }
+  if(typeof window.showDirectoryPicker==='function' && mode==='folder'){
+    try{
+      const dir=await window.showDirectoryPicker({
+        id:'qr360photos',
+        mode:'read',
+        startIn: photoSourceHint||projectDir||startHint||'documents'
+      });
+      await rememberPhotoSource(dir);
+      const files=[];
+      for await (const [name, ent] of dir.entries()){
+        if(ent.kind!=='file') continue;
+        const n=String(name||'').toLowerCase();
+        if(!(n.endsWith('.jpg')||n.endsWith('.jpeg')||n.endsWith('.png'))) continue;
+        try{ files.push(await ent.getFile()); }catch(_){}
+      }
+      if(files.length){ await ingest(files); return; }
+      toast('No .jpg / .png images in that folder.', true);
+      return;
+    }catch(err){ if(err && err.name==='AbortError') return; /* fall through */ }
+  }
+  if(mode==='folder') folderInput.click(); else fileInput.click();
+}
+document.getElementById('openFiles').onclick=()=>pickAndIngestPhotos('files');
+document.getElementById('openFolder').onclick=()=>pickAndIngestPhotos('folder');
 document.getElementById('loadDbBtn').onclick=()=>document.getElementById('geoInput').click();
 { const _dbRing=document.getElementById('loadDbRing'); if(_dbRing) _dbRing.onclick=()=>document.getElementById('geoInput').click(); }
 fileInput.onchange=e=>{ ingest(e.target.files); fileInput.value=''; };
@@ -1645,7 +1815,7 @@ const insSwatches=document.getElementById('insSwatches');
 const insTypeName=document.getElementById('insTypeName');
 const insRot=document.getElementById('insRot');
 const insRotVal=document.getElementById('insRotVal');
-const COLORS=['#2dd4bf','#f5b301','#e5688a','#5b9df9','#7ee787','#ffffff'];
+const COLORS=['var(--accent)','#f5b301','#e5688a','#5b9df9','#7ee787','#ffffff'];
 let editMode=false, selectedHS=null, hsSeq=1, dragHS=null, lockView=true;
 const _v=new THREE.Vector3(), _fwd=new THREE.Vector3();
 
@@ -2026,6 +2196,7 @@ function autoSaveTourEdits(reason){
   if(now-_editAutoSaveAt<2500) return;   // avoid stacking full .insp360 writes
   _editAutoSaveAt=now;
   // Quiet: never open Save As / override dialogs during auto-save (that path was zeroing files)
+  // Tour-only patch is used when photo bytes are unchanged.
   window._gateMirrorDirty=true;
   try{ saveProject({ quiet:true, reason }); }catch(e){ console.warn('auto-save ('+reason+') failed', e); }
 }
@@ -2081,7 +2252,7 @@ document.getElementById('autoNorth').onclick=async ()=>{
 };
 
 /* ---- save / load tour ---- */
-let tourHandle=null, startHint=null, projectDir=null, projHandle=null, projHandleRemembered=null, lastProjName=null;
+let tourHandle=null, startHint=null, projectDir=null, photoSourceHint=null, projHandle=null, projHandleRemembered=null, lastProjName=null;
 let lastPhotoName=null;   // last panorama viewed — restored when the project resumes
 let projectMeta=null;   // {name,address,tenant,sf,creator,created,modified} — travels with the project
 const tourFile=document.getElementById('tourFile');
@@ -2117,7 +2288,6 @@ function rememberLastProject(handle){
       idbSet('gateProjName:'+window.embedGateKey, handle.name||'');
     }
   }catch(e){}
-  try{ updateResumeBanner(); }catch(_){}
 }
 
 /** Persist gate project bytes so reopen works without a File System Access gesture. */
@@ -2344,9 +2514,7 @@ async function mirrorCurrentProjectToGate(){
       }
       if(perm==='granted'){
         const file=await diskHandle.getFile();
-        if(file && file.size){
-          return bindProjectToGate(file, file.name||label, diskHandle);
-        }
+        if(file && file.size) return bindProjectToGate(file, file.name||label, diskHandle);
       }
     }catch(e){ console.warn('gate mirror from handle failed, trying source/rebuild', e); }
   }
@@ -2415,19 +2583,6 @@ async function resolveResumeHandle(){
     projHandleRemembered=top.handle; return top.handle;
   }catch(_){ return null; }
 }
-async function updateResumeBanner(){
-  const btn=document.getElementById('resumeLast'); if(!btn) return;
-  if(document.body.classList.contains('proj-open')){ btn.classList.remove('show'); return; }
-  const h=await resolveResumeHandle();
-  if(!h){ btn.classList.remove('show'); return; }
-  let label=h.name||'project';
-  try{ const rec=await projectsGet(h.name); if(rec&&rec.label) label=rec.label; }catch(_){}
-  const photo = lastPhotoName || (await idbGet('lastPhotoName')) || '';
-  btn.innerHTML='Resume <b>'+String(label).replace(/</g,'&lt;')+'</b>'
-    +(photo?('<span class="resume-sub">Last photo: '+String(photo).replace(/</g,'&lt;')+'</span>'):'<span class="resume-sub">Continue where you left off</span>');
-  btn.classList.add('show');
-  btn.onclick=()=>resumeLastProject(true);
-}
 async function resumeLastProject(interactive){
   const h=await resolveResumeHandle();
   if(!h){ if(interactive) toast('No recent project to resume.'); return false; }
@@ -2440,7 +2595,6 @@ async function resumeLastProject(interactive){
     }catch(_){ if(interactive) ok=await ensureFileReadPerm(h); }
     if(!ok){
       if(interactive) toast('Permission needed to reopen that project.', true);
-      else try{ updateResumeBanner(); }catch(_){}
       return false;
     }
     const file=await h.getFile();
@@ -2449,7 +2603,6 @@ async function resumeLastProject(interactive){
   }catch(e){
     console.warn('resume failed', e);
     if(interactive) toast('Couldn\u2019t reopen the last project \u2014 open it from Recent projects.', true);
-    try{ updateResumeBanner(); }catch(_){}
     return false;
   }
 }
@@ -2460,9 +2613,8 @@ Promise.all([idbGet('projHandle'), idbGet('lastPhotoName'), idbGet('lastProjName
   if(photo) lastPhotoName=photo;
   if(name) lastProjName=name;
   if(document.body.classList.contains('proj-open')) return;
-  try{ if(new URLSearchParams(location.search).get('embed')==='1'){ updateResumeBanner(); return; } }catch(_){}
-  const opened=await resumeLastProject(false);
-  if(!opened) try{ updateResumeBanner(); }catch(_){}
+  try{ if(new URLSearchParams(location.search).get('embed')==='1') return; }catch(_){}
+  await resumeLastProject(false);
 });
 
 async function ensureDirPerm(dir){
@@ -2557,7 +2709,7 @@ function inProject(){ return document.body.classList.contains('proj-open') || !!
 function syncTourSaveUi(){
   const btn=document.getElementById('tourExport'); if(!btn) return;
   if(inProject()){
-    btn.title='Save project (.insp360) — photos + tour in one file';
+    btn.title='Save project (.insp360) — tour changes patch the existing file; photo adds/removes/blurs rewrite it';
   } else {
     btn.title='Save / overwrite the current tour file';
   }
@@ -2686,6 +2838,95 @@ function eocd(n,cdSize,cdStart){ const b=new Uint8Array(22); const d=new DataVie
   d.setUint32(0,0x06054b50,true); d.setUint16(4,0,true); d.setUint16(6,0,true); d.setUint16(8,n,true); d.setUint16(10,n,true);
   d.setUint32(12,cdSize,true); d.setUint32(16,cdStart,true); d.setUint16(20,0,true); return b; }
 
+/** Parse zip central directory only (no photo bytes). */
+async function readZipCd(file){
+  const size=file.size, tailLen=Math.min(size,66000);
+  const tail=new Uint8Array(await file.slice(size-tailLen).arrayBuffer());
+  let p=-1; for(let i=tail.length-22;i>=0;i--){ if(tail[i]===0x50&&tail[i+1]===0x4b&&tail[i+2]===0x05&&tail[i+3]===0x06){ p=i; break; } }
+  if(p<0) throw new Error('not a project');
+  const dv=new DataView(tail.buffer, tail.byteOffset);
+  const total=dv.getUint16(p+10,true), cdSize=dv.getUint32(p+12,true), cdOff=dv.getUint32(p+16,true);
+  if(cdOff+cdSize>size) throw new Error('bad central directory');
+  const cdBuf=new Uint8Array(await file.slice(cdOff, cdOff+cdSize).arrayBuffer());
+  const cd=new DataView(cdBuf.buffer, cdBuf.byteOffset), dec=new TextDecoder();
+  const entries=[]; let o=0;
+  for(let e=0;e<total;e++){
+    if(o+46>cdBuf.length || cd.getUint32(o,true)!==0x02014b50) break;
+    const method=cd.getUint16(o+10,true), crc=cd.getUint32(o+16,true);
+    const comp=cd.getUint32(o+20,true), uncomp=cd.getUint32(o+24,true);
+    const nLen=cd.getUint16(o+28,true), xLen=cd.getUint16(o+30,true), kLen=cd.getUint16(o+32,true);
+    const lho=cd.getUint32(o+42,true), name=dec.decode(cdBuf.subarray(o+46,o+46+nLen));
+    entries.push({name, method, crc, comp, size:uncomp, lho});
+    o+=46+nLen+xLen+kLen;
+  }
+  return { cdOff, cdSize, entries };
+}
+/**
+ * Tour-only save: keep existing photo bytes, append a fresh tour.json, rewrite the
+ * central directory. Avoids re-packing every panorama on each Save.
+ */
+async function buildTourPatchTail(srcFile, tourText){
+  const { cdOff, entries }=await readZipCd(srcFile);
+  const enc=new TextEncoder();
+  const nameB=enc.encode('tour.json');
+  const bytes=enc.encode(tourText);
+  const crc=crc32(bytes), local=localHeader(nameB, crc, bytes.length);
+  const central=[];
+  for(const e of entries){
+    if(String(e.name).toLowerCase()==='tour.json') continue;
+    central.push({ name:enc.encode(e.name), crc:e.crc>>>0, size:e.size>>>0, offset:e.lho>>>0 });
+  }
+  central.push({ name:nameB, crc, size:bytes.length, offset:cdOff });
+  const cdParts=[]; let cdSize=0;
+  for(const c of central){ const h=centralHeader(c); cdParts.push(h); cdSize+=h.length; }
+  const cdStart=cdOff+local.length+bytes.length;
+  const eocdBytes=eocd(central.length, cdSize, cdStart);
+  const tailParts=[local, bytes, ...cdParts, eocdBytes];
+  let tailSize=0; for(const p of tailParts) tailSize+=p.length;
+  return { cdOff, tailParts, tailSize, newSize:cdOff+tailSize };
+}
+async function writeTourOnlyTo(handle){
+  const run=async ()=>{
+    showSaveProgress(0, 1, 'Saving tour\u2026');
+    const file=await handle.getFile();
+    if(!file || !file.size) throw new Error('empty project file');
+    const tourText=JSON.stringify(tourData(),null,2);
+    const patch=await buildTourPatchTail(file, tourText);
+    showSaveProgress(1, 1, 'Writing tour\u2026');
+    const w=await handle.createWritable({ keepExistingData:true });
+    try{
+      let pos=patch.cdOff;
+      for(const part of patch.tailParts){
+        await w.write({ type:'write', position:pos, data:part });
+        pos+=part.length;
+      }
+      await w.write({ type:'truncate', size:patch.newSize });
+      await w.close();
+    }catch(e){
+      endSaveProgress();
+      try{ await w.abort(); }catch(_){}
+      throw e;
+    }
+    projHandle=handle; rememberLastProject(handle);
+    lastProjName=handle.name; idbSet('lastProjName', handle.name); setProjTitle();
+    startHint=handle; idbSet('startHint', handle);
+    // Refresh gate handle pointer; skip re-caching multi-GB photo bytes on tour-only saves.
+    try{
+      if(window.embedGateKey){
+        await idbSet('gateProj:'+window.embedGateKey, handle);
+        await idbSet('gateProjName:'+window.embedGateKey, handle.name||'');
+      }
+    }catch(_){}
+    try{ await recordProject(handle, false); }catch(_){}
+    endSaveProgress();
+    const sz=patch.newSize>=1e6?(patch.newSize/1048576).toFixed(1)+' MB':Math.max(1,Math.round(patch.newSize/1024))+' KB';
+    toast('Saved tour changes to \u201C'+handle.name+'\u201D \u00B7 '+sz+' (photos unchanged).');
+  };
+  const next=_projectSaveChain.then(run, run);
+  _projectSaveChain=next.catch(()=>{});
+  return next;
+}
+
 async function buildZip(sink, onProgress){   // sink.write(Uint8Array|Blob) ; streams one photo at a time
   const enc=new TextEncoder(); const central=[]; let offset=0;
   const emit=async(part,len)=>{ await sink.write(part); offset+=len; };
@@ -2708,8 +2949,9 @@ async function buildZip(sink, onProgress){   // sink.write(Uint8Array|Blob) ; st
   for(const c of central){ const cd=centralHeader(c); await emit(cd, cd.length); cdSize+=cd.length; }
   await emit(eocd(central.length, cdSize, cdStart), 22);
 }
-async function readProject(file){
+async function readProject(file, onProgress){
   const size=file.size, tailLen=Math.min(size,66000);
+  if(onProgress) onProgress(0, 1, 'Reading archive\u2026');
   const tail=new Uint8Array(await file.slice(size-tailLen).arrayBuffer());
   let p=-1; for(let i=tail.length-22;i>=0;i--){ if(tail[i]===0x50&&tail[i+1]===0x4b&&tail[i+2]===0x05&&tail[i+3]===0x06){ p=i; break; } }
   if(p<0) throw new Error('not a project');
@@ -2725,10 +2967,15 @@ async function readProject(file){
     const lho=cd.getUint32(o+42,true), name=dec.decode(cdBuf.subarray(o+46,o+46+nLen));
     list.push({name, method, comp, lho}); o+=46+nLen+xLen+kLen;
   }
-  for(const en of list){
+  for(let i=0;i<list.length;i++){
+    const en=list[i];
     const lh=new Uint8Array(await file.slice(en.lho, en.lho+30).arrayBuffer()); const ld=new DataView(lh.buffer,lh.byteOffset);
     const nLen=ld.getUint16(26,true), xLen=ld.getUint16(28,true), ds=en.lho+30+nLen+xLen;
     en.blob=file.slice(ds, ds+en.comp);
+    if(onProgress && (i%4===0 || i===list.length-1)){
+      onProgress(i+1, list.length, 'Reading files\u2026 '+(i+1)+'/'+list.length);
+      await yieldUi();
+    }
   }
   return list;
 }
@@ -2739,14 +2986,46 @@ async function ensureFilePerm(h, mode){
   catch(e){ return false; }
 }
 /** Copy zip-slice photo blobs into standalone Blobs so overwriting the .insp360 can't empty them. */
-async function materializeProjectPhotos(){
-  for(const it of items){
-    if(!it || !it.file || it._materialized) continue;
+let _projBgGen=0;
+let _projPhotosDirty=false;   // true when photo bytes changed (add/remove/blur) — needs full rebuild
+async function materializeItem(it){
+  if(!it || !it.file || it._materialized) return it;
+  if(it._matP) return it._matP;
+  it._matP=(async ()=>{
     try{
       const buf=await it.file.arrayBuffer();
       it.file=new Blob([buf],{ type:(it.file.type||'image/jpeg') });
       it._materialized=true;
     }catch(e){ console.warn('materialize failed for', it.name, e); }
+    finally{ it._matP=null; }
+    return it;
+  })();
+  return it._matP;
+}
+async function materializeProjectPhotos(onProgress){
+  const total=items.length||1;
+  for(let i=0;i<items.length;i++){
+    await materializeItem(items[i]);
+    if(onProgress){
+      onProgress(i+1, total, 'Loading photos\u2026 '+(i+1)+'/'+items.length);
+      await yieldUi();
+    }
+  }
+}
+/** After progressive open: materialize + thumb remaining photos in library order (#1, #2, #3…). */
+async function warmProjectInBackground(gen){
+  for(let i=0;i<items.length;i++){
+    if(gen!==_projBgGen) return;
+    const it=items[i]; if(!it) return;
+    await materializeItem(it);
+    if(gen!==_projBgGen) return;
+    if(!it.thumbUrl){
+      try{ it.thumbUrl=await makeThumb(it.file); }catch(_){}
+    }
+    if(gen!==_projBgGen) return;
+    // Always re-bind to the live library row — a raced open can set thumbUrl while el is detached.
+    if(it.el&&it.thumbUrl){ const im=it.el.querySelector('img'); if(im) im.src=it.thumbUrl; }
+    await yieldUi();
   }
 }
 async function writeProjectTo(handle){
@@ -2810,12 +3089,24 @@ async function writeProjectTo(handle){
   }
   toast('Saved \u201C'+handle.name+'\u201D \u00B7 '+sz+' \u00B7 '+items.length+' photo'+(items.length===1?'':'s')
     + (side?(' \u00B7 preview added to '+projectDir.name):'') + gateNote + '.', !bound && !!window.embedGateKey);
+  _projPhotosDirty=false;
   };
   const next=_projectSaveChain.then(run, run);
   _projectSaveChain=next.catch(()=>{});
   return next;
 }
 // quick save: overwrite the bound project file if we have one, otherwise prompt for name + location
+function rememberedMatchesCurrentProject(h){
+  if(!h || !h.name) return false;
+  const rem=String(h.name).replace(/\.(insp360|zip)$/i,'').toLowerCase();
+  const want=String(projFileName()).replace(/\.insp360$/i,'').toLowerCase();
+  if(want && rem===want) return true;
+  // Same street# + project name fragment (handles minor sanitization differences)
+  const metaName=String((projectMeta&&projectMeta.name)||'').trim().toLowerCase();
+  const num=(String((typeof resolveProjectAddress==='function'?resolveProjectAddress(projectMeta):((projectMeta&&projectMeta.address)||''))||'').match(/^(\d{1,6})\b/)||[])[1]||'';
+  if(metaName && rem.indexOf(metaName)!==-1 && (!num || rem.indexOf(num)===0)) return true;
+  return false;
+}
 async function saveProject(opts){
   opts=opts||{};
   const quiet=!!opts.quiet;
@@ -2823,18 +3114,34 @@ async function saveProject(opts){
     if(!quiet) toast('Open or create a project first.');
     return;
   }
-  let h = projHandle || projHandleRemembered || null;
+  let h = projHandle || null;
   if(hasFSAccess() && !projHandle && projHandleRemembered && !quiet){
-    // Manual Save with a remembered file — confirm once, then bind it
-    if(window.confirm('Save changes to the existing project \u201C'+projHandleRemembered.name+'\u201D?\n\nCancel to pick a different file (Save As).')){
-      h = projHandleRemembered;
+    // Only reuse a remembered file when it belongs to THIS project — never offer
+    // "3190-Test Tour-3" while editing "3170 / Test Tour-4".
+    if(rememberedMatchesCurrentProject(projHandleRemembered)){
+      if(window.confirm('Save changes to the existing project \u201C'+projHandleRemembered.name+'\u201D?\n\nCancel to pick a different file (Save As).')){
+        h = projHandleRemembered;
+      } else {
+        return saveProjectAs();
+      }
     } else {
       return saveProjectAs();
     }
+  } else if(!projHandle && projHandleRemembered && quiet && rememberedMatchesCurrentProject(projHandleRemembered)){
+    h = projHandleRemembered;
   }
   if(hasFSAccess() && h){
     try{
       if(await ensureFilePerm(h,'readwrite')){
+        // Tour-only patch when photo bytes are unchanged — much faster on large projects.
+        if(!_projPhotosDirty){
+          try{
+            await writeTourOnlyTo(h);
+            return;
+          }catch(e){
+            console.warn('tour-only save failed, falling back to full rebuild', e);
+          }
+        }
         await writeProjectTo(h);
         return;
       }
@@ -2887,11 +3194,13 @@ async function downloadProjectCopy(name, msg){
 // always let the user choose the file name and where it goes
 async function saveProjectAs(){
   if(!document.body.classList.contains('proj-open') && !projectMeta && !projHandle){ toast('Open or create a project first.'); return; }
-  const suggested = (projHandle&&projHandle.name) || lastProjName || ((projectMeta&&projectMeta.name)?(projectMeta.name+'.insp360'):'QR-Inspections-360.insp360');
+  // First save: "{street#}-{Project name}.insp360". Re-save keeps the bound filename.
+  const suggested = (projHandle&&projHandle.name) || projFileName();
   if(hasFSAccess()){
     try{
       const opts={ suggestedName:suggested, types:[{description:'INSP360 project', accept:{'application/zip':['.insp360']}}] };
-      const start = projectDir||startHint; if(start) opts.startIn=start;   // open the dialog in the working folder
+      // Prefer the folder photos were uploaded from
+      const start = photoSourceHint||projectDir||startHint; if(start) opts.startIn=start;
       const handle=await window.showSaveFilePicker(opts);
       await writeProjectTo(handle); return;
     }catch(err){ if(err && err.name==='AbortError') return; console.warn('Save As failed, downloading', err); }
@@ -2915,6 +3224,10 @@ async function saveProjectAs(){
 async function openProject(file, handle, opts){
   opts=opts||{};
   toast(opts.quiet?'Resuming last project\u2026':'Opening project\u2026');
+  showLoadProgress(0, 1, 'Reading archive\u2026');
+  _projBgGen++;                                  // cancel any prior progressive warm-up
+  const openGen=_projBgGen;
+  try{
   projHandle = handle || null;   // Save will overwrite this file; null means Save prompts for a name
   // Keep original bytes for first-time Link (esp. classic <input type=file> with no FS handle).
   window._gateSourceFile = (file && file.size) ? file : null;
@@ -2925,7 +3238,9 @@ async function openProject(file, handle, opts){
   } else if(file && file.name){
     lastProjName=file.name; try{ idbSet('lastProjName', file.name); }catch(_){}
   }
-  let list; try{ list=await readProject(file); }catch(e){ toast('That isn\u2019t a valid .insp360 project.', true); return; }
+  let list; try{ list=await readProject(file, showLoadProgress); }catch(e){ toast('That isn\u2019t a valid .insp360 project.', true); return; }
+  // A newer openProject won — do not clobber its library / thumbs.
+  if(openGen!==_projBgGen) return;
   const tourEntry=list.find(e=>e.name.toLowerCase()==='tour.json');
   const photos=list.filter(e=>/\.(jpg|jpeg|png)$/i.test(e.name) && e.method===0 && e.name.toLowerCase()!=='preview.jpg');
   const deflated=list.some(e=>e.method!==0 && /\.(insp|insv|jpg|jpeg|png)$/i.test(e.name));
@@ -2942,8 +3257,21 @@ async function openProject(file, handle, opts){
   items=[]; currentIndex=-1; libList.innerHTML=''; libCount.textContent='0'; document.getElementById('libSearch').value='';
   photos.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
   for(const pe of photos){ const it={file:pe.blob, name:pe.name, thumbUrl:null, el:null, hotspots:[], view0:null, lastView:null, headingTag:null, gps:null, gpsBearing:null, metaRead:false}; items.push(it); addThumbEl(it); }
-  // Copy photo bytes out of the zip file so a later Save can't truncate them mid-read
-  try{ await materializeProjectPhotos(); }catch(e){ console.warn(e); }
+
+  // Progressive open: always start with photo #1, then warm #2, #3… in the background.
+  const startIdx=0;
+  if(items.length){
+    showLoadProgress(0, 1, 'Preparing first photo\u2026');
+    await materializeItem(items[startIdx]);
+    if(openGen!==_projBgGen) return;
+    try{
+      items[startIdx].thumbUrl=await makeThumb(items[startIdx].file);
+      if(openGen!==_projBgGen) return;
+      if(items[startIdx].el&&items[startIdx].thumbUrl)
+        items[startIdx].el.querySelector('img').src=items[startIdx].thumbUrl;
+    }catch(_){}
+  }
+
   // Apply gate-link flags BEFORE enterProjectMode so the first host notify is accurate.
   // (enterProjectMode itself notifies the parent; a late false notify was clearing restore UI.)
   const gateAlreadyLinked=!!(window.embedGateKey && opts.skipGateBind);
@@ -2957,15 +3285,15 @@ async function openProject(file, handle, opts){
     window._gateLinkedThisSession=false;
     window._gateHostConfirmed=false;
   }
+  showLoadProgress(1, 1, 'Opening viewer\u2026');
+  await yieldUi();
+  if(openGen!==_projBgGen) return;
   enterProjectMode({ alreadyLinked: gateAlreadyLinked || !!window._gateLinkedThisSession });
   if(tourEntry){ try{ applyTourText(await tourEntry.blob.text()); }catch(e){} }
-  if(items.length){
-    // Always start on the first panorama when opening a tour.
-    selectImage(0);
-    for(let i=0;i<items.length;i++){ const it=items[i]; it.thumbUrl=await makeThumb(it.file); if(it.el&&it.thumbUrl) it.el.querySelector('img').src=it.thumbUrl; }
-  }
+  if(openGen!==_projBgGen) return;
+  if(items.length) await selectImage(startIdx);
+  if(openGen!==_projBgGen) return;
   if(handle) requestAnimationFrame(()=>recordProject(handle, true)); setProjTitle();
-  try{ updateResumeBanner(); }catch(_){}
   // Opening a file from the picker does not auto-link — host asks on close.
   if(window.embedGateKey && file && !opts.skipGateBind){
     window._gateMirrorDirty=false;
@@ -2979,8 +3307,15 @@ async function openProject(file, handle, opts){
   }
   try{ notifyHostProjectOpen(gateAlreadyLinked || !!window._gateLinkedThisSession); }catch(_){}
   toast(items.length
-    ? ('Project opened \u2014 '+items.length+' photo'+(items.length===1?'':'s')+'.')
+    ? ((opts.resumePhoto?'Resumed':'Project opened')+' \u2014 '+items.length+' photo'+(items.length===1?'':'s')
+      +(items[0]?(' \u00B7 '+items[0].name):'')+'.')
     : 'Project opened with no photos \u2014 add panoramas with Files or Folder.');
+  _projPhotosDirty=false;
+  // Warm remaining photos + library thumbs in order #1, #2, #3… (cancelled by gen bump).
+  if(openGen===_projBgGen && items.length>1) void warmProjectInBackground(openGen);
+  }finally{
+    endLoadProgress();
+  }
 }
 const projFile=document.getElementById('projFile');
 async function openProjectPicker(){
@@ -3024,6 +3359,43 @@ document.getElementById('openProject2').onclick=(ev)=>{
 /* ---- recent-projects dashboard ---- */
 function countObjects(){ return items.reduce((s,it)=>s+((it.hotspots&&it.hotspots.length)||0),0); }
 /** Same label shown in the viewer badge — prefer project title over .insp360 filename. */
+function addressFromProjectName(name){
+  const n=String(name||'').trim();
+  if(!n) return '';
+  // "Test-3 at 3190 Ridgeway Drive"
+  let m=n.match(/\bat\s+(\d{1,6}\s+.+)$/i);
+  if(m) return m[1].replace(/\s+/g,' ').trim();
+  // "3190 Ridgeway Drive — Inspection" / "3190 Ridgeway Drive - Test-3"
+  m=n.match(/^(\d{1,6}\s+.+?)\s*[—–\-]\s+/);
+  if(m) return m[1].replace(/\s+/g,' ').trim();
+  return '';
+}
+function resolveProjectAddress(meta){
+  const m=meta||projectMeta||{};
+  const named=addressFromProjectName(m.name);
+  const stored=String(m.address||'').trim();
+  const embed=String(window.embedBuildingAddress||'').trim();
+  // Prefer an address encoded in the project name over a stale gate/embed address
+  if(named){
+    if(!stored) return named;
+    if(embed && stored.toLowerCase()===embed.toLowerCase() && named.toLowerCase()!==stored.toLowerCase()) return named;
+    return stored;
+  }
+  if(stored) return stored;
+  // Only fall back to embed when the project has no name-derived or stored address
+  return embed;
+}
+function syncMetaAddressFromName(meta){
+  if(!meta) return meta;
+  const named=addressFromProjectName(meta.name);
+  if(!named) return meta;
+  const stored=String(meta.address||'').trim();
+  const embed=String(window.embedBuildingAddress||'').trim();
+  if(!stored || (embed && stored.toLowerCase()===embed.toLowerCase() && named.toLowerCase()!==stored.toLowerCase())){
+    meta.address=named;
+  }
+  return meta;
+}
 function currentProjectDisplayLabel(){
   let name;
   if(projectMeta && projectMeta.name){ name=projectMeta.name; }
@@ -3034,11 +3406,13 @@ function currentProjectDisplayLabel(){
   } else {
     name='Untitled walkthrough';
   }
-  const addr=(projectMeta && projectMeta.address)||window.embedBuildingAddress||'';
+  const addr=resolveProjectAddress(projectMeta);
   let label=String(name||'').trim()||'Untitled walkthrough';
   if(addr){
     const a=String(addr).trim(), n=label;
-    if(a && n && n.toLowerCase().indexOf(a.toLowerCase())!==0) label=a+' \u2014 '+n;
+    // Don't prepend address when the creation name already includes it
+    if(a && n && n.toLowerCase().indexOf(a.toLowerCase())===-1 && !addressFromProjectName(n))
+      label=a+' \u2014 '+n;
     else if(a && !n) label=a;
   }
   return label;
@@ -3047,7 +3421,8 @@ async function setProjTitle(){
   const el=document.getElementById('projName');
   const info=document.getElementById('btnProjInfo');
   if(el) el.classList.remove('saving');
-  const inProj=document.body.classList.contains('proj-open') || !!(projectMeta||projHandle);
+  // Only show while a project is open — never on the home / Recent projects dashboard
+  const inProj=document.body.classList.contains('proj-open');
   if(!inProj){ if(el) el.style.display='none'; if(info) info.style.display='none'; return; }
   let name;
   if(projectMeta && projectMeta.name){ name=projectMeta.name; }
@@ -3055,11 +3430,12 @@ async function setProjTitle(){
     name = projHandle.name.replace(/\.(insp360|zip)$/i,'');
     try{ const rec=await projectsGet(projHandle.name); if(rec && rec.label) name=rec.label; }catch(e){}
   } else { name='Untitled walkthrough'; }
-  const addr=(projectMeta && projectMeta.address)||window.embedBuildingAddress||'';
+  const addr=resolveProjectAddress(projectMeta);
   let label=name;
   if(addr){
     const a=String(addr).trim(), n=String(name||'').trim();
-    if(a && n && n.toLowerCase().indexOf(a.toLowerCase())!==0) label=a+' \u2014 '+n;
+    if(a && n && n.toLowerCase().indexOf(a.toLowerCase())===-1 && !addressFromProjectName(n))
+      label=a+' \u2014 '+n;
     else if(a && !n) label=a;
   }
   el.innerHTML=''; const b=document.createElement('b'); b.textContent=label; el.appendChild(b);
@@ -3074,9 +3450,21 @@ async function buildProjectBlob(){
   return new Blob(parts,{type:'application/zip'});
 }
 function projFileName(){
-  let base=(projectMeta&&projectMeta.name)||((lastProjName||'').replace(/\.(insp360|zip)$/i,''))||'QR-Inspections-360';
-  base=base.replace(/[\\/:*?"<>|]+/g,' ').trim() || 'QR-Inspections-360';
-  return base+'.insp360';
+  const meta=projectMeta||{};
+  const addr=typeof resolveProjectAddress==='function' ? resolveProjectAddress(meta) : (meta.address||'');
+  const num=(String(addr||'').trim().match(/^(\d{1,6})\b/)||[])[1]||'';
+  let title=String(meta.name||'').trim() || String(lastProjName||'').replace(/\.(insp360|zip)$/i,'') || 'QR-Inspections-360';
+  title=title.replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim() || 'QR-Inspections-360';
+  // Prefer "3190-Test Tour-3.insp360" (street # + project name)
+  if(num){
+    const pref=num+'-';
+    if(title.toLowerCase().indexOf(pref.toLowerCase())!==0){
+      // Drop a leading street # already baked into the title, then prefix cleanly
+      title=title.replace(new RegExp('^'+num+'[\\s\\-–—]+','i'),'');
+      title=pref+title;
+    }
+  }
+  return title+'.insp360';
 }
 async function downloadProject(){
   if(!document.body.classList.contains('proj-open') && !projectMeta && !projHandle){ toast('Open or create a project first.'); return; }
@@ -3217,7 +3605,9 @@ async function shareProject(){
   //    SharePoint folder you can then send a link to, instead of the Downloads folder.
   if(hasFSAccess()){
     try{
-      const h=await window.showSaveFilePicker({ suggestedName:fname, types:[{description:'INSP360 project', accept:{'application/zip':['.insp360']}}] });
+      const opts={ suggestedName:fname, types:[{description:'INSP360 project', accept:{'application/zip':['.insp360']}}] };
+      const start=photoSourceHint||projectDir||startHint; if(start) opts.startIn=start;
+      const h=await window.showSaveFilePicker(opts);
       const w=await h.createWritable({ keepExistingData:true });
       await w.write({ type:'write', position:0, data:blob });
       await w.write({ type:'truncate', size:blob.size });
@@ -3363,6 +3753,17 @@ function openProjInfo(mode){
   }
   g('piName').value=startName; g('piAddress').value=startAddr; g('piTenant').value=m.tenant||'';
   g('piSF').value=m.sf||''; g('piCreator').value=m.creator||''; g('piType').value=m.type||'';
+  // If the project name encodes an address ("Test-3 at 3190 Ridgeway Drive"), prefer that
+  // over a stale gate/embed address left in the Building address field.
+  (function syncAddrFromName(){
+    const named=addressFromProjectName(g('piName').value);
+    if(!named) return;
+    const cur=g('piAddress').value.trim();
+    const embed=String(window.embedBuildingAddress||'').trim();
+    if(!cur || (embed && cur.toLowerCase()===embed.toLowerCase() && named.toLowerCase()!==cur.toLowerCase())){
+      g('piAddress').value=named;
+    }
+  })();
   // If address is already set but SF / Tenant are blank, fill from the DB now
   if(g('piAddress').value.trim()){
     if(!String(g('piSF').value||'').trim()){
@@ -3455,21 +3856,53 @@ function openProjInfo(mode){
     else if(e.key==='ArrowUp'){ e.preventDefault(); setTacActive(tacIdx-1); }
     else if(e.key==='Enter' && tacIdx>=0 && its[tacIdx]){ e.preventDefault(); e.stopPropagation(); g('piTenant').value=its[tacIdx]._t; tac.classList.remove('show'); tacIdx=-1; }
   });
-  const readForm=()=>({ name:g('piName').value.trim(), address:g('piAddress').value.trim(), tenant:g('piTenant').value.trim(),
-    sf:g('piSF').value.trim(), creator:g('piCreator').value.trim(), type:g('piType').value.trim() });
-  const commit=()=>{ projectMeta=Object.assign({created:new Date().toISOString()}, projectMeta||{}, readForm()); setProjTitle(); };
+  const readForm=()=>{
+    const f={ name:g('piName').value.trim(), address:g('piAddress').value.trim(), tenant:g('piTenant').value.trim(),
+      sf:g('piSF').value.trim(), creator:g('piCreator').value.trim(), type:g('piType').value.trim() };
+    const named=addressFromProjectName(f.name);
+    if(named){
+      const embed=String(window.embedBuildingAddress||'').trim();
+      if(!f.address || (embed && f.address.toLowerCase()===embed.toLowerCase() && named.toLowerCase()!==f.address.toLowerCase())){
+        f.address=named;
+        g('piAddress').value=named;
+      }
+    }
+    return f;
+  };
+  const commit=()=>{ projectMeta=Object.assign({created:new Date().toISOString()}, projectMeta||{}, readForm()); syncMetaAddressFromName(projectMeta); setProjTitle(); };
   const done=()=>{ ov.classList.remove('show'); document.removeEventListener('keydown',onKey,true); };
   const onKey=e=>{ if(e.key==='Escape'){ const a1=g('piAddrAC'), a2=g('piTenantAC'); if(a1 && a1.classList.contains('show')){ e.preventDefault(); e.stopPropagation(); a1.classList.remove('show'); return; } if(a2 && a2.classList.contains('show')){ e.preventDefault(); e.stopPropagation(); a2.classList.remove('show'); return; } e.preventDefault(); done(); } };
   g('piClose').onclick=()=>{ if(!create) commit(); done(); };
   g('piCancel').onclick=()=>done();
   ov.onclick=e=>{ if(e.target===ov){ if(!create) commit(); done(); } };
+  const applyNameToAddress=()=>{
+    const named=addressFromProjectName(g('piName').value);
+    if(!named) return;
+    const cur=g('piAddress').value.trim();
+    const embed=String(window.embedBuildingAddress||'').trim();
+    if(!cur || (embed && cur.toLowerCase()===embed.toLowerCase() && named.toLowerCase()!==cur.toLowerCase()) || named.toLowerCase()!==cur.toLowerCase()){
+      // Update when blank, still the stale embed address, or name points at a different building
+      if(!cur || (embed && cur.toLowerCase()===embed.toLowerCase()) || (named && cur && named.toLowerCase()!==cur.toLowerCase() && /\bat\s+\d/i.test(g('piName').value))){
+        g('piAddress').value=named;
+        if(!String(g('piSF').value||'').trim()){
+          const sf0=lookupBuildingSf(named);
+          if(sf0!=null) g('piSF').value=sf0.toLocaleString('en-US');
+        }
+        if(!String(g('piTenant').value||'').trim()) applyTenantFromDb(named, g('piTenant'), false);
+      }
+    }
+  };
+  g('piName').addEventListener('blur', applyNameToAddress);
+  g('piName').addEventListener('change', applyNameToAddress);
   g('piCreate').onclick=()=>{ const f=readForm();
     if(!f.name){ toast('Give the project a name.', true); g('piName').focus(); return; }
     goHome({force:true});                         // clean slate: drop any plans, overlay maps and photos from a previously open project
-    const now=new Date().toISOString(); projectMeta={ ...f, created:now, modified:now };
+    projHandleRemembered=null; lastProjName=null;
+    try{ idbSet('projHandle', null); idbSet('lastProjName', null); }catch(_){}
+    const now=new Date().toISOString(); projectMeta=syncMetaAddressFromName({ ...f, created:now, modified:now });
     done();
     enterProjectMode();               // stay in project shell even before photos are chosen
-    fileInput.click();
+    pickAndIngestPhotos('files');
     toast('Project \u201C'+f.name+'\u201D created \u2014 add your 360 photos to get started.');
   };
   g('piSave').onclick=()=>{ commit(); done(); saveProject(); };
@@ -3482,7 +3915,7 @@ document.getElementById('btnProjInfo').onclick=()=>openProjInfo('edit');
 (function wireEmptyProjectAdd(){
   const slot=document.getElementById('libEmptySlot');
   const btn=document.getElementById('projEmptyAdd');
-  const add=()=>{ if(typeof fileInput!=='undefined' && fileInput) fileInput.click(); };
+  const add=()=>{ pickAndIngestPhotos('files'); };
   if(slot) slot.addEventListener('click', add);
   if(btn) btn.addEventListener('click', add);
 })();
@@ -3503,6 +3936,35 @@ function showSaveProgress(done, total, phase){
   wrap.querySelector('.sp-pct').textContent = pct + '%';
 }
 function endSaveProgress(){ const el=document.getElementById('projName'); if(el) el.classList.remove('saving'); setProjTitle(); }
+
+/** Dashboard progress while opening a .insp360 tour from the empty/home screen. */
+function showLoadProgress(done, total, phase){
+  const empty=document.getElementById('empty');
+  const el=document.getElementById('loadProg');
+  if(!el) return;
+  if(empty) empty.classList.add('loading-tour');
+  el.classList.add('show');
+  const pct = total>0 ? Math.max(0, Math.min(100, Math.round(done/total*100))) : 0;
+  const fill=document.getElementById('loadProgFill');
+  const phaseEl=document.getElementById('loadProgPhase');
+  const pctEl=document.getElementById('loadProgPct');
+  const lbl=el.querySelector('.lp-lbl');
+  if(lbl) lbl.textContent='Opening tour\u2026';
+  if(fill) fill.style.width=pct+'%';
+  if(phaseEl) phaseEl.textContent=phase||'';
+  if(pctEl) pctEl.textContent=pct+'%';
+}
+function endLoadProgress(){
+  const empty=document.getElementById('empty');
+  const el=document.getElementById('loadProg');
+  if(empty) empty.classList.remove('loading-tour');
+  if(el){
+    el.classList.remove('show');
+    const fill=document.getElementById('loadProgFill');
+    if(fill) fill.style.width='0%';
+  }
+}
+async function yieldUi(){ await new Promise(r=>requestAnimationFrame(()=>r())); }
 function snapshotCover(){
   try{ const src=renderer.domElement; if(!src.width||!src.height) return null;
     const w=480, h=Math.max(1,Math.round(w*src.height/src.width));
@@ -3540,10 +4002,73 @@ async function recordProject(handle, snap){
   let order;
   if(ex && ex.order!=null) order=ex.order;                       // keep its place if already ordered
   else { const all=await projectsAll(); const os=(all||[]).map(r=>r.order).filter(v=>v!=null); order = os.length? Math.min(...os)-1 : -(Date.now()); }  // new ones float to the top
-  try{ await projectsPut({ name:handle.name, handle, photos:items.length, objects:countObjects(), savedAt:Date.now(), thumb, customThumb:custom, label: ex?ex.label:undefined, order }); }catch(e){}
+  let tourNo = (ex && ex.tourNo) || null;
+  if(!tourNo){
+    try{ tourNo = await allocateTourNo(Date.now()); }catch(_){ tourNo = formatTourNo(tourYearFromTs(Date.now()), 1); }
+  }
+  try{ await projectsPut({ name:handle.name, handle, photos:items.length, objects:countObjects(), savedAt:Date.now(), thumb, customThumb:custom, label: ex?ex.label:undefined, order, tourNo }); }catch(e){}
   renderDashboard();
 }
+function tourYearFromTs(ts){ return new Date(ts||Date.now()).getFullYear()%100; }
+function formatTourNo(yy, seq){ return String(yy).padStart(2,'0')+'.'+String(seq).padStart(3,'0'); }
+function parseTourNo(s){
+  const m=String(s||'').trim().match(/^(\d{1,2})\.(\d{1,3})$/);
+  if(!m) return null;
+  const yy=+m[1], seq=+m[2];
+  return { yy, seq, key: yy*1000+seq, label: formatTourNo(yy, seq) };
+}
+async function allocateTourNo(ts){
+  const yy=tourYearFromTs(ts);
+  const all=await projectsAll();
+  let max=0;
+  for(const r of all||[]){
+    const p=parseTourNo(r.tourNo);
+    if(p && p.yy===yy) max=Math.max(max, p.seq);
+  }
+  return formatTourNo(yy, max+1);
+}
+/** Backfill Tour # for older recents (by year of savedAt, oldest → 001). */
+async function ensureTourNumbers(recs){
+  if(!Array.isArray(recs) || !recs.length) return recs||[];
+  const maxSeq={};
+  for(const r of recs){
+    const p=parseTourNo(r.tourNo);
+    if(p){ maxSeq[p.yy]=Math.max(maxSeq[p.yy]||0, p.seq); if(r.tourNo!==p.label){ r.tourNo=p.label; try{ await projectsPut(r); }catch(_){} } }
+  }
+  const missing=recs.filter(r=>!parseTourNo(r.tourNo));
+  if(!missing.length) return recs;
+  missing.sort((a,b)=>(a.savedAt||0)-(b.savedAt||0));
+  for(const r of missing){
+    const yy=tourYearFromTs(r.savedAt||Date.now());
+    const seq=(maxSeq[yy]||0)+1;
+    maxSeq[yy]=seq;
+    r.tourNo=formatTourNo(yy, seq);
+    try{ await projectsPut(r); }catch(_){}
+  }
+  return recs;
+}
 function projOrderKey(r){ return r.order!=null ? r.order : -(r.savedAt||0); }
+function tourSortKey(r){ const p=parseTourNo(r.tourNo); return p ? p.key : 1e9; }
+function dashDisplayName(r){ return (r.label||r.name||'').toString(); }
+function getDashSort(){
+  try{ const v=localStorage.getItem('insp360.dashSort'); if(v==='date'||v==='name'||v==='tour'||v==='manual') return v; }catch(_){}
+  return 'date';
+}
+function setDashSort(v){ try{ localStorage.setItem('insp360.dashSort', v); }catch(_){} }
+function sortDashRecs(recs, mode){
+  const list=(recs||[]).slice();
+  if(mode==='name'){
+    list.sort((a,b)=>dashDisplayName(a).localeCompare(dashDisplayName(b), undefined, {numeric:true, sensitivity:'base'}));
+  } else if(mode==='tour'){
+    list.sort((a,b)=>tourSortKey(a)-tourSortKey(b) || (a.savedAt||0)-(b.savedAt||0));
+  } else if(mode==='manual'){
+    list.sort((a,b)=>projOrderKey(a)-projOrderKey(b));
+  } else {
+    // date — newest first
+    list.sort((a,b)=>(b.savedAt||0)-(a.savedAt||0) || tourSortKey(a)-tourSortKey(b));
+  }
+  return list;
+}
 async function reorderProjects(srcName, dstName, after){
   if(!srcName || srcName===dstName) return;
   let recs=await projectsAll(); if(!Array.isArray(recs)) recs=[];
@@ -3553,6 +4078,8 @@ async function reorderProjects(srcName, dstName, after){
   let idx=recs.findIndex(r=>r.name===dstName); if(idx<0) idx=recs.length;
   recs.splice(after?idx+1:idx, 0, src);
   for(let i=0;i<recs.length;i++){ if(recs[i].order!==i){ recs[i].order=i; try{ await projectsPut(recs[i]); }catch(e){} } else { recs[i].order=i; } }
+  setDashSort('manual');
+  const sel=document.getElementById('dashSort'); if(sel) sel.value='manual';
   renderDashboard();
 }
 // build a 2:1 cover (center-cropped) from any chosen image file
@@ -3595,19 +4122,27 @@ async function renderDashboard(){
   const dash=document.getElementById('dash'), grid=document.getElementById('dashGrid');
   if(!dash||!grid) return;
   let recs=await projectsAll(); if(!Array.isArray(recs)) recs=[];
-  recs.sort((a,b)=>projOrderKey(a)-projOrderKey(b));
+  await ensureTourNumbers(recs);
+  const sortMode=getDashSort();
+  const sortEl=document.getElementById('dashSort');
+  if(sortEl && sortEl.value!==sortMode) sortEl.value=sortMode;
+  recs=sortDashRecs(recs, sortMode);
+  const sum=document.getElementById('dashSummary');
+  if(sum) sum.textContent = recs.length+' project'+(recs.length===1?'':'s');
   grid.innerHTML='';
   if(!recs.length){ dash.classList.remove('show'); emptyEl.classList.remove('has-dash'); return; }
   dash.classList.add('show'); emptyEl.classList.add('has-dash');
   const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  const allowDrag = sortMode==='manual';
   for(const rec of recs){
     const disp = rec.label || rec.name;
-    const card=document.createElement('div'); card.className='dash-card'; card.draggable=true; card.title = rec.label ? (rec.label+' \u2014 '+rec.name) : ('Open '+rec.name);
-    card.dataset.search = ((rec.label||'')+' '+(rec.name||'')).toLowerCase();
+    const tour = (parseTourNo(rec.tourNo)||{}).label || rec.tourNo || '';
+    const card=document.createElement('div'); card.className='dash-card'+(allowDrag?'':' no-drag'); card.draggable=allowDrag; card.title = (tour?(tour+' \u00B7 '):'')+(rec.label ? (rec.label+' \u2014 '+rec.name) : ('Open '+rec.name));
+    card.dataset.search = ((rec.label||'')+' '+(rec.name||'')+' '+(tour||'')).toLowerCase();
     const cover = rec.thumb ? ` style="background-image:url('${rec.thumb}')"` : '';
     const d = rec.savedAt ? new Date(rec.savedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '';
     const ph=rec.photos||0, ob=rec.objects||0;
-    card.innerHTML=`<div class="dash-cover"${cover}></div><div class="dash-rename" title="Rename (display label)" draggable="false"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10z"/><circle cx="6.5" cy="6.5" r="1.3"/></svg></div><div class="dash-edit" title="Change preview picture" draggable="false"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><div class="dash-del" title="Remove from recents" draggable="false">\u00D7</div><div class="dash-foot"><div class="dash-grip" title="Drag to reorder"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><div class="dash-meta"><div class="dash-name">${esc(disp)}</div><div class="dash-sub">${ph} photo${ph===1?'':'s'} \u00B7 ${ob} link${ob===1?'':'s'}${d?(' \u00B7 '+d):''}</div></div></div>`;
+    card.innerHTML=`<div class="dash-cover"${cover}>${tour?('<span class="dash-tour">'+esc(tour)+'</span>'):''}</div><div class="dash-rename" title="Rename (display label)" draggable="false"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10z"/><circle cx="6.5" cy="6.5" r="1.3"/></svg></div><div class="dash-edit" title="Change preview picture" draggable="false"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><div class="dash-del" title="Remove from recents" draggable="false">\u00D7</div><div class="dash-foot"><div class="dash-grip" title="Drag to reorder"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div><div class="dash-meta"><div class="dash-name">${esc(disp)}</div><div class="dash-sub">${ph} photo${ph===1?'':'s'} \u00B7 ${ob} link${ob===1?'':'s'}${d?(' \u00B7 '+d):''}</div></div></div>`;
     card.addEventListener('click', e=>{
       if(e.target.closest('.dash-del')){
         e.stopPropagation();
@@ -3617,7 +4152,6 @@ async function renderDashboard(){
             if(h && h.name===rec.name){ projHandleRemembered=null; idbSet('projHandle', null); }
           }catch(_){}
           renderDashboard();
-          updateResumeBanner();
         });
         return;
       }
@@ -3625,15 +4159,16 @@ async function renderDashboard(){
       if(e.target.closest('.dash-rename')){ e.stopPropagation(); renameProject(rec); return; }
       openRecent(rec);
     });
-    card.addEventListener('dragstart', e=>{ if(e.target.closest('.dash-del,.dash-edit,.dash-rename')){ e.preventDefault(); return; } dragName=rec.name; card.classList.add('dragging'); if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',rec.name); }catch(_){} } });
-    card.addEventListener('dragend', ()=>{ dragName=null; card.classList.remove('dragging'); grid.querySelectorAll('.drop-before,.drop-after').forEach(x=>x.classList.remove('drop-before','drop-after')); });
-    card.addEventListener('dragover', e=>{ if(dragName==null||dragName===rec.name) return; e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move'; const r=card.getBoundingClientRect(); const after=(e.clientY-r.top)>r.height/2; card.classList.toggle('drop-after',after); card.classList.toggle('drop-before',!after); });
-    card.addEventListener('dragleave', ()=>{ card.classList.remove('drop-before','drop-after'); });
-    card.addEventListener('drop', async e=>{ e.preventDefault(); const src=dragName; const after=card.classList.contains('drop-after'); card.classList.remove('drop-before','drop-after'); if(src!=null && src!==rec.name) await reorderProjects(src, rec.name, after); });
+    if(allowDrag){
+      card.addEventListener('dragstart', e=>{ if(e.target.closest('.dash-del,.dash-edit,.dash-rename')){ e.preventDefault(); return; } dragName=rec.name; card.classList.add('dragging'); if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',rec.name); }catch(_){} } });
+      card.addEventListener('dragend', ()=>{ dragName=null; card.classList.remove('dragging'); grid.querySelectorAll('.drop-before,.drop-after').forEach(x=>x.classList.remove('drop-before','drop-after')); });
+      card.addEventListener('dragover', e=>{ if(dragName==null||dragName===rec.name) return; e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move'; const r=card.getBoundingClientRect(); const after=(e.clientY-r.top)>r.height/2; card.classList.toggle('drop-after',after); card.classList.toggle('drop-before',!after); });
+      card.addEventListener('dragleave', ()=>{ card.classList.remove('drop-before','drop-after'); });
+      card.addEventListener('drop', async e=>{ e.preventDefault(); const src=dragName; const after=card.classList.contains('drop-after'); card.classList.remove('drop-before','drop-after'); if(src!=null && src!==rec.name) await reorderProjects(src, rec.name, after); });
+    }
     grid.appendChild(card);
   }
   filterDash();
-  try{ updateResumeBanner(); }catch(_){}
 }
 function filterDash(){
   const q=(document.getElementById('dashSearch').value||'').trim().toLowerCase();
@@ -3648,6 +4183,12 @@ function filterLib(){
 }
 document.getElementById('dashSearch').addEventListener('input', filterDash);
 document.getElementById('libSearch').addEventListener('input', filterLib);
+(function wireDashSort(){
+  const sel=document.getElementById('dashSort');
+  if(!sel) return;
+  sel.value=getDashSort();
+  sel.addEventListener('change', ()=>{ setDashSort(sel.value); renderDashboard(); });
+})();
 async function renameProject(rec){
   const cur = rec.label || rec.name;
   const v = window.prompt('Display name for this project\n(leave blank to use the file name):', cur);
@@ -3678,8 +4219,10 @@ function activeMarkers(){ const p=activePlan(); return p ? p.markers : []; }
 const planStage=document.getElementById('planStage');
 const planBody=document.getElementById('planBody');
 const planCanvas=document.getElementById('planCanvas');
+const PLAN_ZOOM_MAX=8;                                          // hard cap — beyond this PDF re-renders fail / go white
 let pz=1, ox=0, oy=0, planAspect=1.5, _freshRender=false;   // committed transform
 let lx=0, ly=0, ls=1;                                        // live transform (identity when idle)
+let _zoomDirty=false;                                       // live zoom happened since last commit
 function fitWidth(){ const bw=planBody.clientWidth||1, bh=planBody.clientHeight||1; return Math.min(bw, bh*planAspect); }
 function applyStageBox(){ const W=fitWidth()*pz; planStage.style.width=W+'px'; planStage.style.left=ox+'px'; planStage.style.top=oy+'px'; }
 function setPinScale(inv){ activeMarkers().forEach(m=>{ if(m.el) m.el.style.transform='translate(-50%,-100%) scale('+inv+')'; }); }
@@ -3690,15 +4233,20 @@ function applyLive(){
   if(ls!==1) setPinScale(1/ls); else clearPinScale();       // pins keep a constant size
 }
 function commitLive(rerender){
-  if(lx===0 && ly===0 && ls===1){ planStage.style.transform=''; return; }
-  ox+=lx; oy+=ly; pz=Math.min(8, Math.max(1, pz*ls));         // fold the live transform into layout
-  lx=0; ly=0; ls=1;
-  clearPinScale(); planStage.style.transform='';
-  applyStageBox();
-  if(rerender) scheduleRerender();                           // sharpen the PDF at the new zoom
+  const needSharp=!!(rerender && (ls!==1 || _zoomDirty));
+  if(lx!==0 || ly!==0 || ls!==1){
+    ox+=lx; oy+=ly; pz=Math.min(PLAN_ZOOM_MAX, Math.max(1, pz*ls));         // fold the live transform into layout
+    lx=0; ly=0; ls=1;
+    clearPinScale(); planStage.style.transform='';
+    applyStageBox();
+  } else {
+    planStage.style.transform='';
+  }
+  _zoomDirty=false;
+  if(needSharp) scheduleRerender();
 }
 function layoutPlan(recenter){
-  lx=0; ly=0; ls=1; planStage.style.transform=''; clearPinScale();
+  lx=0; ly=0; ls=1; planStage.style.transform=''; clearPinScale(); _zoomDirty=false;
   const bw=planBody.clientWidth||1, bh=planBody.clientHeight||1, fw=Math.min(bw, bh*planAspect);
   if(recenter){ pz=1; ox=(bw-fw)/2; oy=(bh-fw/planAspect)/2; }
   else { const W=fw*pz, H=W/planAspect; ox=Math.min(bw-40,Math.max(40-W,ox)); oy=Math.min(bh-40,Math.max(40-H,oy)); }
@@ -3712,13 +4260,19 @@ function fitPlanView(){
     requestAnimationFrame(()=>layoutPlan(true));
   });
 }
-function resetPlanView(){ fitPlanView(); scheduleRerender(); }
+function resetPlanView(){
+  // Escape hatch from a bad/white PDF canvas: show base image, re-fit, then re-render.
+  const p=activePlan();
+  if(p && p.pdf){ p._renderedW=0; planPanel.classList.remove('pdfplan'); }
+  fitPlanView();
+  scheduleRerender();
+}
 // Live focal zoom (transform only): keep the point under the cursor fixed while scaling.
 // Computed analytically (no getBoundingClientRect) so it never forces a layout read mid-gesture.
 function liveZoomAt(cx,cy,factor){
-  const total=Math.min(8, Math.max(1, (pz*ls)*factor));      // clamp TOTAL zoom to [1,8]
+  const total=Math.min(PLAN_ZOOM_MAX, Math.max(1, (pz*ls)*factor));      // clamp TOTAL zoom
   const newLs=total/pz;
-  if(newLs===ls) return;
+  if(Math.abs(newLs-ls)<1e-6) return;
   const bodyRect=planBody.getBoundingClientRect();
   const Wc=fitWidth()*pz, Hc=Wc/planAspect;                  // committed (untransformed) stage size
   const curLeft=bodyRect.left+ox+lx, curTop=bodyRect.top+oy+ly, curW=Wc*ls, curH=Hc*ls;
@@ -3727,6 +4281,7 @@ function liveZoomAt(cx,cy,factor){
   ls=newLs;
   lx=(cx-bodyRect.left)-fx*newW-ox;
   ly=(cy-bodyRect.top)-fy*newH-oy;
+  _zoomDirty=true;
   applyLive();
 }
 // keep the shown image sharp + re-fit when it (re)loads
@@ -3756,7 +4311,20 @@ function clearPlan(){
   planState.plans=[]; planState.active=-1;
   planSel=null; setPlanEdit(false); setPlanFull(false);
   planMarks.innerHTML=''; planImgEl.removeAttribute('src');
-  planPanel.classList.remove('has-plan');
+  planPanel.classList.remove('has-plan','has-overlay','livemap','ov-hidden','pdfplan','gm-editing');
+  // Tear down the live map so the next project gets a fresh instance (overlays reattach cleanly).
+  if(typeof _ovView!=='undefined' && _ovView){ try{ _ovView.setMap(null); }catch(_){} }
+  try{ _ovView=null; }catch(_){}
+  try{
+    (_gmapPins||[]).forEach(m=>{ try{ if(m.map!==undefined)m.map=null; else if(m.setMap)m.setMap(null); }catch(_){} });
+    (_gmapPolys||[]).forEach(g=>{ try{g.setMap(null);}catch(_){} });
+    (_gmapPathLines||[]).forEach(l=>{ try{l.setMap(null);}catch(_){} });
+  }catch(_){}
+  try{ _gmapPins=[]; _gmapPolys=[]; _gmapPathLines=[]; }catch(_){}
+  try{ _gmap=null; _gmapFloorId=null; _gmapPlace=false; }catch(_){}
+  try{ _gmapCtlAdded=false; }catch(_){}
+  try{ _esriTypeAdded=false; }catch(_){}
+  const host=document.getElementById('planGmap'); if(host) host.innerHTML='';
   renderPlanSelect();
   hidePlanPanel();
 }
@@ -3803,12 +4371,12 @@ function bytesToB64(bytes){ let s=''; const CH=0x8000; for(let i=0;i<bytes.lengt
 function b64ToBytes(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
 async function renderPdfPage(page, targetW){
   const base=page.getViewport({scale:1});
-  const scale=Math.max(0.2, Math.min(targetW/base.width, 14));
+  const scale=Math.max(0.2, Math.min(targetW/base.width, 24));
   const vp=page.getViewport({scale});
   const c=document.createElement('canvas'); c.width=Math.round(vp.width); c.height=Math.round(vp.height);
-  const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
-  await page.render({canvasContext:ctx, viewport:vp}).promise;
-  return {url:c.toDataURL('image/jpeg',0.9), w:c.width};
+  const ctx=c.getContext('2d', { alpha:false }); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+  await page.render({ canvasContext:ctx, viewport:vp, intent:'print', background:'rgb(255,255,255)' }).promise;
+  return {url:c.toDataURL('image/jpeg',0.93), w:c.width};
 }
 // pdf.js page objects kept per plan (lazily) so we can re-render crisply while zooming
 const planPageCache=new Map();
@@ -3839,7 +4407,7 @@ async function loadPlanFile(file){
       const doc=await m.getDocument({data:bytes.slice()}).promise;
       const page=await doc.getPage(1);
       const base=page.getViewport({scale:1}); aspect=base.width/base.height;
-      const r=await renderPdfPage(page, 2600);                    // base image for display / thumbnail / fallback
+      const r=await renderPdfPage(page, 4096);                    // sharper base preview / fallback / overlay source
       url=r.url; pageRec={page};
     } else {
       url=await fileToDataURL(file); url=await shrinkDataURL(url,2600); aspect=await imageAspect(url);
@@ -3883,8 +4451,28 @@ function loadPlanData(pd){
   if(planState.plans.length){
     planState.active = (Number.isInteger(pd.active)&&pd.active>=0&&pd.active<planState.plans.length) ? pd.active : 0;
   }
+  // If the live map lost its active overlay but still has a stashed placement, restore it.
+  planState.plans.forEach(p=>{
+    if(!p||!p.isLiveMap||p.overlay||!p.overlayLast||!p.overlayLast.srcName) return;
+    const L=p.overlayLast;
+    p.overlay={ srcName:L.srcName, center:L.center?{lat:L.center.lat,lng:L.center.lng}:null, widthM:L.widthM, rot:L.rot||0,
+      opacity:(L.opacity==null?0.6:L.opacity), aspect:L.aspect||1, locked:!!L.locked };
+  });
   renderPlanSelect(); renderPlan();
   if(activePlan() && (activePlan().img || activePlan().isLiveMap)) showPlanPanel();
+  // Hydrate PDF previews used by the map overlay (async) so drawings reappear after reload.
+  void (async()=>{
+    let changed=false;
+    for(const pl of planState.plans){
+      if(!pl||pl.isLiveMap||pl.img||!pl.pdf) continue;
+      if(await hydratePlanImg(pl)) changed=true;
+    }
+    if(changed){
+      const cur=activePlan();
+      if(cur&&cur.isLiveMap) buildAlignOverlay();
+      try{ if(planPanel.classList.contains('show-mapset')) buildMapSettings(); }catch(_){}
+    }
+  })();
 }
 
 function renderPlan(){
@@ -3922,6 +4510,7 @@ function renderPlan(){
   planPanel.classList.remove('pdfplan');   // show the base image first; the canvas takes over once rendered
   if(p && (p.img || p.pdf)){
     planAspect=p.aspect||planAspect;
+    if(p.pdf) p._renderedW=0;           // force a fresh hi-res vector pass for this floor
     if(p.img) planImgEl.src=p.img; else planImgEl.removeAttribute('src');   // base image = fallback + instant view + aspect
     planPanel.classList.add('has-plan');
     fitPlanView();
@@ -3930,10 +4519,14 @@ function renderPlan(){
   renderMarkers();
 }
 
-// Render the PDF page directly onto the canvas at the current on-screen resolution
-// (no JPEG, no bitmap upscaling) so it stays crisp exactly like a PDF reader.
+// Render the PDF page onto the canvas at the current zoom. Caps keep renders from
+// blowing past browser canvas limits (which left a white screen with no recovery).
 let _reTimer=null, _reBusy=false, _reAgain=false;
-function scheduleRerender(){ clearTimeout(_reTimer); _reTimer=setTimeout(rerenderPlanPdf, 140); }
+const PDF_DPR_CAP=2;
+const PDF_OVERSAMPLE=1.25;       // light headroom without huge canvases
+const PDF_MAX_EDGE=8192;
+const PDF_MAX_AREA=48e6;
+function scheduleRerender(){ clearTimeout(_reTimer); _reTimer=setTimeout(rerenderPlanPdf, 220); }
 async function rerenderPlanPdf(){
   const p=activePlan();
   if(!p || !p.pdf) return;
@@ -3942,30 +4535,57 @@ async function rerenderPlanPdf(){
   try{
     const rec=await getPlanPage(p);
     if(!rec){ planPanel.classList.remove('pdfplan'); return; }   // offline / failed — show the base image instead
-    const dpr=Math.min(window.devicePixelRatio||1, 2);
-    const cssW=fitWidth()*pz;                        // on-screen CSS width of the plan
+    const dpr=Math.min(window.devicePixelRatio||1, PDF_DPR_CAP);
+    const cssW=Math.max(1, fitWidth()*pz);               // committed zoom only (ls folded before settle)
     const base=rec.page.getViewport({scale:1});
-    const asp=base.width/base.height;
-    const AREA=32e6;                                 // cap total pixels (canvas limits vary by device)
-    let devW=Math.min(Math.round(cssW*dpr), 8000, Math.floor(Math.sqrt(AREA*asp)));
-    const vp=rec.page.getViewport({scale:Math.max(0.2, devW/base.width)});
+    const asp=(base.width/base.height)||1.5;
+    let devW=Math.round(cssW*dpr*PDF_OVERSAMPLE);
+    devW=Math.min(devW, PDF_MAX_EDGE, Math.floor(Math.sqrt(PDF_MAX_AREA*asp)));
+    devW=Math.max(64, devW);
+    // Skip only when we already have enough pixels for this zoom.
+    if(p._renderedW && p._renderedW>=devW*0.92 && planPanel.classList.contains('pdfplan')
+        && planCanvas.width>0 && planCanvas.height>0){
+      return;
+    }
+    const scale=Math.max(0.2, Math.min(devW/base.width, 16));
+    const vp=rec.page.getViewport({scale});
+    const tw=Math.round(vp.width), th=Math.round(vp.height);
+    if(tw<2 || th<2 || tw*th>PDF_MAX_AREA){
+      throw new Error('PDF render size out of range ('+tw+'x'+th+')');
+    }
     if(p._task){ try{ p._task.cancel(); }catch(_){ } }
     // render into an OFFSCREEN canvas so the visible plan never blanks mid-render
     const off=document.createElement('canvas');
-    off.width=Math.round(vp.width); off.height=Math.round(vp.height);
-    const octx=off.getContext('2d'); octx.fillStyle='#fff'; octx.fillRect(0,0,off.width,off.height);
-    const task=rec.page.render({canvasContext:octx, viewport:vp}); p._task=task;
+    off.width=tw; off.height=th;
+    const octx=off.getContext('2d', { alpha:false });
+    if(!octx) throw new Error('canvas context unavailable');
+    octx.fillStyle='#fff'; octx.fillRect(0,0,tw,th);
+    const task=rec.page.render({
+      canvasContext:octx,
+      viewport:vp,
+      intent:'print',
+      background:'rgb(255,255,255)'
+    });
+    p._task=task;
     await task.promise;
     if(activePlan()!==p) return;                     // floor changed while rendering
+    if(!off.width || !off.height) throw new Error('empty PDF canvas');
     // swap in one synchronous step (resize + draw) -> no blank frame, no flash
     planCanvas.width=off.width; planCanvas.height=off.height;
-    planCanvas.getContext('2d').drawImage(off,0,0);
-    const firstPdf=!planPanel.classList.contains('pdfplan');
-    planPanel.classList.add('pdfplan');              // now hide the base image, show the crisp canvas
-    // First canvas reveal can change measured size — re-fit so the drawing isn't cut off.
-    if(firstPdf) fitPlanView();
-  }catch(e){ /* cancelled or failed — keep showing whatever is there */ }
-  finally{
+    const ctx=planCanvas.getContext('2d', { alpha:false });
+    if(!ctx) throw new Error('display canvas context unavailable');
+    ctx.drawImage(off,0,0);
+    p._renderedW=off.width;
+    planPanel.classList.add('pdfplan');              // hide the base image, show the crisp canvas
+  }catch(e){
+    const cancelled=e && (e.name==='RenderingCancelledException' || /cancel/i.test(String(e.message||e)));
+    if(!cancelled){
+      console.warn('PDF re-render failed', e);
+      // Fall back to the JPEG preview so the user isn't stuck on a white canvas.
+      planPanel.classList.remove('pdfplan');
+      if(p) p._renderedW=0;
+    }
+  }finally{
     _reBusy=false;
     if(_reAgain){ _reAgain=false; scheduleRerender(); }
   }
@@ -4065,14 +4685,16 @@ function addPinAtClient(cx,cy){
   const pointers=new Map(); let panStart=null, lastPinch=null, planPanned=false;
   const hasPlan=()=>{ const p=activePlan(); return p && (p.img||p.pdf); };
   let _settle=null;
-  const scheduleSettle=()=>{ clearTimeout(_settle); _settle=setTimeout(()=>commitLive(true), 170); };
+  const scheduleSettle=()=>{ clearTimeout(_settle); _settle=setTimeout(()=>commitLive(true), 200); };
 
   // wheel zoom — collapse a burst of wheel events into ONE update per animation frame
   let _wAcc=1, _wRAF=0, _wXY=null;
   body.addEventListener('wheel', e=>{
     if(!hasPlan()) return;
     e.preventDefault();
-    _wAcc *= (e.deltaY<0 ? 1.15 : 1/1.15); _wXY={x:e.clientX,y:e.clientY};
+    _wAcc *= (e.deltaY<0 ? 1.08 : 1/1.08);
+    _wAcc = Math.min(1.25, Math.max(1/1.25, _wAcc));   // one frame can't jump more than ±25%
+    _wXY={x:e.clientX,y:e.clientY};
     if(!_wRAF) _wRAF=requestAnimationFrame(()=>{
       _wRAF=0; const f=_wAcc; _wAcc=1;
       liveZoomAt(_wXY.x, _wXY.y, f);
@@ -4084,8 +4706,8 @@ function addPinAtClient(cx,cy){
     if(!hasPlan()) return;
     e.preventDefault(); clearTimeout(_settle);
     const total=pz*ls;
-    if(total <= 1.001){ liveZoomAt(e.clientX, e.clientY, 8/total); commitLive(true); }  // at fit -> zoom all the way in on the click
-    else resetPlanView();                                                              // already zoomed -> reset to fit
+    if(total <= 1.001){ liveZoomAt(e.clientX, e.clientY, 4/Math.max(total,0.01)); commitLive(true); }  // gentle 4× in
+    else resetPlanView();                                                              // already zoomed / white -> reset to fit
   });
 
   body.addEventListener('pointerdown', e=>{
@@ -4176,9 +4798,31 @@ document.getElementById('peDelete').onclick=()=>{
 };
 document.getElementById('peDone').onclick=()=>{ planSel=null; planPanel.classList.remove('editing'); renderMarkers(); refreshLinkPick(); };
 
+function centerPlanOnMarker(m){
+  if(!m || !planBody) return;
+  commitLive(false);
+  const bw=planBody.clientWidth||1, bh=planBody.clientHeight||1;
+  const W=fitWidth()*pz, H=W/planAspect;
+  ox=bw/2 - (m.x||0)*W;
+  oy=bh/2 - (m.y||0)*H;
+  ox=Math.min(bw-40, Math.max(40-W, ox));
+  oy=Math.min(bh-40, Math.max(40-H, oy));
+  applyStageBox();
+}
+function centerMapOnCurrentPin(){
+  const p=activePlan(); if(!p) return;
+  const curName=items[currentIndex] && items[currentIndex].name; if(!curName) return;
+  const m=(p.markers||[]).find(x=>x.target===curName);
+  if(!m) return;
+  if(p.isLiveMap){
+    if(_gmap && goodGps(m.lat, m.lng)) _gmap.panTo({lat:+m.lat, lng:+m.lng});
+    return;
+  }
+  if(p.img||p.pdf) centerPlanOnMarker(m);
+}
 function updatePlanHere(){ const p=activePlan();
-  if(p && p.isLiveMap){ if(_gmap) renderGmapMarkers(p); return; }
-  if(activeMarkers().length) renderMarkers(); }
+  if(p && p.isLiveMap){ if(_gmap){ renderGmapMarkers(p); centerMapOnCurrentPin(); } return; }
+  if(activeMarkers().length){ renderMarkers(); centerMapOnCurrentPin(); } }
 
 // wiring
 document.getElementById('btnPlan').onclick=togglePlan;
@@ -4216,7 +4860,7 @@ document.getElementById('planClearMarks').onclick=()=>{
   else { planSel=null; planPanel.classList.remove('editing'); renderMarkers(); }
   toast('Cleared '+n+' marker'+(n===1?'':'s')+'.');
 };
-// combined photo-markers dropdown: Add from GPS / Edit-place / Clear — drives the hidden buttons above
+// combined photo-markers dropdown: Add Pins from GPS / Edit Pins / Clear All Pins — drives the hidden buttons above
 function syncPinsToggle(){ const b=document.getElementById('planPinsBtn'); if(b) b.classList.toggle('on', document.getElementById('planPlace').classList.contains('on')); }
 (function initPinsDropdown(){
   const dd=document.getElementById('planPins'), btn=document.getElementById('planPinsBtn'), menu=document.getElementById('planPinsMenu');
@@ -4388,6 +5032,8 @@ async function initLiveMap(p){
   _gmapFloorId=p.id;
   setTimeout(()=>{ if(_gmap&&api.event) api.event.trigger(_gmap,'resize'); _gmap.setCenter(useV.center||p.center); }, 60);
   renderGmapPolys(p); renderGmapMarkers(p); renderGmapBldgs(p); renderGmapRooms(p); buildAlignOverlay();
+  // Map panes can lag a frame after create/reuse — rebuild once so the drawing overlay lands.
+  setTimeout(()=>{ if(activePlan()===p) buildAlignOverlay(); }, 120);
 }
 let _gmapCtlAdded=false, _gmapRtWarned=false;
 function addMapViewControls(api){
@@ -4514,7 +5160,7 @@ function renderGmapMarkers(p){
     let mObj;
     if(useAdv){
       const pin=new mlib.PinElement({ glyph, scale: KIND?(sel?1.3:1.1):(sel?1.0:0.78),
-        background:here?'#ffffff':baseBg, borderColor: sel?SEL:'#0b0e12', glyphColor: here?accent:'#0b0e12' });
+        background:here?'#ffffff':baseBg, borderColor: sel?SEL:'var(--bg)', glyphColor: 'var(--bg)' });
       let content=pin.element;
       if(KIND && mk.label){                                                // show the name under the pin
         const wrap=document.createElement('div');
@@ -4535,8 +5181,8 @@ function renderGmapMarkers(p){
         if(_groupDrag && _groupDrag.anchor===mk){ moveGroup(mk); _groupDrag=null; relabelLiveMap(p); renderGmapMarkers(p); } else if(pathOn){ renderGmapPath(p); } });
     } else {
       mObj=new _gmapsApi.Marker({ map:_gmap, position:{lat:mk.lat,lng:mk.lng}, title, draggable:_gmapPlace,
-        zIndex:z, icon:legacyIcon(here?'#ffffff':baseBg, sel?SEL:'#0b0e12', !!KIND),
-        label:{text:glyph, color:here?accent:'#ffffff', fontSize:'11px', fontWeight:'700'} });
+        zIndex:z, icon:legacyIcon(here?'#ffffff':baseBg, sel?SEL:'var(--bg)', !!KIND),
+        label:{text:glyph, color:here?'var(--bg)':'#ffffff', fontSize:'11px', fontWeight:'700'} });
       mObj.addListener('click', clickHandler(mk));
       mObj.addListener('dblclick', ()=>{ if(_gmapPlace) del(mk); });
       mObj.addListener('dragstart', ()=>beginGroup(mk));
@@ -4627,7 +5273,7 @@ function renderGmapRooms(p){
   const draw=type=>{ const K=KINDSTYLE[type]; roomsFor(p,type).forEach(r=>{
     let mObj;
     if(useAdv){
-      const pin=new mlib.PinElement({ glyph:K.g, scale:1.05, background:K.c, borderColor:'#0b0e12', glyphColor:'#0b0e12' });
+      const pin=new mlib.PinElement({ glyph:K.g, scale:1.05, background:K.c, borderColor:'var(--bg)', glyphColor:'var(--bg)' });
       const wrap=document.createElement('div'); wrap.style.cssText='display:flex;flex-direction:column;align-items:center;cursor:pointer';
       wrap.appendChild(pin.element);
       const cap=document.createElement('div'); cap.textContent=r.name;
@@ -4637,7 +5283,7 @@ function renderGmapRooms(p){
       wrap.addEventListener('click', ()=>toast(K.label+': '+r.name));
     } else {
       mObj=new _gmapsApi.Marker({ map:_gmap, position:{lat:r.lat,lng:r.lng}, title:K.label+': '+r.name, zIndex:2,
-        label:{text:K.g, color:'#0b0e12', fontSize:'11px', fontWeight:'700'} });
+        label:{text:K.g, color:'var(--bg)', fontSize:'11px', fontWeight:'700'} });
       mObj.addListener('click', ()=>toast(K.label+': '+r.name));
     }
     _gmapRooms.push(mObj);
@@ -4805,6 +5451,26 @@ function makeImgOverlay(api, ov){
   return new ImgOverlay();
 }
 function overlaySrcImg(p){ const f=imageFloors().find(x=>x.name===(p.overlay&&p.overlay.srcName)); return f?f.img:null; }
+function overlaySrcPlan(p){ return planState.plans.find(x=>!x.isLiveMap && x.name===(p.overlay&&p.overlay.srcName))||null; }
+/** Rebuild a missing raster preview from the stored PDF so map overlays can draw after reload. */
+async function hydratePlanImg(plan){
+  if(!plan || plan.img || !plan.pdf) return !!plan?.img;
+  try{
+    const rec=await getPlanPage(plan); if(!rec||!rec.page) return false;
+    const r=await renderPdfPage(rec.page, 4096);
+    if(!r||!r.url) return false;
+    plan.img=r.url;
+    if(!plan.aspect) plan.aspect=(r.w && r.url)? await imageAspect(r.url) : 1;
+    return true;
+  }catch(e){ console.warn('hydratePlanImg failed', e); return false; }
+}
+async function ensureOverlaySrcReady(p){
+  if(!p||!p.overlay) return null;
+  let img=overlaySrcImg(p); if(img) return img;
+  const src=overlaySrcPlan(p);
+  if(src && await hydratePlanImg(src)) return src.img||null;
+  return null;
+}
 // show/hide the overlay controller bar while the aligned drawing stays on the map
 function applyOverlayCtlVis(p){
   const active=!!(p&&p.isLiveMap&&p.overlay);
@@ -4818,31 +5484,48 @@ function buildAlignOverlay(){
   planPanel.classList.toggle('has-overlay', !!(p&&p.isLiveMap&&p.overlay));
   applyOverlayCtlVis(p);
   if(!p||!p.isLiveMap||!p.overlay||!_gmap||!_gmapsApi) return;
-  const img=overlaySrcImg(p); if(!img){ if(!p.overlay.locked){ stashOverlay(p); p.overlay=null; } planPanel.classList.remove('has-overlay'); return; }
+  const img=overlaySrcImg(p);
+  if(!img){
+    // Keep overlay metadata — never wipe on a transient missing preview (PDF not hydrated yet, etc.).
+    planPanel.classList.remove('has-overlay');
+    applyOverlayCtlVis(p);
+    const gen=(p._ovHydrateGen=(p._ovHydrateGen||0)+1);
+    void ensureOverlaySrcReady(p).then(ready=>{
+      if(gen!==p._ovHydrateGen) return;
+      if(ready && activePlan()===p) buildAlignOverlay();
+    });
+    return;
+  }
   _ovView=makeImgOverlay(_gmapsApi, Object.assign(p.overlay,{img}));
   _ovView.setMap(_gmap);
-  const src=document.getElementById('ovSrc'); src.innerHTML='';
-  imageFloors().forEach(f=>{ const o=document.createElement('option'); o.value=f.name; o.textContent=f.name||'(unnamed)'; if(f.name===p.overlay.srcName) o.selected=true; src.appendChild(o); });
-  document.getElementById('ovOpacity').value=Math.round((p.overlay.opacity==null?0.6:p.overlay.opacity)*100);
-  const lk=document.getElementById('ovLock'); const locked=!!p.overlay.locked;
-  lk.classList.toggle('on', locked); lk.textContent = locked ? 'Edit position' : 'Lock placement';
-  lk.title = locked
-    ? 'This overlay is locked permanently in place (saved with the project). Click to adjust its position again.'
-    : 'Lock this overlay permanently in place so it stays put through view changes, floor switches and reloads. You can Edit position later.';
-  document.getElementById('ovOpacity').disabled=false;
+  const src=document.getElementById('ovSrc'); if(src){ src.innerHTML='';
+    imageFloors().forEach(f=>{ const o=document.createElement('option'); o.value=f.name; o.textContent=f.name||'(unnamed)'; if(f.name===p.overlay.srcName) o.selected=true; src.appendChild(o); });
+  }
+  const op=document.getElementById('ovOpacity'); if(op){ op.value=Math.round((p.overlay.opacity==null?0.6:p.overlay.opacity)*100); op.disabled=false; }
+  const lk=document.getElementById('ovLock');
+  if(lk){
+    const locked=!!p.overlay.locked;
+    lk.classList.toggle('on', locked); lk.textContent = locked ? 'Edit position' : 'Lock placement';
+    lk.title = locked
+      ? 'This overlay is locked permanently in place (saved with the project). Click to adjust its position again.'
+      : 'Lock this overlay permanently in place so it stays put through view changes, floor switches and reloads. You can Edit position later.';
+  }
 }
 // remember an overlay's placement + lock so closing then reopening returns to the last state
 function stashOverlay(p){ if(p && p.overlay){ const o=p.overlay;
   p.overlayLast={ srcName:o.srcName, center:o.center?{lat:o.center.lat,lng:o.center.lng}:null, widthM:o.widthM,
     rot:o.rot||0, opacity:(o.opacity==null?0.6:o.opacity), aspect:o.aspect||1, locked:!!o.locked }; } }
+function openMapSettings(){
+  planPanel.classList.add('show-mapset');
+  document.getElementById('planSettings').classList.add('on');
+  buildMapSettings();
+}
 function toggleAlignOverlay(){
   const p=activePlan();
   if(!p||!p.isLiveMap){ toast('Open the map floor first, then overlay a plan on it.'); return; }
-  if(p.overlay){                                            // overlay is active -> toggle its controls only; the drawing stays on the map
-    p.overlayCtlHidden=!p.overlayCtlHidden; applyOverlayCtlVis(p);
-    toast(p.overlayCtlHidden
-      ? 'Overlay controls hidden \u2014 the drawing stays on the map. Click again to show them; use \u2715 on the bar to remove the drawing.'
-      : 'Overlay controls shown.');
+  if(p.overlay){                                            // overlay already active — open settings to manage it
+    openMapSettings();
+    toast('Overlay controls are in View settings \u2192 Map & data.');
     return;
   }
   const imgs=imageFloors();
@@ -4853,6 +5536,7 @@ function toggleAlignOverlay(){
       opacity:(L.opacity==null?0.6:L.opacity), aspect:L.aspect||1, locked:!!L.locked };
     p.overlayCtlHidden=false;
     buildAlignOverlay();
+    openMapSettings();
     toast('Overlay restored to its last position'+(p.overlay.locked?' \u2014 locked (click \u201CEdit position\u201D to adjust)':'')+'.');
     return;
   }
@@ -4865,13 +5549,19 @@ function toggleAlignOverlay(){
   p.overlay={ srcName:imgs[0].name, center, widthM, rot:0, opacity:0.6, aspect:imgs[0].aspect||1 };
   p.overlayCtlHidden=false;
   buildAlignOverlay();
-  toast('Overlaying \u201C'+imgs[0].name+'\u201D. Drag it to move \u00B7 corners scale \u00B7 knob rotates \u00B7 use the Opacity slider. Pick a different plan in the dropdown.');
+  openMapSettings();
+  toast('Overlaying \u201C'+imgs[0].name+'\u201D. Drag it to move \u00B7 corners scale \u00B7 knob rotates \u00B7 use Opacity in View settings.');
 }
 document.getElementById('planOverlay').onclick=toggleAlignOverlay;
 
 // ===== Consolidated "View settings" panel — all map-view layers & options in one place =====
+function parkGmOpacity(){
+  const ov=document.getElementById('gmOpacity'), host=document.getElementById('planBody');
+  if(ov && host && ov.parentElement!==host) host.appendChild(ov);
+}
 function buildMapSettings(){
   const body=document.getElementById('msBody'); if(!body) return;
+  parkGmOpacity();
   const p=activePlan();
   body.innerHTML='';
   const isMap=!!(p&&p.isLiveMap), dbLoaded=!!geoIndex;
@@ -4896,12 +5586,28 @@ function buildMapSettings(){
     b.innerHTML=icon+'<span></span>'; b.querySelector('span').textContent=label; b.addEventListener('click', fn); container.appendChild(b); return b; };
   const hasMap=planState.plans.some(x=>x.isLiveMap);
   const mapIco='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M2 12a10 10 0 0 0 10 10"/></svg>';
-  const dbIco='<svg viewBox="0 0 24 24"><path d="M20.6 8.4l-8-5a2 2 0 0 0-2.2 0l-8 5A2 2 0 0 0 4 12"/><path d="M4 12v6a2 2 0 0 0 2 2h5"/><path d="M15 15l6 6M21 15l-6 6"/></svg>';
+  const ovIco='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg>';
   mkBtn(acts, mapIco, hasMap?'Show map floor':'Add map floor', ()=>{ addLiveMapPlan(false); });
-  mkBtn(acts, dbIco, geoIndex?'Reload address DB…':'Load address DB…', ()=>{ geoInput.click(); });
   mkBtn(acts, '<svg viewBox="0 0 24 24"><path d="M15 7a2 2 0 0 1 2 2M12 3a6 6 0 0 1 6 6c0 4-6 12-6 12S6 13 6 9a6 6 0 0 1 6-6z"/></svg>',
     (hasMap||gmapsKey)?'Change map key / ID…':'Set map key / ID…', ()=>{ addLiveMapPlan(true); }, 'mini');
   body.appendChild(acts);
+
+  // Alignment overlay bar (floor select / opacity / lock / remove) lives here when active
+  if(isMap){
+    const ovImgs=imageFloors();
+    const ovEl=document.getElementById('gmOpacity');
+    if(p.overlay && ovEl){
+      const slot=document.createElement('div'); slot.className='ms-ov-slot';
+      body.appendChild(slot); slot.appendChild(ovEl);
+    } else if(!ovImgs.length){
+      const n=document.createElement('div'); n.className='ms-empty'; n.textContent='Add a floor-plan image first, then overlay it here to align onto the satellite map.'; body.appendChild(n);
+    } else {
+      const a=document.createElement('div'); a.className='ms-actions';
+      const restore=p.overlayLast && ovImgs.some(f=>f.name===p.overlayLast.srcName);
+      mkBtn(a, ovIco, restore?'Restore overlay':'Overlay a floor plan', ()=>{ toggleAlignOverlay(); buildMapSettings(); });
+      body.appendChild(a);
+    }
+  }
 
   if(!p){ const n=document.createElement('div'); n.className='ms-empty'; n.style.marginTop='8px'; n.textContent='Add a floor plan or the map floor above to configure its layers.'; body.appendChild(n); return; }
 
@@ -4927,56 +5633,26 @@ function buildMapSettings(){
     [['satellite','Satellite'],['hybrid','Satellite + labels'],['roadmap','Road'],['terrain','Terrain'],['esri','Esri World Imagery']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; if((p.mapType||'satellite')===v) o.selected=true; sel.appendChild(o); });
     sel.addEventListener('change', ()=>{ p.mapType=sel.value; if(_gmap&&_gmapsApi) applyBaseMap(_gmapsApi, sel.value); });
     row.appendChild(l); row.appendChild(sel); body.appendChild(row);
-
-    hdr('Alignment overlay');
-    const ovImgs=imageFloors();
-    const lockIco='<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-    const remIco='<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-    const ovIco='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="1"/><rect x="8" y="8" width="13" height="13" rx="1"/></svg>';
-    if(!p.overlay){
-      if(!ovImgs.length){ const n=document.createElement('div'); n.className='ms-empty'; n.textContent='Add a floor-plan image first, then overlay it here to align onto the satellite map.'; body.appendChild(n); }
-      else { const a=document.createElement('div'); a.className='ms-actions';
-        const restore=p.overlayLast && ovImgs.some(f=>f.name===p.overlayLast.srcName);
-        mkBtn(a, ovIco, restore?'Restore overlay':'Overlay a floor plan', ()=>{ toggleAlignOverlay(); buildMapSettings(); });
-        body.appendChild(a); }
-    } else {
-      // choose which plan to overlay
-      const rS=document.createElement('div'); rS.className='ms-row';
-      const lS=document.createElement('div'); lS.innerHTML='<span class="ms-lbl">Overlay plan</span>';
-      const sel=document.createElement('select'); sel.className='ms-sel';
-      ovImgs.forEach(f=>{ const o=document.createElement('option'); o.value=f.name; o.textContent=f.name||'(unnamed)'; if(f.name===p.overlay.srcName) o.selected=true; sel.appendChild(o); });
-      sel.addEventListener('change', ()=>{ p.overlay.srcName=sel.value; p.overlay.aspect=(ovImgs.find(f=>f.name===sel.value)||{}).aspect||1; buildAlignOverlay(); });
-      rS.appendChild(lS); rS.appendChild(sel); body.appendChild(rS);
-      // opacity (live, no rebuild)
-      const rO=document.createElement('div'); rO.className='ms-row';
-      const lO=document.createElement('div'); lO.innerHTML='<span class="ms-lbl">Opacity</span>';
-      const rng=document.createElement('input'); rng.type='range'; rng.min=10; rng.max=100; rng.step=1; rng.className='ms-range';
-      rng.value=Math.round((p.overlay.opacity==null?0.6:p.overlay.opacity)*100);
-      rng.addEventListener('input', ()=>{ p.overlay.opacity=(+rng.value)/100; if(_ovView) _ovView.draw(); });
-      rO.appendChild(lO); rO.appendChild(rng); body.appendChild(rO);
-      // lock / edit + remove
-      const a2=document.createElement('div'); a2.className='ms-actions';
-      mkBtn(a2, lockIco, p.overlay.locked?'Edit position':'Lock placement', ()=>{ p.overlay.locked=!p.overlay.locked; buildAlignOverlay(); buildMapSettings(); });
-      mkBtn(a2, remIco, 'Remove overlay drawing', ()=>{ stashOverlay(p); p.overlay=null; p.overlayCtlHidden=false; buildAlignOverlay(); buildMapSettings(); }, 'mini');
-      body.appendChild(a2);
-    }
   }
 
   if(!dbLoaded){ const n=document.createElement('div'); n.className='ms-empty'; n.style.marginTop='10px'; n.textContent='Load the DB (the map/tag button in the toolbar) to enable the address, tenant and room layers.'; body.appendChild(n); }
 }
 function toggleMapSettings(){
-  const open=planPanel.classList.toggle('show-mapset');
-  document.getElementById('planSettings').classList.toggle('on', open);
-  if(open) buildMapSettings();
+  if(planPanel.classList.contains('show-mapset')) closeMapSettings();
+  else openMapSettings();
+}
+function closeMapSettings(){
+  planPanel.classList.remove('show-mapset');
+  document.getElementById('planSettings').classList.remove('on');
+  parkGmOpacity();
 }
 document.getElementById('planSettings').onclick=toggleMapSettings;
-document.getElementById('msClose').onclick=()=>{ planPanel.classList.remove('show-mapset'); document.getElementById('planSettings').classList.remove('on'); };
+document.getElementById('msClose').onclick=closeMapSettings;
 // click anywhere outside the panel (and not on the gear) collapses it
 document.addEventListener('click', e=>{
   if(!planPanel.classList.contains('show-mapset')) return;
   if(e.target.closest('#mapSettings') || e.target.closest('#planSettings')) return;
-  planPanel.classList.remove('show-mapset');
-  document.getElementById('planSettings').classList.remove('on');
+  closeMapSettings();
 }, true);
 
 // ===== Edit a map marker (retarget photo / label / delete) =====
@@ -5039,8 +5715,9 @@ document.getElementById('gmeDone').onclick=()=>{ setGmapPlace(false); };   // Do
 document.getElementById('ovOpacity').addEventListener('input', e=>{ const p=activePlan(); if(p&&p.overlay){ p.overlay.opacity=(+e.target.value)/100; if(_ovView) _ovView.draw(); } });
 document.getElementById('ovSrc').addEventListener('change', e=>{ const p=activePlan(); if(p&&p.overlay){ p.overlay.srcName=e.target.value; p.overlay.aspect=(imageFloors().find(f=>f.name===e.target.value)||{}).aspect||1; buildAlignOverlay(); } });
 document.getElementById('ovRemove').onclick=()=>{ const p=activePlan(); if(!(p&&p.overlay)) return;
-  stashOverlay(p); p.overlay=null; p.overlayCtlHidden=false; buildAlignOverlay();
-  toast('Overlay drawing removed \u2014 its position'+(p.overlayLast&&p.overlayLast.locked?' (locked)':'')+' is remembered. Click the overlay button to bring it back.'); };
+  stashOverlay(p); p.overlay=null; p.overlayCtlHidden=false; parkGmOpacity(); buildAlignOverlay();
+  if(planPanel.classList.contains('show-mapset')) buildMapSettings();
+  toast('Overlay drawing removed \u2014 its position'+(p.overlayLast&&p.overlayLast.locked?' (locked)':'')+' is remembered. Use Overlay a floor plan in View settings to bring it back.'); };
 document.getElementById('ovLock').onclick=()=>{ const p=activePlan(); if(!(p&&p.overlay)) return;
   p.overlay.locked=!p.overlay.locked; buildAlignOverlay();
   toast(p.overlay.locked
@@ -6066,15 +6743,15 @@ render();
     const p=boxPx(b);
     const round=useRoundBlur(b);
     ctx.lineWidth=active?2:1.5;
-    ctx.strokeStyle=active?'#2dd4bf':'rgba(230,237,243,.85)';
+    ctx.strokeStyle=active?'var(--accent)':'rgba(230,237,243,.85)';
     ctx.setLineDash(active?[]:[5,4]);
     if(round){ pathRoundRect(ctx, p.x,p.y,p.w,p.h); ctx.stroke(); }
     else ctx.strokeRect(p.x,p.y,p.w,p.h);
     ctx.setLineDash([]);
-    if(active){ ctx.fillStyle='#2dd4bf'; handlePts(p).forEach(h=>ctx.fillRect(h.x-4,h.y-4,8,8)); }
+    if(active){ ctx.fillStyle='var(--accent)'; handlePts(p).forEach(h=>ctx.fillRect(h.x-4,h.y-4,8,8)); }
     // Tiny kind tag for auto vs manual
     if(b && b._auto){
-      ctx.fillStyle=active?'rgba(45,212,191,.9)':'rgba(230,237,243,.55)';
+      ctx.fillStyle=active?'rgba(73,116,255,.9)':'rgba(230,237,243,.55)';
       ctx.font='10px ui-sans-serif,system-ui,sans-serif';
       ctx.fillText('auto', p.x+4, p.y+12);
     }
@@ -7726,6 +8403,7 @@ render();
           curItem.file=curItem._blurOrig; curItem._blurOrig=null;
           curItem.blurred=false; curItem.autoBlurred=false;
           curItem._autoBlurDone=false; curItem._autoPlatesDone=false;
+          _projPhotosDirty=true;
           storeItemBlurBoxes(curItem, []);
           setItemBlurCounts(curItem, 0, 0, {replaceAll:true});
           await rebuildCurrent(curItem);
@@ -7740,6 +8418,7 @@ render();
       if(!curItem._blurOrig) curItem._blurOrig=curItem.file;
       curItem.file=new File([blob], curItem.name, {type:'image/jpeg'});
       curItem.blurred=true; curItem._autoBlurDone=true;
+      _projPhotosDirty=true;
       storeItemBlurBoxes(curItem, boxes);
       const nf=boxes.filter(b=>(b.kind||mode)==='faces').length;
       const np=boxes.filter(b=>(b.kind||mode)==='plates').length;
@@ -7757,6 +8436,7 @@ render();
     busy(true,'Restoring original…');
     try{
       curItem.file=curItem._blurOrig; curItem._blurOrig=null; curItem.blurred=false; curItem.autoBlurred=false; curItem._autoBlurDone=false; curItem._autoPlatesDone=false;
+      _projPhotosDirty=true;
       storeItemBlurBoxes(curItem, []);
       setItemBlurCounts(curItem, 0, 0, {replaceAll:true});
       await rebuildCurrent(curItem);
@@ -7967,6 +8647,7 @@ render();
       if(!it._blurOrig) it._blurOrig=it.file;
       it.file=new File([blob], it.name, {type:'image/jpeg'});
       it.blurred=true; it.autoBlurred=true; it._autoBlurDone=true;
+      _projPhotosDirty=true;
       storeItemBlurBoxes(it, kept);
       setItemBlurCounts(it, doF?nFaces:null, doP?nPlates:null);
       try{ await rebuildCurrent(it); }catch(e){}
@@ -7996,25 +8677,17 @@ window.toast = toast;
 window.mergeBuildingRtus = mergeBuildingRtus;
 window.updateDbStatus = updateDbStatus;
 window.refreshGeoReadout = refreshGeoReadout;
-window.showSaveProgress = showSaveProgress;
-window.endSaveProgress = endSaveProgress;
-window.mirrorCurrentProjectToGate = mirrorCurrentProjectToGate;
 Object.defineProperty(window, 'geoIndex', {
   configurable: true,
   get(){ return geoIndex; },
   set(v){ geoIndex = v; }
-});
-Object.defineProperty(window, 'items', {
-  configurable: true,
-  get(){ return items; },
-  set(v){ items = v; }
 });
 </script>
 
 <script>
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
-  const VERSION="v1.1.17";
+  const VERSION="v1.1.21";
   const params=new URLSearchParams(location.search);
   const isEmbed=params.get('embed')==='1';
   const gateKey=(params.get('gate')||'').trim();
@@ -8177,22 +8850,13 @@ Object.defineProperty(window, 'items', {
             && (window._gateMirrorDirty === true || window._gateHostConfirmed !== true);
           if(needMirror){
             try{
-              const photoCount=(window.items && window.items.length) || 2;
-              if(typeof window.showSaveProgress==='function'){
-                window.showSaveProgress(0, Math.max(2, photoCount+2), 'Linking to this gate\u2026');
-              }
-              if(typeof window.mirrorCurrentProjectToGate!=='function'){
-                throw new Error('mirrorCurrentProjectToGate is not on window');
-              }
-              mirrorOk=!!(await window.mirrorCurrentProjectToGate());
-              if(typeof window.endSaveProgress==='function') window.endSaveProgress();
+              showSaveProgress(0, Math.max(2, items.length+2), 'Linking to this gate\u2026');
+              mirrorOk=!!(await mirrorCurrentProjectToGate());
+              endSaveProgress();
               if(!mirrorOk){
                 try{ toast('Could not store this tour for the gate. Try Save, then close again.', true); }catch(_){}
               }
-            }catch(e){
-              mirrorOk=false;
-              try{ if(typeof window.endSaveProgress==='function') window.endSaveProgress(); }catch(_){}
-            }
+            }catch(e){ mirrorOk=false; try{ endSaveProgress(); }catch(_){} }
           }
         }finally{
           try{ if(ev.source) ev.source.postMessage({ type:'insp360:readyToClose', linkGate: linkGate, ok: mirrorOk }, '*'); }catch(_){}
@@ -8226,27 +8890,43 @@ Object.defineProperty(window, 'items', {
     btn.onclick=()=>openGateHandle(handle, true);
   }
 
-  async function openGateHandle(handle, interactive){
+  async function openGateHandle(handle, interactive, opts){
     if(!handle) return false;
-    try{
-      const o={mode:'read'};
-      let perm='prompt';
-      try{ perm=await handle.queryPermission(o); }catch(_){}
-      if(perm!=='granted'){
-        try{ perm=await handle.requestPermission(o); }catch(_){}
-      }
-      if(perm!=='granted'){
-        if(interactive) toast('Permission needed to reopen that project.', true);
+    opts=opts||{};
+    // Nested calls (from openGateFromCache) must not re-enter the single-flight promise.
+    const run=async ()=>{
+      try{
+        const o={mode:'read'};
+        let perm='prompt';
+        try{ perm=await handle.queryPermission(o); }catch(_){}
+        if(perm!=='granted'){
+          try{ perm=await handle.requestPermission(o); }catch(_){}
+        }
+        if(perm!=='granted'){
+          if(interactive) toast('Permission needed to reopen that project.', true);
+          return false;
+        }
+        await openProject(await handle.getFile(), handle, { resumePhoto:true, quiet:!interactive, skipGateBind:true });
+        window._gateLinkedThisSession=true;
+        return document.body.classList.contains('proj-open');
+      }catch(e){
+        console.warn('gate open failed', e);
+        if(interactive) toast('Could not reopen the linked project.', true);
         return false;
       }
-      await openProject(await handle.getFile(), handle, { resumePhoto:true, quiet:!interactive, skipGateBind:true });
-      window._gateLinkedThisSession=true;
-      return true;
-    }catch(e){
-      console.warn('gate open failed', e);
-      if(interactive) toast('Could not reopen the linked project.', true);
-      return false;
-    }
+    };
+    if(opts.nested) return run();
+    // Share single-flight with cache opens so boot + host ping cannot open twice.
+    if(window._gateOpenPromise) return window._gateOpenPromise;
+    window._gateOpenPromise=(async ()=>{
+      try{ return await run(); }
+      finally {
+        window._gateOpenPromise=null;
+        window._gateOpenInFlight=false;
+      }
+    })();
+    window._gateOpenInFlight=true;
+    return window._gateOpenPromise;
   }
 
 
@@ -8363,7 +9043,7 @@ Object.defineProperty(window, 'items', {
             try{ perm=await h.queryPermission({mode:'read'}); }catch(_){}
             if(perm==='granted'){
               if(window._gatePreferLiveOpen) return document.body.classList.contains('proj-open');
-              const okHandle=await openGateHandle(h, false);
+              const okHandle=await openGateHandle(h, false, { nested:true });
               if(okHandle) return true;
             }
           }
@@ -8466,6 +9146,10 @@ Object.defineProperty(window, 'items', {
       const name=decodeURIComponent((projectUrl.split('/').pop()||'project.insp360').split('?')[0]);
       const file=new File([blob], name, {type:'application/zip'});
       await openProject(file, null);
+      if(photoName){
+        const idx=items.findIndex(it=>String(it.name||'').toLowerCase()===photoName.toLowerCase());
+        if(idx>=0) selectImage(idx);
+      }
       return true;
     }catch(e){
       console.warn('embed project URL failed', e);

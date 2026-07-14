@@ -11,7 +11,19 @@ export const INSP360_REQUEST_HOST_FILE_PICK_MSG = 'insp360:requestHostFilePick'
 export const INSP360_REQUEST_CHANGE_TOUR_MSG = 'insp360:requestChangeTour'
 export const INSP360_PREPARE_CLOSE_MSG = 'insp360:prepareClose'
 export const INSP360_READY_CLOSE_MSG = 'insp360:readyToClose'
+/** Viewer → host: progress while opening a linked/picked .insp360 from a gateway. */
+export const INSP360_OPEN_PROGRESS_MSG = 'insp360:openProgress'
 export const INSP360_LOCAL_PREFIX = 'insp360-local:'
+
+export type Insp360OpenProgressPayload = {
+  gateKey: string
+  done: number
+  total: number
+  phase: string
+  fileName?: string | null
+  fileSize?: number | null
+  source?: 'disk' | 'storage' | 'host' | 'picker' | string | null
+}
 
 /** Normalize postMessage binary payloads into an ArrayBuffer copy. */
 export function arrayBufferFromMessageData(value: unknown): ArrayBuffer | null {

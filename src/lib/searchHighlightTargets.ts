@@ -1,6 +1,17 @@
-import type { Building } from '@/types/domain'
+import { isTenantCountSearch } from '@/lib/filters'
+import {
+  buildingForPolygon,
+  buildPolygonBuildingIndex,
+  polygonsForBuilding,
+} from '@/lib/polygonBuildings'
+import {
+  defaultEntrancePosition,
+  ensureSuiteEntrances,
+  suiteEntranceForPolygon,
+} from '@/lib/suiteEntrances'
+import type { Building, Polygon, SuiteEntrance } from '@/types/domain'
 
-export type SearchHighlightKind = 'building' | 'cluster'
+export type SearchHighlightKind = 'building' | 'cluster' | 'suite'
 
 export interface SearchHighlightTarget {
   kind: SearchHighlightKind
@@ -13,6 +24,12 @@ export interface SearchHighlightTarget {
 export const SEARCH_HIGHLIGHT_RADIUS_PX: Record<SearchHighlightKind, number> = {
   building: 48,
   cluster: 64,
+  suite: 40,
+}
+
+export interface SearchHighlightContext {
+  polygons?: Polygon[]
+  suiteEntrances?: SuiteEntrance[]
 }
 
 /**
@@ -87,18 +104,86 @@ export function collectClusterHighlightTargets(buildings: Building[]): SearchHig
   return targets.sort((a, b) => a.label.localeCompare(b.label))
 }
 
+function polygonMatchesTenantQuery(polygon: Polygon, q: string): boolean {
+  return (
+    polygon.name.toLowerCase().includes(q) ||
+    (polygon.description ?? '').toLowerCase().includes(q)
+  )
+}
+
+/**
+ * Circle 360° suite gateways whose tenant polygon name/description matches
+ * (e.g. search "Baxter" → Suite # 3 gate).
+ */
+export function collectSuiteHighlightTargets(
+  buildings: Building[],
+  polygons: Polygon[],
+  suiteEntrances: SuiteEntrance[],
+  search: string,
+): SearchHighlightTarget[] {
+  const q = normalizeSearch(search)
+  if (!q || !polygons.length) return []
+
+  const polygonIndex = buildPolygonBuildingIndex(buildings, polygons)
+  const entrances = ensureSuiteEntrances(buildings, polygons, suiteEntrances)
+  const targets: SearchHighlightTarget[] = []
+  const seen = new Set<string>()
+
+  for (const polygon of polygons) {
+    if (!polygonMatchesTenantQuery(polygon, q)) continue
+    const building = buildingForPolygon(buildings, polygon)
+    if (!building) continue
+
+    const entrance =
+      building.id != null
+        ? suiteEntranceForPolygon(entrances, polygon, building)
+        : entrances.find(
+            (item) =>
+              item.polygon_id != null &&
+              polygon.id != null &&
+              item.polygon_id === polygon.id,
+          )
+    const buildingPolygons = polygonsForBuilding(polygonIndex, building.address)
+    const fallback = defaultEntrancePosition(polygon, {
+      building,
+      buildingPolygons,
+    })
+    const lat = Number.isFinite(entrance?.lat) ? entrance!.lat : fallback.lat
+    const lng = Number.isFinite(entrance?.lng) ? entrance!.lng : fallback.lng
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+
+    const key = `${lat.toFixed(6)},${lng.toFixed(6)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const tenant = (polygon.description || polygon.name).split('\n')[0]!.trim()
+    targets.push({
+      kind: 'suite',
+      label: tenant ? `${polygon.name} · ${tenant}` : polygon.name,
+      lat,
+      lng,
+    })
+  }
+
+  return targets
+}
+
 /**
  * Search map circles (all red):
  * - park name match → one circle per cluster inside that park
  * - else cluster name match → circle that cluster
+ * - else tenant name match → circle matching suite gateways
  * - else → circle matching buildings
  */
 export function collectSearchHighlightTargets(
   buildings: Building[],
   search: string,
+  context: SearchHighlightContext = {},
 ): SearchHighlightTarget[] {
   const q = normalizeSearch(search)
   if (!q || buildings.length === 0) return []
+  // Count-style "tenants" search is text-only under the search field.
+  if (isTenantCountSearch(q)) return []
 
   const parks = [...new Set(buildings.map((b) => b.park).filter(Boolean))].sort()
   const matchedParks = parks.filter((park) => park.toLowerCase().includes(q))
@@ -115,6 +200,14 @@ export function collectSearchHighlightTargets(
     return collectClusterHighlightTargets(scoped)
   }
 
+  const suiteTargets = collectSuiteHighlightTargets(
+    buildings,
+    context.polygons ?? [],
+    context.suiteEntrances ?? [],
+    search,
+  )
+  if (suiteTargets.length > 0) return suiteTargets
+
   const targets: SearchHighlightTarget[] = []
   for (const building of buildings) {
     if (!buildingMatchesQuery(building, q)) continue
@@ -129,11 +222,11 @@ export function collectSearchHighlightTargets(
   return targets
 }
 
-/** Shared red ring style for every search highlight. */
+/** Shared red ring style for every search highlight (transparent fill — outline only). */
 export const SEARCH_HIGHLIGHT_STYLE = {
   strokeColor: '#ef4444',
   fillColor: '#ef4444',
-  fillOpacity: 0.12,
+  fillOpacity: 0,
   strokeWeight: 2.5,
-  strokeOpacity: 0.95,
+  strokeOpacity: 0.9,
 } as const

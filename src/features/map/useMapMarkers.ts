@@ -33,9 +33,10 @@ import {
   unregisterMarqueeTarget,
 } from '@/lib/mapMarqueeSelect'
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
-import { panToPreserveRotation } from '@/lib/mapRotation'
+import { applySavedMapView, panToPreserveRotation } from '@/lib/mapRotation'
 import { focusBuildingCamera } from '@/lib/buildingMapView'
 import { imageryModeIndexFromId } from '@/lib/imageryMode'
+import { usePortfolioMapViewStore } from '@/stores/portfolioMapViewStore'
 import {
   consumeSuppressBuildingMapFocus,
   hasPendingHardRefreshView,
@@ -747,8 +748,8 @@ export function useMapMarkers({
 
   const visibleAddressesRef = useRef('')
 
-  // Park / cluster / manager / operator filters only draw red circles — never
-  // auto-fit, zoom, or apply a saved portfolio camera.
+  // Green All Buildings button: show every pin, then restore the saved overview
+  // camera when one exists (otherwise fit all markers on screen).
   const showAllBuildingsView = useCallback(() => {
     if (!map) return
     const addressKey = mapBuildings
@@ -756,8 +757,28 @@ export function useMapMarkers({
       .sort()
       .join('\n')
     visibleAddressesRef.current = `|||${addressKey}`
-    showAllMarkers()
-  }, [map, mapBuildings, showAllMarkers])
+    for (const entry of buildingMarkersRef.current) {
+      setAppMarkerVisible(entry.marker, true)
+    }
+    const saved = usePortfolioMapViewStore.getState().view
+    if (saved) {
+      applySavedMapView(map, saved)
+      if (saved.imageryMode) {
+        const applied = applyMode(imageryModeIndexFromId(saved.imageryMode))
+        if (applied) onImageryModeChange?.(applied)
+      }
+    } else {
+      fitMapToBuildingMarkers(map, buildingMarkersRef.current)
+    }
+    refreshDetailVisibility()
+  }, [
+    map,
+    mapBuildings,
+    buildingMarkersRef,
+    applyMode,
+    onImageryModeChange,
+    refreshDetailVisibility,
+  ])
 
   useEffect(() => {
     if (

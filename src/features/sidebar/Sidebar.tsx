@@ -2,9 +2,15 @@ import { useLayoutEffect, useMemo } from 'react'
 import { SearchInput } from '@/components/SearchInput/SearchInput'
 import { Select } from '@/components/Select/Select'
 import { LAYER_COLORS } from '@/lib/constants'
-import { collectFilterOptions, reconcileFilterDropdowns, applyFilterSelection } from '@/lib/filters'
+import {
+  collectFilterOptions,
+  reconcileFilterDropdowns,
+  applyFilterSelection,
+  formatTenantCountLabel,
+  isTenantCountSearch,
+} from '@/lib/filters'
 import { resolveManagerDisplayName } from '@/lib/managerNames'
-import { buildPolygonBuildingIndex } from '@/lib/polygonBuildings'
+import { buildPolygonBuildingIndex, polygonsForBuilding } from '@/lib/polygonBuildings'
 import { useFilterStore } from '@/stores/filterStore'
 import { areAllLayersHidden, useLayerStore } from '@/stores/layerStore'
 import { useSelectionStore } from '@/stores/selectionStore'
@@ -36,10 +42,9 @@ export interface SidebarProps {
   listBuildings: Building[]
   filteredBuildings: Building[]
   portfolio: PortfolioData
-  onNotesChange: (portfolio: PortfolioData) => void
 }
 
-export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfolio, onNotesChange }: SidebarProps) {
+export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfolio }: SidebarProps) {
   const searchInput = useFilterStore((s) => s.searchInput)
   const search = useFilterStore((s) => s.search)
   const park = useFilterStore((s) => s.park)
@@ -83,6 +88,19 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
     () => buildPolygonBuildingIndex(allBuildings, portfolio.polygons),
     [allBuildings, portfolio.polygons],
   )
+
+  const listTenantTotal = useMemo(
+    () =>
+      listBuildings.reduce(
+        (sum, building) => sum + polygonsForBuilding(polygonIndex, building.address).length,
+        0,
+      ),
+    [listBuildings, polygonIndex],
+  )
+
+  const tenantCountInfo = formatTenantCountLabel(listTenantTotal)
+  // Count summary only for tenant-count queries — never for a single-building address search.
+  const showTenantCountInfo = Boolean(tenantCountInfo) && isTenantCountSearch(search)
 
   const options = useMemo(
     () => collectFilterOptions(allBuildings, filterContext, polygonIndex, managerRenames),
@@ -146,11 +164,15 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
             ◀
           </button>
           <div className="logo-row">
-            <div>
-              <div className="logo">QuadReal Property Group</div>
-              <div className="sidebar-title">Industrial Portfolio</div>
-            </div>
+            <img
+              className="logo-wordmark"
+              src="/brand/quadreal-logo-white.png"
+              alt="QuadReal"
+              width={160}
+              height={28}
+            />
           </div>
+          <div className="sidebar-title">Industrial Portfolio</div>
           <div className="sidebar-meta" id="portfolio-meta">
             {allBuildings.length} buildings · Ontario
           </div>
@@ -164,6 +186,11 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
             onApply={applySearch}
             onClear={clearSearch}
           />
+          {showTenantCountInfo ? (
+            <div className={styles.tenantCountInfo} id="tenant-count-info">
+              {tenantCountInfo}
+            </div>
+          ) : null}
           {recentSearches.length > 0 ? (
             <div className={styles.recentSearches}>
               <span className={styles.recentSearchesLabel}>Recent</span>
@@ -182,7 +209,11 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
               </div>
             </div>
           ) : null}
-          <SearchHitNav buildings={allBuildings} polygons={portfolio.polygons} />
+          <SearchHitNav
+            buildings={allBuildings}
+            polygons={portfolio.polygons}
+            suiteEntrances={portfolio.suiteEntrances}
+          />
           <Select
             id="park-filter"
             options={options.parks.map((p) => ({ value: p, label: p }))}
@@ -226,65 +257,68 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
         />
         <AdvancedFilters />
 
-        <div style={{ padding: '4px 14px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="result-count" id="result-count">
-            {listBuildings.length} buildings
-          </span>
-        </div>
-
-        <div className="layer-toggles" id="layer-toggles">
-          {LAYER_TOGGLE_KEYS.map((key) => (
+        <div className="layer-panel">
+          <div className="layer-panel-head">
+            <span className="layer-panel-label">Map layers</span>
+            <span className="result-count" id="result-count">
+              {listBuildings.length} {listBuildings.length === 1 ? 'building' : 'buildings'}
+            </span>
+          </div>
+          <div className="layer-toggles" id="layer-toggles">
+            {LAYER_TOGGLE_KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={`layer-btn${layers[key] ? ' active' : ''}`}
+                data-layer={key}
+                onClick={() => toggleLayer(key)}
+              >
+                <span className="dot" style={{ background: LAYER_COLORS[key].fill }} />
+                {LAYER_LABELS[key]}
+              </button>
+            ))}
+          </div>
+          <div className="layer-toggles" aria-label="Picture tools">
             <button
-              key={key}
               type="button"
-              className={`layer-btn${layers[key] ? ' active' : ''}`}
-              data-layer={key}
-              onClick={() => toggleLayer(key)}
+              className={`layer-btn${showRtuPictureCount ? ' active' : ''}`}
+              onClick={toggleShowRtuPictureCount}
+              onDoubleClick={(event) => {
+                event.preventDefault()
+                openPictureCountModal()
+              }}
+              title={
+                showRtuPictureCount
+                  ? 'Hide picture count on RTU markers (double-click for report)'
+                  : 'Show picture count on RTU markers (double-click for report)'
+              }
             >
-              <span className="dot" style={{ background: LAYER_COLORS[key].fill }} />
-              {LAYER_LABELS[key]}
+              <span className="dot" style={{ background: '#38bdf8' }} />
+              Pic count
             </button>
-          ))}
-          <button
-            type="button"
-            className={`layer-btn${showRtuPictureCount ? ' active' : ''}`}
-            onClick={toggleShowRtuPictureCount}
-            onDoubleClick={(event) => {
-              event.preventDefault()
-              openPictureCountModal()
-            }}
-            title={
-              showRtuPictureCount
-                ? 'Hide picture count on RTU markers (double-click for report)'
-                : 'Show picture count on RTU markers (double-click for report)'
-            }
-          >
-            <span className="dot" style={{ background: '#38bdf8' }} />
-            Pic count
-          </button>
-          <button
-            type="button"
-            className={`layer-btn${pictureCountModalOpen ? ' active' : ''}`}
-            onClick={openPictureCountModal}
-            title="Open picture count report"
-          >
-            <span className="dot" style={{ background: '#38bdf8' }} />
-            Pic report
-          </button>
-          <button
-            type="button"
-            className="layer-action-btn"
-            onClick={allLayersHidden ? showAllLayers : hideAllLayers}
-            title={allLayersHidden ? 'Turn on all map layers' : 'Turn off all map layers'}
-          >
-            {allLayersHidden ? 'Show All' : 'Hide All'}
-          </button>
+            <button
+              type="button"
+              className={`layer-btn${pictureCountModalOpen ? ' active' : ''}`}
+              onClick={openPictureCountModal}
+              title="Open picture count report"
+            >
+              <span className="dot" style={{ background: '#38bdf8' }} />
+              Pic report
+            </button>
+            <button
+              type="button"
+              className="layer-action-btn"
+              onClick={allLayersHidden ? showAllLayers : hideAllLayers}
+              title={allLayersHidden ? 'Turn on all map layers' : 'Turn off all map layers'}
+            >
+              {allLayersHidden ? 'Show all' : 'Hide all'}
+            </button>
+          </div>
         </div>
 
         <BuildingList
           buildings={listBuildings}
           portfolio={portfolio}
-          onNotesChange={onNotesChange}
           showPictureCounts={showRtuPictureCount}
           parkPictureTotals={pictureCountSummary?.parkPictureTotals}
           buildingPictureTotals={pictureCountSummary?.buildingPictureTotals}

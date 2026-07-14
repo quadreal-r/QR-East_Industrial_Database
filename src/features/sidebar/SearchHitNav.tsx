@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import { collectSearchHits, openSearchHit, type SearchHit } from '@/lib/searchHits'
 import { useFilterStore } from '@/stores/filterStore'
-import type { Building, Polygon } from '@/types/domain'
+import type { Building, Polygon, SuiteEntrance } from '@/types/domain'
 
 export interface SearchHitNavProps {
   buildings: Building[]
   polygons: Polygon[]
+  suiteEntrances?: SuiteEntrance[]
 }
 
 function SearchHitNavInner({ hits }: { hits: SearchHit[] }) {
@@ -56,12 +57,16 @@ function SearchHitNavInner({ hits }: { hits: SearchHit[] }) {
 }
 
 /** Prev/next navigation when search matches RTU markers, tenant polygons, or buildings. */
-export function SearchHitNav({ buildings, polygons }: SearchHitNavProps) {
+export function SearchHitNav({
+  buildings,
+  polygons,
+  suiteEntrances = [],
+}: SearchHitNavProps) {
   const search = useFilterStore((s) => s.search).trim()
 
   const hits = useMemo(
-    (): SearchHit[] => collectSearchHits(buildings, polygons, search),
-    [buildings, polygons, search],
+    (): SearchHit[] => collectSearchHits(buildings, polygons, search, suiteEntrances),
+    [buildings, polygons, suiteEntrances, search],
   )
 
   if (!hits.length) return null

@@ -14,6 +14,9 @@ function offerSavePositionAfterRotation(startHeading: number, endHeading: number
   const address = useSelectionStore.getState().currentBuilding?.address
   if (address) {
     useMapSavePositionStore.getState().requestBuildingPrompt(address)
+  } else {
+    // All Buildings overview (green button) — no building focused.
+    useMapSavePositionStore.getState().requestPortfolioPrompt()
   }
 }
 

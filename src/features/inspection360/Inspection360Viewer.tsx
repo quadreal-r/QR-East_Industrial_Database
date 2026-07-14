@@ -8,12 +8,14 @@ import {
   INSP360_GATE_PROJECT_STORED_MSG,
   INSP360_OPEN_GATE_PROJECT_MSG,
   INSP360_OPEN_GATE_HANDLE_MSG,
+  INSP360_OPEN_PROGRESS_MSG,
   INSP360_PREPARE_CLOSE_MSG,
   INSP360_PROJECT_OPEN_MSG,
   INSP360_READY_CLOSE_MSG,
   INSP360_REQUEST_CHANGE_TOUR_MSG,
   INSP360_REQUEST_HOST_FILE_PICK_MSG,
   INSP360_STALE_GATE_LINK_MSG,
+  type Insp360OpenProgressPayload,
   insp360ChangeTourConfirmMessage,
   insp360LinkGateConfirmMessage,
   insp360ProjectDisplayName,
@@ -85,6 +87,31 @@ async function waitForLinkedGateProject(
   return confirmGateProjectStored(gateKey, { maxWaitMs: timeoutMs, fallbackName })
 }
 
+type OpenProgressState = {
+  done: number
+  total: number
+  phase: string
+  fileName: string | null
+  fileSize: number | null
+  source: string | null
+}
+
+function formatTourFileSize(bytes: number | null | undefined): string | null {
+  const n = Number(bytes)
+  if (!Number.isFinite(n) || n <= 0) return null
+  if (n < 1024) return `${Math.round(n)} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`
+  return `${(n / (1024 * 1024)).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`
+}
+
+function tourFileSourceLabel(source: string | null | undefined): string | null {
+  const s = String(source || '').toLowerCase()
+  if (s === 'disk') return 'Remembered file on disk'
+  if (s === 'storage' || s === 'host') return 'Browser storage for this gateway'
+  if (s === 'picker') return 'Selected tour file'
+  return source ? String(source) : null
+}
+
 export function Inspection360Viewer({
   open,
   title,
@@ -125,6 +152,8 @@ export function Inspection360Viewer({
   const [restoring, setRestoring] = useState(false)
   const [changingTour, setChangingTour] = useState(false)
   const [awaitingLinkedOpen, setAwaitingLinkedOpen] = useState(() => Boolean(launchBoundName))
+  const [openProgress, setOpenProgress] = useState<OpenProgressState | null>(null)
+  const openProgressAtRef = useRef(0)
   /** When a linked tour exists, seed IndexedDB before mounting the iframe so Enter opens photos. */
   const [iframeAllowed, setIframeAllowed] = useState(() => !launchBoundName)
   const portfolio = usePortfolioStore((s) => s.portfolio)
@@ -139,10 +168,12 @@ export function Inspection360Viewer({
       projectOpenRef.current = false
       openRequestedRef.current = false
       pushInFlightRef.current = false
+      openProgressAtRef.current = 0
       setAwaitingLinkedOpen(false)
       setProjectOpen(false)
       setNeedsRestore(false)
       setRestoring(false)
+      setOpenProgress(null)
       setIframeAllowed(!launchBoundName)
       return
     }
@@ -153,12 +184,34 @@ export function Inspection360Viewer({
     let cancelled = false
     setAwaitingLinkedOpen(true)
     setIframeAllowed(false)
+    openProgressAtRef.current = Date.now()
+    setOpenProgress({
+      done: 0,
+      total: 5,
+      phase: 'Preparing linked tour…',
+      fileName: launchBoundName,
+      fileSize: null,
+      source: 'storage',
+    })
     void (async () => {
       const prepared = await prepareViewerGateProject(gateKey, launchBoundName)
       if (cancelled) return
       if (!prepared) {
         setNeedsRestore(true)
         setAwaitingLinkedOpen(false)
+        setOpenProgress(null)
+      } else {
+        const hosted = await loadHostGateProject(gateKey)
+        if (cancelled) return
+        openProgressAtRef.current = Date.now()
+        setOpenProgress({
+          done: 0,
+          total: 5,
+          phase: 'Handing tour to viewer…',
+          fileName: prepared.name || launchBoundName,
+          fileSize: hosted?.data?.byteLength ?? null,
+          source: 'storage',
+        })
       }
       setIframeAllowed(true)
     })()
@@ -178,6 +231,7 @@ export function Inspection360Viewer({
     if (projectOpen) {
       setNeedsRestore(false)
       setAwaitingLinkedOpen(false)
+      setOpenProgress(null)
       return
     }
     if (!(boundName || launchBoundName)) {
@@ -185,13 +239,27 @@ export function Inspection360Viewer({
       return
     }
     // Give auto-open a short chance, then offer reconnect (broken/moved file link).
-    const waitMs = awaitingLinkedOpen ? 12000 : 8000
-    const timer = window.setTimeout(() => {
-      setAwaitingLinkedOpen(false)
-      openRequestedRef.current = false
-      setNeedsRestore(true)
-    }, waitMs)
-    return () => window.clearTimeout(timer)
+    // While the viewer is reporting open progress, keep waiting — large tours take longer.
+    let cancelled = false
+    let timer = 0
+    const schedule = (ms: number) => {
+      timer = window.setTimeout(() => {
+        if (cancelled) return
+        const recentProgress = Date.now() - openProgressAtRef.current < 20000
+        if (recentProgress || openRequestedRef.current) {
+          schedule(4000)
+          return
+        }
+        setAwaitingLinkedOpen(false)
+        openRequestedRef.current = false
+        setNeedsRestore(true)
+      }, ms)
+    }
+    schedule(awaitingLinkedOpen ? 12000 : 8000)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [
     open,
@@ -301,32 +369,41 @@ export function Inspection360Viewer({
       setBoundName(prepared.name)
       setAwaitingLinkedOpen(true)
       setNeedsRestore(false)
-      frame.postMessage(
-        {
-          type: INSP360_OPEN_GATE_PROJECT_MSG,
-          gateKey,
-          name: prepared.name,
-        },
-        '*',
-      )
-      // Also try a direct buffer open for typical tour sizes — name-only reopen was
-      // notifying alreadyLinked:false and leaving the iframe on the restore dashboard.
+      openProgressAtRef.current = Date.now()
+      setOpenProgress((prev) => ({
+        done: prev?.done ?? 0,
+        total: Math.max(prev?.total ?? 5, 5),
+        phase: 'Opening linked tour…',
+        fileName: prepared.name,
+        fileSize: prev?.fileSize ?? null,
+        source: prev?.source || 'storage',
+      }))
+      // Send exactly one open message. Dual name+buffer opens raced and left blank library thumbs.
       void (async () => {
         const stored = await loadHostGateProject(gateKey)
-        if (!stored?.data?.byteLength) return
-        if (stored.data.byteLength > 48 * 1024 * 1024) {
-          return
-        }
+        const canBuffer =
+          !!stored?.data?.byteLength && stored.data.byteLength <= 48 * 1024 * 1024
         try {
-          frame.postMessage(
-            {
-              type: INSP360_OPEN_GATE_PROJECT_MSG,
-              gateKey,
-              name: stored.name,
-              buffer: stored.data.slice(0),
-            },
-            '*',
-          )
+          if (canBuffer && stored) {
+            frame.postMessage(
+              {
+                type: INSP360_OPEN_GATE_PROJECT_MSG,
+                gateKey,
+                name: stored.name || prepared.name,
+                buffer: stored.data.slice(0),
+              },
+              '*',
+            )
+          } else {
+            frame.postMessage(
+              {
+                type: INSP360_OPEN_GATE_PROJECT_MSG,
+                gateKey,
+                name: prepared.name,
+              },
+              '*',
+            )
+          }
         } catch {
           /* ignore */
         }
@@ -354,6 +431,15 @@ export function Inspection360Viewer({
       setRestoring(true)
       setLinkError(null)
       const name = String(file.name || boundName || launchBoundName || 'project.insp360').trim()
+      openProgressAtRef.current = Date.now()
+      setOpenProgress({
+        done: 0,
+        total: 5,
+        phase: 'Opening tour file…',
+        fileName: name,
+        fileSize: Number(file.size) || null,
+        source: fileHandle ? 'disk' : 'picker',
+      })
       try {
 
         if (fileHandle) {
@@ -401,6 +487,7 @@ export function Inspection360Viewer({
         if (!file.size) {
           setLinkError('That file was empty. Pick the .insp360 tour file and try again.')
           setNeedsRestore(true)
+          setOpenProgress(null)
           return
         }
         writeInsp360GateHook(gateKey, name, { hosted: true })
@@ -436,6 +523,7 @@ export function Inspection360Viewer({
         setLinkError('Could not open that file. Use Reconnect tour file… and pick it again.')
         setNeedsRestore(true)
         setAwaitingLinkedOpen(false)
+        setOpenProgress(null)
       } finally {
         setRestoring(false)
       }
@@ -525,9 +613,16 @@ export function Inspection360Viewer({
       setClosing(true)
       setClosingMode(linkGate ? 'linking' : 'closing')
       const frame = iframeRef.current?.contentWindow
-      const linkedName =
-        String(projectName || boundName || launchBoundName || 'project.insp360').trim() ||
-        'project.insp360'
+      // Link the tour that is open now — never fall back to a previous gate's boundName.
+      const openFile = String(projectName || '').trim()
+      const openDisplay = String(projectDisplayName || '').trim()
+      const linkedName = (() => {
+        if (openFile) return openFile
+        if (openDisplay) {
+          return /\.(insp360|zip)$/i.test(openDisplay) ? openDisplay : `${openDisplay}.insp360`
+        }
+        return 'project.insp360'
+      })()
       try {
         let mirrorOk = true
         if (frame) mirrorOk = await flushViewerClose(frame, linkGate)
@@ -571,7 +666,7 @@ export function Inspection360Viewer({
         onClose()
       }
     },
-    [boundName, gateKey, launchBoundName, onClose, projectName],
+    [gateKey, onClose, projectDisplayName, projectName],
   )
 
   const requestClose = useCallback(() => {
@@ -626,12 +721,31 @@ export function Inspection360Viewer({
         setAlreadyLinked(effectiveLinked)
         setAwaitingLinkedOpen(false)
         setRestoring(false)
+        setOpenProgress(null)
         if (effectiveLinked) {
           setBoundName(name)
           setNeedsRestore(false)
         } else {
           setBoundName(null)
         }
+        return
+      }
+      if (event.data?.type === INSP360_OPEN_PROGRESS_MSG && typeof event.data.gateKey === 'string') {
+        if (gateKey && event.data.gateKey !== gateKey) return
+        const payload = event.data as Insp360OpenProgressPayload
+        const done = Math.max(0, Number(payload.done) || 0)
+        const total = Math.max(1, Number(payload.total) || 1)
+        openProgressAtRef.current = Date.now()
+        setAwaitingLinkedOpen(true)
+        setNeedsRestore(false)
+        setOpenProgress({
+          done,
+          total,
+          phase: String(payload.phase || 'Opening…'),
+          fileName: String(payload.fileName || '').trim() || null,
+          fileSize: Number(payload.fileSize) > 0 ? Number(payload.fileSize) : null,
+          source: payload.source ? String(payload.source) : null,
+        })
         return
       }
       if (event.data?.type === INSP360_REQUEST_HOST_FILE_PICK_MSG) {
@@ -723,11 +837,11 @@ export function Inspection360Viewer({
         : changingTour
           ? 'Unlinking tour from this gateway…'
           : restoring
-            ? 'Opening tour file…'
+            ? openProgress?.phase || 'Opening tour file…'
             : needsRestore && (boundName || launchBoundName)
               ? `Reconnect “${insp360ProjectDisplayName(boundName || launchBoundName)}” — pick the .insp360 file`
               : awaitingLinkedOpen
-                ? 'Opening linked tour…'
+                ? openProgress?.phase || 'Opening linked tour…'
                 : boundName
                   ? `Linked: ${insp360ProjectDisplayName(boundName)} · Gear → Change tour…`
                   : projectOpen
@@ -742,6 +856,105 @@ export function Inspection360Viewer({
     !closing &&
     !restoring &&
     !changingTour
+
+  const progressPct = openProgress
+    ? Math.min(100, Math.round((openProgress.done / Math.max(1, openProgress.total)) * 100))
+    : 0
+  const progressFileLabel =
+    insp360ProjectDisplayName(openProgress?.fileName || boundName || launchBoundName || projectName) ||
+    openProgress?.fileName ||
+    null
+  const progressSizeLabel = formatTourFileSize(openProgress?.fileSize)
+  const progressSourceLabel = tourFileSourceLabel(openProgress?.source)
+  const progressLocationLine = [buildingAddress?.trim(), (suiteName || title || '').trim()]
+    .filter(Boolean)
+    .join(' · ')
+
+  const renderOpeningPanel = (opts?: { reconnectActions?: boolean; preparingOnly?: boolean }) => (
+    <div className={styles.openingPanel} role="status" aria-live="polite">
+      <div className={styles.openingPanelCard}>
+        <h2 className={styles.openingPanelTitle}>
+          {opts?.preparingOnly
+            ? needsRestore
+              ? 'Reconnect linked tour'
+              : 'Preparing linked tour…'
+            : restoring
+              ? 'Opening tour file…'
+              : 'Opening linked tour…'}
+        </h2>
+        {progressLocationLine ? (
+          <p className={styles.openingPanelLocation}>{progressLocationLine}</p>
+        ) : null}
+        <div className={styles.openingPanelMeta}>
+          {progressFileLabel ? (
+            <div className={styles.openingPanelMetaRow}>
+              <span className={styles.openingPanelMetaLabel}>File</span>
+              <span
+                className={styles.openingPanelMetaValue}
+                title={openProgress?.fileName || progressFileLabel}
+              >
+                {openProgress?.fileName || progressFileLabel}
+              </span>
+            </div>
+          ) : null}
+          {progressSizeLabel ? (
+            <div className={styles.openingPanelMetaRow}>
+              <span className={styles.openingPanelMetaLabel}>Size</span>
+              <span className={styles.openingPanelMetaValue}>{progressSizeLabel}</span>
+            </div>
+          ) : null}
+          {progressSourceLabel ? (
+            <div className={styles.openingPanelMetaRow}>
+              <span className={styles.openingPanelMetaLabel}>Source</span>
+              <span className={styles.openingPanelMetaValue}>{progressSourceLabel}</span>
+            </div>
+          ) : null}
+        </div>
+        {openProgress || !needsRestore ? (
+          <div
+            className={styles.openingProgressTrack}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPct}
+            aria-label={openProgress?.phase || 'Opening tour'}
+          >
+            <div className={styles.openingProgressFill} style={{ width: `${progressPct}%` }} />
+          </div>
+        ) : null}
+        <p className={styles.openingPanelMessage}>
+          {openProgress?.phase ||
+            (opts?.preparingOnly
+              ? needsRestore
+                ? 'Choose the .insp360 file from its current location.'
+                : 'Getting your saved tour ready…'
+              : restoring
+                ? 'Loading the file you chose…'
+                : 'If this stalls, reconnect the .insp360 from its folder.')}
+          {openProgress ? ` · ${progressPct}%` : ''}
+        </p>
+        {opts?.reconnectActions !== false && !restoring ? (
+          <div className={styles.openingPanelActions}>
+            <button
+              type="button"
+              className={styles.restorePanelBtn}
+              onClick={() => {
+                setNeedsRestore(true)
+                setAwaitingLinkedOpen(false)
+                setOpenProgress(null)
+                openRestoreFilePicker()
+              }}
+            >
+              Reconnect tour file…
+            </button>
+            <label htmlFor="insp360-gate-restore-file" className={styles.restoreBtn}>
+              Or browse with classic file picker
+            </label>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
 
   return (
     <div className={styles.inspection360Overlay} role="dialog" aria-label="QR-360 degree tour viewer">
@@ -798,36 +1011,7 @@ export function Inspection360Viewer({
             onLoad={onFrameLoad}
           />
           {(awaitingLinkedOpen || restoring) && !projectOpen && !closing && !needsRestore ? (
-            <div className={styles.openingPanel} role="status" aria-live="polite">
-              <div className={styles.openingPanelCard}>
-                <h2 className={styles.openingPanelTitle}>
-                  {restoring ? 'Opening tour file…' : 'Opening linked tour…'}
-                </h2>
-                <p className={styles.openingPanelMessage}>
-                  {restoring
-                    ? 'Loading the file you chose…'
-                    : 'If this stalls, reconnect the .insp360 from its folder.'}
-                </p>
-                {!restoring ? (
-                  <div className={styles.openingPanelActions}>
-                    <button
-                      type="button"
-                      className={styles.restorePanelBtn}
-                      onClick={() => {
-                        setNeedsRestore(true)
-                        setAwaitingLinkedOpen(false)
-                        openRestoreFilePicker()
-                      }}
-                    >
-                      Reconnect tour file…
-                    </button>
-                    <label htmlFor="insp360-gate-restore-file" className={styles.restoreBtn}>
-                      Or browse with classic file picker
-                    </label>
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            renderOpeningPanel({ reconnectActions: !restoring })
           ) : null}
           {needsRestore && !closing && !projectOpen && !restoring ? (
             <div className={styles.restorePanel} role="dialog" aria-label="Reconnect linked tour">
@@ -859,34 +1043,7 @@ export function Inspection360Viewer({
         </div>
       ) : open && (awaitingLinkedOpen || Boolean(launchBoundName) || needsRestore) && !closing ? (
         <div className={styles.frameWrap}>
-          <div className={styles.openingPanel} role="status" aria-live="polite">
-            <div className={styles.openingPanelCard}>
-              <h2 className={styles.openingPanelTitle}>
-                {needsRestore ? 'Reconnect linked tour' : 'Preparing linked tour…'}
-              </h2>
-              <p className={styles.openingPanelMessage}>
-                {needsRestore
-                  ? 'Choose the .insp360 file from its current location.'
-                  : 'Getting your saved tour ready…'}
-              </p>
-              <div className={styles.openingPanelActions}>
-                <button
-                  type="button"
-                  className={styles.restorePanelBtn}
-                  onClick={() => {
-                    setNeedsRestore(true)
-                    setAwaitingLinkedOpen(false)
-                    openRestoreFilePicker()
-                  }}
-                >
-                  Reconnect tour file…
-                </button>
-                <label htmlFor="insp360-gate-restore-file" className={styles.restoreBtn}>
-                  Or browse with classic file picker
-                </label>
-              </div>
-            </div>
-          </div>
+          {renderOpeningPanel({ preparingOnly: true, reconnectActions: true })}
         </div>
       ) : null}
 
@@ -898,7 +1055,7 @@ export function Inspection360Viewer({
             </h2>
             <p className={styles.linkPromptMessage}>
               {insp360LinkGateConfirmMessage(projectDisplayName || projectName, {
-                fileName: projectName,
+                fileName: projectName || projectDisplayName,
               })}
             </p>
             {linkError ? <p className={styles.linkPromptError}>{linkError}</p> : null}

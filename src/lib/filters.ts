@@ -21,6 +21,31 @@ function normalizeSearch(search: string): string {
   return search.trim().toLowerCase()
 }
 
+/** Same wording as the building-list badge (e.g. "33 Tenants"). */
+export function formatTenantCountLabel(count: number): string {
+  if (count <= 0) return ''
+  return `${count} ${count === 1 ? 'Tenant' : 'Tenants'}`
+}
+
+/** Match search against the tenant-count badge text (e.g. "tenants", "33 Tenants"). */
+export function matchesTenantCountLabel(count: number, search: string): boolean {
+  const q = normalizeSearch(search)
+  if (!q || count <= 0) return false
+  const label = formatTenantCountLabel(count).toLowerCase()
+  if (label.includes(q)) return true
+  const exact = q.match(/^(\d+)\s*tenants?$/)
+  if (exact) return count === Number(exact[1])
+  return false
+}
+
+/** True for count-style queries like "tenants" or "13 Tenants" (not tenant company names). */
+export function isTenantCountSearch(search: string): boolean {
+  const q = normalizeSearch(search)
+  if (!q) return false
+  if (q === 'tenant' || q === 'tenants') return true
+  return /^\d+\s*tenants?$/.test(q)
+}
+
 function matchesManagerFilter(
   building: Building,
   managerFilter: string,
@@ -46,11 +71,12 @@ function matchesManagerFilter(
   return false
 }
 
-/** Building-level search (address, BU, cluster, manager) — not RTU/tenant detail fields. */
+/** Building-level search (address, BU, cluster, manager, tenant count) — not RTU/tenant name fields. */
 export function matchesBuildingMetadata(
   building: Building,
   search: string,
   managerRenames?: Record<string, string>,
+  polygonIndex?: PolygonBuildingIndex,
 ): boolean {
   const q = normalizeSearch(search)
   if (!q) return true
@@ -62,6 +88,7 @@ export function matchesBuildingMetadata(
   if (resolveManagerDisplayName(building.manager ?? '', managerRenames).toLowerCase().includes(q)) {
     return true
   }
+  if (matchesTenantCountLabel(buildingPolygons(polygonIndex, building).length, q)) return true
   return false
 }
 
@@ -92,6 +119,7 @@ export function matchesSearch(
   }
 
   const tenantPolygons = buildingPolygons(polygonIndex, building)
+  if (matchesTenantCountLabel(tenantPolygons.length, q)) return true
   if (
     tenantPolygons.some(
       (polygon) =>
@@ -290,7 +318,7 @@ export function applyPrimaryFilters(
   const reconciled = reconcileFilterDropdowns(buildings, filters, polygonIndex, managerRenames)
   const search = normalizeSearch(reconciled.search)
 
-  return buildings.filter((building) => {
+  const filtered = buildings.filter((building) => {
     if (!matchesSearch(building, search, polygonIndex, managerRenames)) return false
     if (reconciled.park && building.park !== reconciled.park) return false
     if (reconciled.cluster && building.cluster !== reconciled.cluster) return false
@@ -301,6 +329,16 @@ export function applyPrimaryFilters(
     if (!passAdvFilter(building, reconciled.adv, polygonIndex)) return false
     return true
   })
+
+  // Tenant-count searches (e.g. "tenants", "33 Tenants"): highest counts first.
+  if (search && isTenantCountSearch(search)) {
+    return [...filtered].sort(
+      (a, b) =>
+        buildingPolygons(polygonIndex, b).length - buildingPolygons(polygonIndex, a).length,
+    )
+  }
+
+  return filtered
 }
 
 /** Full filter pipeline including data-quality chips. */
@@ -329,7 +367,7 @@ export function applyCostScopeFilters(
   const search = normalizeSearch(filters.search)
   if (!search) return filtered
   const metadataHits = filtered.filter((building) =>
-    matchesBuildingMetadata(building, search, managerRenames),
+    matchesBuildingMetadata(building, search, managerRenames, polygonIndex),
   )
   return metadataHits.length > 0 ? metadataHits : filtered
 }

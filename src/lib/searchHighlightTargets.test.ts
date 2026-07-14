@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import legacyBuildings from '../../supabase/data/buildings.json'
+import legacyPolygons from '../../supabase/data/polygons.json'
 import {
   collectClusterHighlightTargets,
   collectSearchHighlightTargets,
+  collectSuiteHighlightTargets,
   metersForScreenRadius,
   metersPerScreenPixel,
 } from '@/lib/searchHighlightTargets'
-import type { Building } from '@/types/domain'
+import {
+  normalizeLegacyBuilding,
+  normalizeLegacyPolygon,
+  type Building,
+  type LegacyBuildingJson,
+  type LegacyPolygonJson,
+} from '@/types/domain'
 
 function building(partial: Partial<Building> & Pick<Building, 'address'>): Building {
   return {
@@ -112,5 +121,43 @@ describe('collectSearchHighlightTargets', () => {
         expect.objectContaining({ kind: 'building', label: '1535 Meyerside Drive' }),
       ]),
     )
+  })
+
+  it('circles the suite gateway for a tenant name like Baxter', () => {
+    const portfolioBuildings = (legacyBuildings as LegacyBuildingJson[]).map(
+      normalizeLegacyBuilding,
+    )
+    const portfolioPolygons = (legacyPolygons as LegacyPolygonJson[]).map(
+      normalizeLegacyPolygon,
+    )
+    const targets = collectSearchHighlightTargets(portfolioBuildings, 'Baxter', {
+      polygons: portfolioPolygons,
+      suiteEntrances: [],
+    })
+    expect(targets.length).toBeGreaterThan(0)
+    expect(targets.every((t) => t.kind === 'suite')).toBe(true)
+    expect(targets.some((t) => /#\s*3/i.test(t.label) && /Baxter/i.test(t.label))).toBe(
+      true,
+    )
+  })
+})
+
+describe('collectSuiteHighlightTargets', () => {
+  it('places the circle on the suite entrance coordinates', () => {
+    const portfolioBuildings = (legacyBuildings as LegacyBuildingJson[]).map(
+      normalizeLegacyBuilding,
+    )
+    const portfolioPolygons = (legacyPolygons as LegacyPolygonJson[]).map(
+      normalizeLegacyPolygon,
+    )
+    const targets = collectSuiteHighlightTargets(
+      portfolioBuildings,
+      portfolioPolygons,
+      [],
+      'Baxter',
+    )
+    expect(targets.length).toBeGreaterThan(0)
+    expect(Number.isFinite(targets[0]!.lat)).toBe(true)
+    expect(Number.isFinite(targets[0]!.lng)).toBe(true)
   })
 })

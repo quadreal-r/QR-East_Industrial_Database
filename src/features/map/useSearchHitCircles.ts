@@ -1,59 +1,90 @@
 import { useEffect, useRef } from 'react'
 import {
+  createAppMarker,
+  setAppMarkerMap,
+  type AppMapMarker,
+} from '@/lib/appMapMarker'
+import {
   collectClusterHighlightTargets,
   collectSearchHighlightTargets,
-  metersForScreenRadius,
   SEARCH_HIGHLIGHT_RADIUS_PX,
   SEARCH_HIGHLIGHT_STYLE,
+  type SearchHighlightKind,
   type SearchHighlightTarget,
 } from '@/lib/searchHighlightTargets'
 import { useFilterStore } from '@/stores/filterStore'
-import type { Building } from '@/types/domain'
+import type { Building, Polygon, SuiteEntrance } from '@/types/domain'
 
 export const MAP_DISMISS_SEARCH_HIGHLIGHTS_EVENT = 'map:dismissSearchHighlights'
+
+/** Above building labels (10), detail pins (20), and pending picture markers (2000). */
+const SEARCH_HIT_CIRCLE_Z_INDEX = 50_000
 
 export function dismissSearchHitCircles(): void {
   window.dispatchEvent(new CustomEvent(MAP_DISMISS_SEARCH_HIGHLIGHTS_EVENT))
 }
 
 interface HighlightCircle {
-  circle: google.maps.Circle
+  marker: AppMapMarker
   target: SearchHighlightTarget
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const raw = hex.replace('#', '')
+  const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw
+  const r = Number.parseInt(full.slice(0, 2), 16)
+  const g = Number.parseInt(full.slice(2, 4), 16)
+  const b = Number.parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+/** DOM ring so it stacks with Advanced Marker address labels (map Circle sits under them). */
+function buildSearchHitCircleContent(kind: SearchHighlightKind): HTMLElement {
+  const radiusPx = SEARCH_HIGHLIGHT_RADIUS_PX[kind]
+  const size = radiusPx * 2
+  const root = document.createElement('div')
+  root.className = 'search-hit-circle'
+  root.style.width = `${size}px`
+  root.style.height = `${size}px`
+  root.style.borderRadius = '50%'
+  root.style.boxSizing = 'border-box'
+  root.style.border = `${SEARCH_HIGHLIGHT_STYLE.strokeWeight}px solid ${hexToRgba(
+    SEARCH_HIGHLIGHT_STYLE.strokeColor,
+    SEARCH_HIGHLIGHT_STYLE.strokeOpacity,
+  )}`
+  // Transparent fill — outline only — so markers underneath stay visible and clickable.
+  root.style.backgroundColor = 'transparent'
+  root.style.pointerEvents = 'none'
+  root.setAttribute('aria-hidden', 'true')
+  return root
 }
 
 function clearCircles(entries: HighlightCircle[]): void {
   for (const entry of entries) {
-    entry.circle.setMap(null)
+    setAppMarkerMap(entry.marker, null)
   }
-}
-
-function syncCircleRadius(map: google.maps.Map, entry: HighlightCircle): void {
-  const zoom = map.getZoom()
-  if (zoom == null) return
-  const radiusPx = SEARCH_HIGHLIGHT_RADIUS_PX[entry.target.kind]
-  entry.circle.setRadius(metersForScreenRadius(entry.target.lat, zoom, radiusPx))
 }
 
 function drawCircles(
   map: google.maps.Map,
   targets: SearchHighlightTarget[],
 ): HighlightCircle[] {
-  const zoom = map.getZoom() ?? 12
   return targets.map((target) => {
-    const radiusPx = SEARCH_HIGHLIGHT_RADIUS_PX[target.kind]
-    const circle = new google.maps.Circle({
+    const marker = createAppMarker({
       map,
-      center: { lat: target.lat, lng: target.lng },
-      radius: metersForScreenRadius(target.lat, zoom, radiusPx),
+      position: { lat: target.lat, lng: target.lng },
+      zIndex: SEARCH_HIT_CIRCLE_Z_INDEX,
       clickable: false,
-      strokeColor: SEARCH_HIGHLIGHT_STYLE.strokeColor,
-      strokeOpacity: SEARCH_HIGHLIGHT_STYLE.strokeOpacity,
-      strokeWeight: SEARCH_HIGHLIGHT_STYLE.strokeWeight,
-      fillColor: SEARCH_HIGHLIGHT_STYLE.fillColor,
-      fillOpacity: SEARCH_HIGHLIGHT_STYLE.fillOpacity,
-      zIndex: target.kind === 'building' ? 3 : 2,
+      content: buildSearchHitCircleContent(target.kind),
+      anchorLeft: '-50%',
+      anchorTop: '-50%',
+      collisionBehavior: google.maps.CollisionBehavior.REQUIRED,
     })
-    return { circle, target }
+    // Host element must also ignore hits — content pointer-events alone is not enough.
+    marker.style.pointerEvents = 'none'
+    marker.setAttribute('data-search-hit-circle', '1')
+    marker.gmpClickable = false
+    return { marker, target }
   })
 }
 
@@ -76,12 +107,15 @@ function highlightKey(parts: {
 /**
  * Draw temporary red circles for search hits or park/cluster/manager/operator
  * filters — never pan, zoom, or rotate. Circle screen size stays constant
- * across zoom. Dismiss on map click-away.
+ * across zoom. Drawn as Advanced Markers so rings sit above address text.
+ * Dismiss on map click-away.
  */
 export function useSearchHitCircles(
   map: google.maps.Map | null,
   allBuildings: Building[],
   filteredBuildings: Building[],
+  polygons: Polygon[] = [],
+  suiteEntrances: SuiteEntrance[] = [],
 ): void {
   const search = useFilterStore((s) => s.search)
   const park = useFilterStore((s) => s.park)
@@ -109,7 +143,10 @@ export function useSearchHitCircles(
 
     let targets: SearchHighlightTarget[] = []
     if (q) {
-      targets = collectSearchHighlightTargets(allBuildings, search)
+      targets = collectSearchHighlightTargets(allBuildings, search, {
+        polygons,
+        suiteEntrances,
+      })
     } else if (hasFilter) {
       targets = collectClusterHighlightTargets(filteredBuildings)
     }
@@ -118,19 +155,22 @@ export function useSearchHitCircles(
 
     circlesRef.current = drawCircles(map, targets)
 
-    const syncAll = () => {
-      for (const entry of circlesRef.current) {
-        syncCircleRadius(map, entry)
-      }
-    }
-    const zoomListener = map.addListener('zoom_changed', syncAll)
-
     return () => {
-      google.maps.event.removeListener(zoomListener)
       clearCircles(circlesRef.current)
       circlesRef.current = []
     }
-  }, [map, allBuildings, filteredBuildings, search, park, cluster, manager, buildingOperator])
+  }, [
+    map,
+    allBuildings,
+    filteredBuildings,
+    polygons,
+    suiteEntrances,
+    search,
+    park,
+    cluster,
+    manager,
+    buildingOperator,
+  ])
 
   useEffect(() => {
     const dismiss = () => {

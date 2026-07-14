@@ -170,6 +170,16 @@ function findEntranceIndexForPolygon(
   )
 }
 
+/** Resolve the 360° gateway marker for a tenant polygon (suite entrance). */
+export function suiteEntranceForPolygon(
+  entrances: SuiteEntrance[],
+  polygon: Polygon,
+  building: Building,
+): SuiteEntrance | undefined {
+  const index = findEntranceIndexForPolygon(entrances, polygon, building, new Set())
+  return index >= 0 ? entrances[index] : undefined
+}
+
 /** Default gate position: front facade edge midpoint (refined manually at the suite door). */
 export function defaultEntrancePosition(
   polygon: Polygon,

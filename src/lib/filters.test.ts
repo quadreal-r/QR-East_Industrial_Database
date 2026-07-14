@@ -4,7 +4,9 @@ import {
   applyCostScopeFilters,
   applyFilterSelection,
   applyFilters,
+  applyPrimaryFilters,
   collectFilterOptions,
+  isTenantCountSearch,
   matchesBuildingMetadata,
   matchesSearch,
   passAdvFilter,
@@ -50,6 +52,42 @@ describe('matchesSearch', () => {
     )
     expect(hit).toBeDefined()
     expect(matchesSearch(hit!, 'national energy', polygonIndex)).toBe(true)
+  })
+
+  it('matches the tenant-count badge text like "33 Tenants"', () => {
+    const withTenants = buildings
+      .map((b) => ({ b, n: polygonsForBuilding(polygonIndex, b.address).length }))
+      .filter((row) => row.n > 0)
+      .sort((a, b) => b.n - a.n)[0]
+    expect(withTenants).toBeDefined()
+    expect(matchesSearch(withTenants!.b, 'tenants', polygonIndex)).toBe(true)
+    expect(matchesSearch(withTenants!.b, `${withTenants!.n} Tenants`, polygonIndex)).toBe(true)
+    expect(matchesSearch(withTenants!.b, `${withTenants!.n} tenants`, polygonIndex)).toBe(true)
+  })
+})
+
+describe('applyPrimaryFilters tenant count search', () => {
+  it('sorts tenant searches by tenant count descending', () => {
+    const filtered = applyPrimaryFilters(
+      buildings,
+      { ...DEFAULT_FILTER_STATE, search: 'tenants' },
+      polygonIndex,
+    )
+    expect(filtered.length).toBeGreaterThan(1)
+    const counts = filtered.map((b) => polygonsForBuilding(polygonIndex, b.address).length)
+    expect(counts.every((n) => n > 0)).toBe(true)
+    for (let i = 1; i < counts.length; i++) {
+      expect(counts[i]!).toBeLessThanOrEqual(counts[i - 1]!)
+    }
+  })
+})
+
+describe('isTenantCountSearch', () => {
+  it('detects count queries but not tenant company names', () => {
+    expect(isTenantCountSearch('tenants')).toBe(true)
+    expect(isTenantCountSearch('13 Tenants')).toBe(true)
+    expect(isTenantCountSearch('Baxter')).toBe(false)
+    expect(isTenantCountSearch('6975 Creditview')).toBe(false)
   })
 })
 

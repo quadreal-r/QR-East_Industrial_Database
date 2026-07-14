@@ -40,6 +40,17 @@
   color: var(--text-muted, #90b8e0);
 }
 
+.tenantCountInfo {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+  color: var(--text-secondary, #b7c9ff);
+  letter-spacing: 0.01em;
+  padding: 1px 2px 0;
+  user-select: text;
+  pointer-events: none;
+}
+
 .recentSearches {
   display: flex;
   flex-direction: column;

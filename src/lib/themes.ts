@@ -6,23 +6,24 @@ export interface ThemeDefinition {
 
 export const APP_THEMES: ThemeDefinition[] = [
   {
-    name: 'Blueprint (default)',
+    // QuadReal Visual Brand Guidelines V2.4 (Nov 2025)
+    name: 'QuadReal Brand (default)',
     vars: {
-      '--bg': '#194a8d',
-      '--surface': '#1f5aa8',
-      '--surface2': '#143d78',
-      '--border': '#2e6ec0',
-      '--accent': '#7db8ff',
+      '--bg': '#132049',
+      '--surface': '#173073',
+      '--surface2': '#0f1a3a',
+      '--border': '#2947A3',
+      '--accent': '#4974FF',
       '--text-primary': '#ffffff',
-      '--text-secondary': '#c8dff8',
-      '--text-muted': '#90b8e0',
-      '--selected-bg': '#2560a8',
-      '--selected-border': '#7db8ff',
-      '--hover-bg': '#205298',
-      '--sqft-color': '#7fffcf',
-      '--group-color': '#c8dff8',
+      '--text-secondary': '#B7C9FF',
+      '--text-muted': '#83A6FF',
+      '--selected-bg': '#2947A3',
+      '--selected-border': '#4974FF',
+      '--hover-bg': '#1e3568',
+      '--sqft-color': '#00B6D3',
+      '--group-color': '#B7C9FF',
     },
-    palette: ['#6A89A7', '#88BDF2', '#BDDDFC', '#384959'],
+    palette: ['#132049', '#173073', '#4974FF', '#B7C9FF'],
   },
   {
     name: 'Olive Grove',

@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.13.0] - 2026-07-14
+
+### Added
+
+- Save and restore an All Buildings map camera (center, zoom, rotation) after rotating with the green overview button
+- Circle tenant suites on the map when search matches a tenant name
+- QuadReal brand favicon and logo assets
+
+### Changed
+
+- Restyle sidebar stats, Advanced filters, and map layer toggles for clearer hierarchy
+- Simplify building list cards (Tenants label; drop manager, vacant, 20yr, and Notes)
+- Sync embedded QR-360° viewer to v1.1.21
+- Make search-hit circles outline-only so map clicks pass through to markers underneath
+
+### Fixed
+
+- Fix left-library thumbnail #2 staying blank when opening large Electrical Room tours
+
 ## [1.12.1] - 2026-07-13
 
 ### Changed

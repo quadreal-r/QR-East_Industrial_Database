@@ -30,6 +30,7 @@ import { showToastError, showToastSuccess } from '@/lib/toast'
 import { errorMessage } from '@/lib/errorMessage'
 import { confirm } from '@/stores/confirmStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { usePortfolioMapViewStore } from '@/stores/portfolioMapViewStore'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
@@ -80,6 +81,7 @@ export function AppShell() {
   )
 
   const loadSettings = useSettingsStore((s) => s.loadSettings)
+  const loadPortfolioMapView = usePortfolioMapViewStore((s) => s.load)
   const loadRtuPricing = useRtuPricingStore((s) => s.load)
   const loadRtuSchedule = useRtuScheduleStore((s) => s.load)
   const settingsOpen = useUiStore((s) => s.settingsOpen)
@@ -100,9 +102,10 @@ export function AppShell() {
 
   useEffect(() => {
     void loadSettings()
+    void loadPortfolioMapView()
     void loadRtuPricing()
     void loadRtuSchedule()
-  }, [loadSettings, loadRtuPricing, loadRtuSchedule])
+  }, [loadSettings, loadPortfolioMapView, loadRtuPricing, loadRtuSchedule])
 
   // Signed-out users must not stay in edit/add/draw modes.
   useEffect(() => {
@@ -243,7 +246,6 @@ export function AppShell() {
         listBuildings={listBuildings}
         filteredBuildings={filteredBuildings}
         portfolio={portfolio}
-        onNotesChange={stagePortfolioChange}
       />
       <div className={styles.mainColumn}>
         <MapPanel

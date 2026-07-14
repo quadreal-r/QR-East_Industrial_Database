@@ -1,9 +1,13 @@
 import { supabase } from '@/lib/supabaseClient'
+import type { SavedMapView } from '@/lib/buildingMapView'
+import { parsePortfolioMapView } from '@/lib/portfolioMapView'
 
 export interface PortfolioSettings {
   themeIndex: number
   managerRenames: Record<string, string>
 }
+
+const PORTFOLIO_MAP_VIEW_KEY = 'portfolio_map_view'
 
 export async function fetchSettings(): Promise<PortfolioSettings> {
   const { data, error } = await supabase.from('app_settings').select('key, value')
@@ -59,4 +63,39 @@ export async function saveSettings(settings: PortfolioSettings): Promise<void> {
     saveThemeIndex(settings.themeIndex),
     saveManagerRenames(settings.managerRenames),
   ])
+}
+
+/** Load the saved All Buildings overview camera from app_settings. */
+export async function fetchPortfolioMapView(): Promise<SavedMapView | null> {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', PORTFOLIO_MAP_VIEW_KEY)
+    .maybeSingle()
+  if (error) throw error
+  return parsePortfolioMapView(data?.value)
+}
+
+/** Save or clear the All Buildings overview camera. */
+export async function savePortfolioMapView(view: SavedMapView | null): Promise<void> {
+  if (view == null) {
+    const { error } = await supabase.from('app_settings').delete().eq('key', PORTFOLIO_MAP_VIEW_KEY)
+    if (error) throw error
+    return
+  }
+  const { error } = await supabase.from('app_settings').upsert(
+    {
+      key: PORTFOLIO_MAP_VIEW_KEY,
+      value: {
+        lat: view.lat,
+        lng: view.lng,
+        zoom: view.zoom,
+        heading: view.heading,
+        tilt: view.tilt,
+        imageryMode: view.imageryMode,
+      },
+    },
+    { onConflict: 'key' },
+  )
+  if (error) throw error
 }

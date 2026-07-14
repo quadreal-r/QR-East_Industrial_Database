@@ -37,7 +37,8 @@ export function AdvancedFilters() {
         className={advPanelOpen ? 'open' : ''}
         onClick={toggleAdvPanel}
       >
-        <span className="afg-arrow">▶</span>&nbsp;ADVANCED FILTERS
+        <span className="afg-arrow">▶</span>
+        Advanced filters
       </button>
       <div id="adv-filter-panel" className={advPanelOpen ? 'open' : ''}>
         {ROWS.map(({ key, label }) => (

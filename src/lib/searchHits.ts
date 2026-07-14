@@ -1,6 +1,17 @@
 import { MAP_DETAIL_ZOOM } from '@/lib/constants'
+import { isTenantCountSearch } from '@/lib/filters'
 import { isLegacySuiteMarkerName } from '@/lib/legacySuiteMarkers'
-import type { Building, Polygon } from '@/types/domain'
+import {
+  buildingForPolygon,
+  buildPolygonBuildingIndex,
+  polygonsForBuilding,
+} from '@/lib/polygonBuildings'
+import {
+  defaultEntrancePosition,
+  ensureSuiteEntrances,
+  suiteEntranceForPolygon,
+} from '@/lib/suiteEntrances'
+import type { Building, Polygon, SuiteEntrance } from '@/types/domain'
 
 export type SearchHitKind = 'rtu' | 'polygon' | 'building'
 
@@ -36,15 +47,49 @@ function polygonCentroid(polygon: Polygon): { lat: number; lng: number } {
   return { lat: lats / polygon.paths.length, lng: lngs / polygon.paths.length }
 }
 
+function suiteGatePosition(
+  buildings: Building[],
+  entrances: SuiteEntrance[],
+  polygon: Polygon,
+  buildingPolygons: Polygon[],
+): { lat: number; lng: number } {
+  const building = buildingForPolygon(buildings, polygon)
+  if (!building) return polygonCentroid(polygon)
+  const entrance =
+    building.id != null
+      ? suiteEntranceForPolygon(entrances, polygon, building)
+      : entrances.find(
+          (item) =>
+            item.polygon_id != null &&
+            polygon.id != null &&
+            item.polygon_id === polygon.id,
+        )
+  if (
+    entrance &&
+    Number.isFinite(entrance.lat) &&
+    Number.isFinite(entrance.lng)
+  ) {
+    return { lat: entrance.lat, lng: entrance.lng }
+  }
+  return defaultEntrancePosition(polygon, {
+    building,
+    buildingPolygons,
+  })
+}
+
 /** Collect map popup targets for a search term (RTU markers, tenant polygons, buildings). */
 export function collectSearchHits(
   buildings: Building[],
   polygons: Polygon[],
   search: string,
+  suiteEntrances: SuiteEntrance[] = [],
 ): SearchHit[] {
   const q = normalizeSearch(search)
   if (!q) return []
+  // Tenant-count queries are summarized as plain text under search — not map hits.
+  if (isTenantCountSearch(q)) return []
 
+  const polygonIndex = buildPolygonBuildingIndex(buildings, polygons)
   const anyBuildingMeta = buildings.some((b) => buildingMetadataMatches(b, q))
   const hits: SearchHit[] = []
 
@@ -69,12 +114,22 @@ export function collectSearchHits(
       }
     }
 
+    const resolvedEntrances = ensureSuiteEntrances(buildings, polygons, suiteEntrances)
     for (const polygon of polygons) {
       if (
         polygon.name.toLowerCase().includes(q) ||
         (polygon.description ?? '').toLowerCase().includes(q)
       ) {
-        const { lat, lng } = polygonCentroid(polygon)
+        const building = buildingForPolygon(buildings, polygon)
+        const buildingPolygons = building
+          ? polygonsForBuilding(polygonIndex, building.address)
+          : []
+        const { lat, lng } = suiteGatePosition(
+          buildings,
+          resolvedEntrances,
+          polygon,
+          buildingPolygons,
+        )
         hits.push({
           kind: 'polygon',
           label: polygon.description
@@ -90,16 +145,15 @@ export function collectSearchHits(
   }
 
   if (hits.length === 0) {
-    for (const building of buildings) {
-      if (buildingMetadataMatches(building, q)) {
-        hits.push({
-          kind: 'building',
-          label: building.address,
-          lat: building.lat,
-          lng: building.lng,
-          address: building.address,
-        })
-      }
+    const buildingHits = buildings.filter((b) => buildingMetadataMatches(b, q))
+    for (const building of buildingHits) {
+      hits.push({
+        kind: 'building',
+        label: building.address,
+        lat: building.lat,
+        lng: building.lng,
+        address: building.address,
+      })
     }
   }
 

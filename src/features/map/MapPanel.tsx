@@ -43,6 +43,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useMapViewStore } from '@/stores/mapViewStore'
 import { useMapRotationStore } from '@/stores/mapRotationStore'
 import { useMapSavePositionStore } from '@/stores/mapSavePositionStore'
+import { usePortfolioMapViewStore } from '@/stores/portfolioMapViewStore'
 import { useSaveBuildingMapView } from '@/hooks/usePortfolioData'
 import { hasBuildingSavedView } from '@/lib/buildingMapView'
 import styles from './MapPanel.module.css'
@@ -309,7 +310,13 @@ export function MapPanel({
     onImageryModeChange: setImageryMode,
   })
 
-  useSearchHitCircles(map, portfolio.buildings, mapBuildings)
+  useSearchHitCircles(
+    map,
+    portfolio.buildings,
+    mapBuildings,
+    portfolio.polygons,
+    portfolio.suiteEntrances,
+  )
 
   usePendingPictureMarkers(map, portfolio.buildings)
 
@@ -329,32 +336,56 @@ export function MapPanel({
     })
   }, [clearPendingPictures, pendingPictureCount])
 
+  const savePromptKind = useMapSavePositionStore((s) => s.promptKind)
   const savePromptAddress = useMapSavePositionStore((s) => s.promptAddress)
   const dismissSavePrompt = useMapSavePositionStore((s) => s.dismiss)
   const saveMapViewMutation = useSaveBuildingMapView()
+  const portfolioMapView = usePortfolioMapViewStore((s) => s.view)
+  const persistPortfolioMapView = usePortfolioMapViewStore((s) => s.persist)
+  const [portfolioMapViewSaving, setPortfolioMapViewSaving] = useState(false)
 
   // Only prompt while the rotated building is still the focused one.
   const savePromptBuilding =
-    savePromptAddress != null && savePromptAddress === currentBuilding?.address
+    savePromptKind === 'building' &&
+    savePromptAddress != null &&
+    savePromptAddress === currentBuilding?.address
       ? portfolio.buildings.find((b) => b.address === savePromptAddress)
       : undefined
+  const showPortfolioSavePrompt =
+    isAuthenticated && savePromptKind === 'portfolio' && currentBuilding == null
+  const showBuildingSavePrompt = isAuthenticated && savePromptBuilding != null
+  const mapViewSaving = saveMapViewMutation.isPending || portfolioMapViewSaving
 
   const handleSaveMapPosition = useCallback(() => {
-    if (!map || savePromptBuilding?.id == null) return
+    if (!map) return
     const center = map.getCenter()
     if (!center) return
+    const view = {
+      lat: center.lat(),
+      lng: center.lng(),
+      zoom: map.getZoom() ?? MAP_DETAIL_ZOOM,
+      heading: map.getHeading() || 0,
+      tilt: map.getTilt() || 0,
+      imageryMode: imageryMode.id,
+    }
+
+    if (savePromptKind === 'portfolio') {
+      setPortfolioMapViewSaving(true)
+      void persistPortfolioMapView(view)
+        .then(() => {
+          dismissSavePrompt()
+          showToastSuccess('✓ Map position saved for All Buildings')
+        })
+        .catch((error) =>
+          showToastError(error instanceof Error ? error.message : 'Could not save map position'),
+        )
+        .finally(() => setPortfolioMapViewSaving(false))
+      return
+    }
+
+    if (savePromptBuilding?.id == null) return
     saveMapViewMutation.mutate(
-      {
-        buildingId: savePromptBuilding.id,
-        view: {
-          lat: center.lat(),
-          lng: center.lng(),
-          zoom: map.getZoom() ?? MAP_DETAIL_ZOOM,
-          heading: map.getHeading() || 0,
-          tilt: map.getTilt() || 0,
-          imageryMode: imageryMode.id,
-        },
-      },
+      { buildingId: savePromptBuilding.id, view },
       {
         onSuccess: () => {
           dismissSavePrompt()
@@ -364,9 +395,30 @@ export function MapPanel({
           showToastError(error instanceof Error ? error.message : 'Could not save map position'),
       },
     )
-  }, [map, savePromptBuilding, saveMapViewMutation, dismissSavePrompt, imageryMode.id])
+  }, [
+    map,
+    savePromptKind,
+    savePromptBuilding,
+    saveMapViewMutation,
+    persistPortfolioMapView,
+    dismissSavePrompt,
+    imageryMode.id,
+  ])
 
   const handleClearMapPosition = useCallback(() => {
+    if (savePromptKind === 'portfolio') {
+      setPortfolioMapViewSaving(true)
+      void persistPortfolioMapView(null)
+        .then(() => {
+          dismissSavePrompt()
+          showToastSuccess('Saved All Buildings map position cleared')
+        })
+        .catch((error) =>
+          showToastError(error instanceof Error ? error.message : 'Could not clear map position'),
+        )
+        .finally(() => setPortfolioMapViewSaving(false))
+      return
+    }
     if (savePromptBuilding?.id == null) return
     saveMapViewMutation.mutate(
       { buildingId: savePromptBuilding.id, view: null },
@@ -379,13 +431,20 @@ export function MapPanel({
           showToastError(error instanceof Error ? error.message : 'Could not clear map position'),
       },
     )
-  }, [savePromptBuilding, saveMapViewMutation, dismissSavePrompt])
+  }, [
+    savePromptKind,
+    savePromptBuilding,
+    saveMapViewMutation,
+    persistPortfolioMapView,
+    dismissSavePrompt,
+  ])
 
-  // Drop a stale "Save map position" prompt when the focused building changes.
+  // Drop a stale "Save map position" prompt when focus changes.
   useEffect(() => {
     const address = currentBuilding?.address ?? null
-    const { promptAddress, dismiss } = useMapSavePositionStore.getState()
-    if (promptAddress && promptAddress !== address) dismiss()
+    const { promptKind, promptAddress, dismiss } = useMapSavePositionStore.getState()
+    if (promptKind === 'building' && promptAddress && promptAddress !== address) dismiss()
+    if (promptKind === 'portfolio' && address) dismiss()
   }, [currentBuilding?.address])
 
   useEffect(() => {
@@ -632,19 +691,33 @@ export function MapPanel({
             </button>
           </div>
         ) : null}
-        {isAuthenticated && savePromptBuilding ? (
+        {showBuildingSavePrompt || showPortfolioSavePrompt ? (
           <div className={styles.savePosNotice} role="status">
             <span className={styles.savePosNoticeText}>
-              Save this rotation &amp; zoom as the default view for{' '}
-              <strong>{savePromptBuilding.address}</strong>?
+              {showPortfolioSavePrompt ? (
+                <>
+                  Save this rotation &amp; zoom as the default view for{' '}
+                  <strong>All Buildings</strong>?
+                </>
+              ) : (
+                <>
+                  Save this rotation &amp; zoom as the default view for{' '}
+                  <strong>{savePromptBuilding!.address}</strong>?
+                </>
+              )}
             </span>
-            {hasBuildingSavedView(savePromptBuilding) ? (
+            {(showPortfolioSavePrompt && portfolioMapView != null) ||
+            (savePromptBuilding && hasBuildingSavedView(savePromptBuilding)) ? (
               <button
                 type="button"
                 className={styles.savePosNoticeGhost}
                 onClick={handleClearMapPosition}
-                disabled={saveMapViewMutation.isPending}
-                title="Remove the saved map position for this building"
+                disabled={mapViewSaving}
+                title={
+                  showPortfolioSavePrompt
+                    ? 'Remove the saved All Buildings map position'
+                    : 'Remove the saved map position for this building'
+                }
               >
                 Clear saved
               </button>
@@ -653,7 +726,7 @@ export function MapPanel({
               type="button"
               className={styles.savePosNoticeGhost}
               onClick={dismissSavePrompt}
-              disabled={saveMapViewMutation.isPending}
+              disabled={mapViewSaving}
             >
               Dismiss
             </button>
@@ -661,10 +734,14 @@ export function MapPanel({
               type="button"
               className={styles.savePosNoticeAction}
               onClick={handleSaveMapPosition}
-              disabled={saveMapViewMutation.isPending}
-              title="Save the current center, zoom, and rotation for this building"
+              disabled={mapViewSaving}
+              title={
+                showPortfolioSavePrompt
+                  ? 'Save the current center, zoom, and rotation for All Buildings'
+                  : 'Save the current center, zoom, and rotation for this building'
+              }
             >
-              {saveMapViewMutation.isPending ? 'Saving…' : 'Save map position'}
+              {mapViewSaving ? 'Saving…' : 'Save map position'}
             </button>
           </div>
         ) : null}

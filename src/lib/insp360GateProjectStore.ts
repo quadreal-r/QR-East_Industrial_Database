@@ -1,6 +1,6 @@
 /** Parent-window storage for gateway .insp360 bytes (survives iframe storage quirks). */
 
-import { clearInsp360GateHook } from '@/lib/insp360GateHooks'
+import { clearInsp360GateHook, insp360SameProjectFile } from '@/lib/insp360GateHooks'
 
 const DB_NAME = 'insp360-gate-host'
 const DB_VERSION = 1
@@ -224,6 +224,26 @@ export async function getViewerGateProjectByteLength(gateKey: string): Promise<n
   return 0
 }
 
+/** Stored tour filename for a gate in the viewer IndexedDB (if any). */
+export async function getViewerGateProjectName(gateKey: string): Promise<string | null> {
+  const key = String(gateKey || '').trim()
+  if (!key) return null
+  try {
+    const db = await openViewerDb()
+    try {
+      const tx = db.transaction(VIEWER_STORE, 'readonly')
+      const store = tx.objectStore(VIEWER_STORE)
+      const raw = await idbReq(store.get(`gateProjName:${key}`))
+      const name = String(raw || '').trim()
+      return name || null
+    } finally {
+      db.close()
+    }
+  } catch {
+    return null
+  }
+}
+
 /** True when the viewer already has gate tour bytes (not just a name/bound flag). */
 export async function hasViewerGateProject(gateKey: string): Promise<boolean> {
   return (await getViewerGateProjectByteLength(gateKey)) > 0
@@ -428,6 +448,7 @@ export async function writeViewerGateFileHandle(
  * Ensure the viewer can open a linked tour: prefer host bytes, seed viewer storage, return name.
  * Do NOT rewrite viewer IndexedDB when bytes already exist — concurrent rewrite while the
  * iframe is unzipping a large tour hangs auto-open on reopen.
+ * Rejects (and clears) stored tours whose filename does not match the gate's linked name.
  */
 export async function prepareViewerGateProject(
   gateKey: string,
@@ -435,6 +456,7 @@ export async function prepareViewerGateProject(
 ): Promise<{ name: string; seeded: boolean; reused?: boolean } | null> {
   const key = String(gateKey || '').trim()
   if (!key) return null
+  const expected = String(fallbackName || '').trim()
 
   let stored = await loadHostGateProject(key)
   if (!stored) {
@@ -443,6 +465,12 @@ export async function prepareViewerGateProject(
   }
 
   if (stored) {
+    if (expected && !insp360SameProjectFile(stored.name, expected)) {
+      // Stale host bytes from a different tour — force reconnect instead of auto-opening.
+      await deleteHostGateProject(key)
+      await clearViewerGateProject(key)
+      return null
+    }
     const viewerLen = await getViewerGateProjectByteLength(key)
     // Only skip rewrite when IDB already has the same-sized tour. Cache/OPFS stubs caused
     // false "ready" and left Enter on the create/open dashboard.
@@ -455,7 +483,12 @@ export async function prepareViewerGateProject(
 
   const viewerLen = await getViewerGateProjectByteLength(key)
   if (viewerLen > 0) {
-    const name = String(fallbackName || '').trim() || 'project.insp360'
+    const viewerName = (await getViewerGateProjectName(key)) || ''
+    if (expected && viewerName && !insp360SameProjectFile(viewerName, expected)) {
+      await clearViewerGateProject(key)
+      return null
+    }
+    const name = expected || viewerName || 'project.insp360'
     return { name, seeded: true, reused: true }
   }
 
