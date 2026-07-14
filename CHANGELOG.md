@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.1] - 2026-07-13
+
+### Changed
+
+- Open 360° tours on the first panorama instead of resuming the last viewed photo
+- Point Supabase Auth Site URL at the renamed GitHub Pages path
+
+### Fixed
+
+- Fix Change tour Link failing when the embed script could not call module-scoped save/mirror helpers
+- Prefer the opened `.insp360` file bytes when linking so large tours do not rebuild from memory
+
 ## [1.12.0] - 2026-07-13
 
 ### Added

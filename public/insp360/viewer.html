@@ -1498,8 +1498,8 @@ function enterProjectMode(modeOpts){
   libShow.classList.remove('show');
   document.getElementById('btnHome').style.display='';
   document.body.classList.add('proj-open');
-  // Newly created / opened projects must bind to this gate even if the user never edits hotspots.
-  if(window.embedGateKey && !modeOpts.alreadyLinked) window._gateMirrorDirty=true;
+  // First-time Link uses _gateHostConfirmed !== true in prepareClose — do not mark
+  // content-dirty here or Link will rebuild a full zip from memory (fails on large tours).
   setProjTitle();
   syncProjectEmptyUi();
   syncTourSaveUi();
@@ -2332,9 +2332,10 @@ async function mirrorCurrentProjectToGate(){
     return String(h.name).replace(/\.(insp360|zip)$/i,'').toLowerCase()===wantName;
   };
   const diskHandle=handleMatches(handle) ? handle : (handleMatches(remembered) ? remembered : null);
-  // Unsaved edits live in memory — reading the on-disk file would drop them and can
+  const contentDirty=window._gateMirrorDirty===true;
+  // Unsaved edits live in memory — reading the on-disk/source file would drop them and can
   // also re-bind the wrong older tour if the handle is stale.
-  if(diskHandle && window._gateMirrorDirty !== true){
+  if(diskHandle && !contentDirty){
     try{
       let perm='prompt';
       try{ perm=await diskHandle.queryPermission({mode:'read'}); }catch(_){}
@@ -2343,9 +2344,19 @@ async function mirrorCurrentProjectToGate(){
       }
       if(perm==='granted'){
         const file=await diskHandle.getFile();
-        if(file && file.size) return bindProjectToGate(file, file.name||label, diskHandle);
+        if(file && file.size){
+          return bindProjectToGate(file, file.name||label, diskHandle);
+        }
       }
-    }catch(e){ console.warn('gate mirror from handle failed, rebuilding zip', e); }
+    }catch(e){ console.warn('gate mirror from handle failed, trying source/rebuild', e); }
+  }
+  // Classic file-picker opens have no FS handle. Reuse the original .insp360 bytes for
+  // first-time Link / Change tour — rebuilding from memory often OOMs or empties on large tours.
+  const source=window._gateSourceFile;
+  if(source && source.size && !contentDirty){
+    try{
+      return bindProjectToGate(source, source.name||label, diskHandle);
+    }catch(e){ console.warn('gate mirror from source file failed, rebuilding zip', e); }
   }
   await materializeProjectPhotos();
   const parts=[]; await buildZip({ write:p=>{ parts.push(p); } }, showSaveProgress);
@@ -2905,6 +2916,9 @@ async function openProject(file, handle, opts){
   opts=opts||{};
   toast(opts.quiet?'Resuming last project\u2026':'Opening project\u2026');
   projHandle = handle || null;   // Save will overwrite this file; null means Save prompts for a name
+  // Keep original bytes for first-time Link (esp. classic <input type=file> with no FS handle).
+  window._gateSourceFile = (file && file.size) ? file : null;
+  window._gateMirrorDirty = false;
   if(handle) rememberLastProject(handle);
   if(handle && handle.name){
     lastProjName=handle.name; try{ idbSet('lastProjName', handle.name); }catch(_){}
@@ -2938,27 +2952,25 @@ async function openProject(file, handle, opts){
     window._gateMirrorDirty=false;
     window._gateHostConfirmed=true;
   } else if(window.embedGateKey && file && !opts.skipGateBind){
-    window._gateMirrorDirty=true;
+    // Needs host bind on Link, but content is clean — mirror can reuse source/handle bytes.
+    window._gateMirrorDirty=false;
     window._gateLinkedThisSession=false;
     window._gateHostConfirmed=false;
   }
   enterProjectMode({ alreadyLinked: gateAlreadyLinked || !!window._gateLinkedThisSession });
   if(tourEntry){ try{ applyTourText(await tourEntry.blob.text()); }catch(e){} }
   if(items.length){
-    let startIdx=0;
-    if(opts.resumePhoto){
-      const want=lastPhotoName||(await idbGet('lastPhotoName'))||'';
-      if(want){ const i=items.findIndex(it=>it.name===want); if(i>=0) startIdx=i; }
-    }
-    selectImage(startIdx);
+    // Always start on the first panorama when opening a tour.
+    selectImage(0);
     for(let i=0;i<items.length;i++){ const it=items[i]; it.thumbUrl=await makeThumb(it.file); if(it.el&&it.thumbUrl) it.el.querySelector('img').src=it.thumbUrl; }
   }
   if(handle) requestAnimationFrame(()=>recordProject(handle, true)); setProjTitle();
   try{ updateResumeBanner(); }catch(_){}
   // Opening a file from the picker does not auto-link — host asks on close.
   if(window.embedGateKey && file && !opts.skipGateBind){
-    window._gateMirrorDirty=true;
+    window._gateMirrorDirty=false;
     window._gateLinkedThisSession=false;
+    window._gateHostConfirmed=false;
   }
   if(gateAlreadyLinked){
     // Resumed from this gate's stored project — already linked & stored, so start clean.
@@ -2967,8 +2979,7 @@ async function openProject(file, handle, opts){
   }
   try{ notifyHostProjectOpen(gateAlreadyLinked || !!window._gateLinkedThisSession); }catch(_){}
   toast(items.length
-    ? ((opts.resumePhoto?'Resumed':'Project opened')+' \u2014 '+items.length+' photo'+(items.length===1?'':'s')
-      +(opts.resumePhoto&&items[currentIndex]?(' \u00B7 '+items[currentIndex].name):'')+'.')
+    ? ('Project opened \u2014 '+items.length+' photo'+(items.length===1?'':'s')+'.')
     : 'Project opened with no photos \u2014 add panoramas with Files or Folder.');
 }
 const projFile=document.getElementById('projFile');
@@ -7985,10 +7996,18 @@ window.toast = toast;
 window.mergeBuildingRtus = mergeBuildingRtus;
 window.updateDbStatus = updateDbStatus;
 window.refreshGeoReadout = refreshGeoReadout;
+window.showSaveProgress = showSaveProgress;
+window.endSaveProgress = endSaveProgress;
+window.mirrorCurrentProjectToGate = mirrorCurrentProjectToGate;
 Object.defineProperty(window, 'geoIndex', {
   configurable: true,
   get(){ return geoIndex; },
   set(v){ geoIndex = v; }
+});
+Object.defineProperty(window, 'items', {
+  configurable: true,
+  get(){ return items; },
+  set(v){ items = v; }
 });
 </script>
 
@@ -8012,6 +8031,8 @@ Object.defineProperty(window, 'geoIndex', {
   window._gateLinkedThisSession = false;
   window._gateHostConfirmed = false;
   window._gatePreferLiveOpen = false;
+  window._gateSourceFile = null;
+  window._gateMirrorDirty = false;
 
   if(isEmbed) document.body.classList.add('embed');
   if(pageTitle || pageAddress){
@@ -8156,13 +8177,22 @@ Object.defineProperty(window, 'geoIndex', {
             && (window._gateMirrorDirty === true || window._gateHostConfirmed !== true);
           if(needMirror){
             try{
-              showSaveProgress(0, Math.max(2, items.length+2), 'Linking to this gate\u2026');
-              mirrorOk=!!(await mirrorCurrentProjectToGate());
-              endSaveProgress();
+              const photoCount=(window.items && window.items.length) || 2;
+              if(typeof window.showSaveProgress==='function'){
+                window.showSaveProgress(0, Math.max(2, photoCount+2), 'Linking to this gate\u2026');
+              }
+              if(typeof window.mirrorCurrentProjectToGate!=='function'){
+                throw new Error('mirrorCurrentProjectToGate is not on window');
+              }
+              mirrorOk=!!(await window.mirrorCurrentProjectToGate());
+              if(typeof window.endSaveProgress==='function') window.endSaveProgress();
               if(!mirrorOk){
                 try{ toast('Could not store this tour for the gate. Try Save, then close again.', true); }catch(_){}
               }
-            }catch(e){ mirrorOk=false; try{ endSaveProgress(); }catch(_){} }
+            }catch(e){
+              mirrorOk=false;
+              try{ if(typeof window.endSaveProgress==='function') window.endSaveProgress(); }catch(_){}
+            }
           }
         }finally{
           try{ if(ev.source) ev.source.postMessage({ type:'insp360:readyToClose', linkGate: linkGate, ok: mirrorOk }, '*'); }catch(_){}
@@ -8436,10 +8466,6 @@ Object.defineProperty(window, 'geoIndex', {
       const name=decodeURIComponent((projectUrl.split('/').pop()||'project.insp360').split('?')[0]);
       const file=new File([blob], name, {type:'application/zip'});
       await openProject(file, null);
-      if(photoName){
-        const idx=items.findIndex(it=>String(it.name||'').toLowerCase()===photoName.toLowerCase());
-        if(idx>=0) selectImage(idx);
-      }
       return true;
     }catch(e){
       console.warn('embed project URL failed', e);
