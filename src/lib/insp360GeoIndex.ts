@@ -12,6 +12,9 @@ export interface Insp360GeoBuilding {
   lat: number
   lng: number
   sf?: number
+  /** Live RTU count from the main portfolio (preferred over embedded snapshots). */
+  rtuCount?: number
+  rtus?: Insp360GeoRtu[]
 }
 
 export interface Insp360GeoPolygon {
@@ -24,12 +27,25 @@ export interface Insp360GeoPolygon {
   path: Array<[number, number]>
 }
 
+export type Insp360GeoRoomType = 'electrical' | 'sprinkler' | 'hydrant' | 'gas'
+
 export interface Insp360GeoRoom {
   a: string
-  type: 'electrical' | 'sprinkler'
+  type: Insp360GeoRoomType
   name: string
   lat: number
   lng: number
+}
+
+export interface Insp360GeoRtu {
+  a: string
+  name: string
+  lat: number
+  lng: number
+  description?: string
+  model?: string | null
+  make?: string | null
+  serial?: string | null
 }
 
 export interface Insp360GeoIndex {
@@ -38,6 +54,9 @@ export interface Insp360GeoIndex {
   buildings: Insp360GeoBuilding[]
   polys: Insp360GeoPolygon[]
   rooms: Insp360GeoRoom[]
+  /** Flat RTU list from the live main-program portfolio. */
+  rtus: Insp360GeoRtu[]
+  rtuTotal?: number
 }
 
 function parseSqft(sqft: string | null | undefined): number | undefined {
@@ -46,22 +65,38 @@ function parseSqft(sqft: string | null | undefined): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-function roomTypeForUtility(utility: Utility): 'electrical' | 'sprinkler' | null {
+function roomTypeForUtility(utility: Utility): Insp360GeoRoomType | null {
   if (utility.utility_type === 'Electrical Rooms') return 'electrical'
   if (utility.utility_type === 'Sprinkler Rooms') return 'sprinkler'
+  if (utility.utility_type === 'Fire Hydrants') return 'hydrant'
+  if (utility.utility_type === 'Natural Gas Shut-Off') return 'gas'
   return null
 }
 
 /** Convert live Building Map Explorer portfolio into the QR-360 viewer address DB. */
 export function buildInsp360GeoIndex(portfolio: PortfolioData): Insp360GeoIndex {
+  const rtus: Insp360GeoRtu[] = []
   const buildings: Insp360GeoBuilding[] = portfolio.buildings.map((building) => {
     const sf = parseSqft(building.sqft)
+    const buildingRtus = (building.rtus || []).map((rtu) => ({
+      a: building.address,
+      name: rtu.name,
+      lat: rtu.lat,
+      lng: rtu.lng,
+      description: rtu.description || '',
+      model: rtu.model ?? null,
+      make: rtu.make ?? null,
+      serial: rtu.serial ?? null,
+    }))
+    for (const rtu of buildingRtus) rtus.push(rtu)
     return {
       a: building.address,
       p: building.park,
       lat: building.lat,
       lng: building.lng,
       ...(sf != null ? { sf } : {}),
+      rtuCount: buildingRtus.length,
+      ...(buildingRtus.length ? { rtus: buildingRtus } : {}),
     }
   })
 
@@ -104,6 +139,8 @@ export function buildInsp360GeoIndex(portfolio: PortfolioData): Insp360GeoIndex 
     buildings,
     polys,
     rooms,
+    rtus,
+    rtuTotal: rtus.length,
   }
 }
 

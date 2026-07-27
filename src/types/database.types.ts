@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          email: string
+          event_type: string
+          id: number
+          meta: Json | null
+          resource_key: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          email: string
+          event_type: string
+          id?: never
+          meta?: Json | null
+          resource_key?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          email?: string
+          event_type?: string
+          id?: never
+          meta?: Json | null
+          resource_key?: string | null
+        }
+        Relationships: []
+      }
+      app_roles: {
+        Row: {
+          created_at: string
+          email: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          role?: string
+        }
+        Relationships: []
+      }
       auth_admins: {
         Row: {
           created_at: string
@@ -131,6 +179,50 @@ export type Database = {
         }
         Relationships: []
       }
+      building_year_budgets: {
+        Row: {
+          budget: number
+          building_id: number
+          capex_job_project_type: string | null
+          capex_status: string | null
+          created_at: string
+          id: number
+          note: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          budget: number
+          building_id: number
+          capex_job_project_type?: string | null
+          capex_status?: string | null
+          created_at?: string
+          id?: number
+          note?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          budget?: number
+          building_id?: number
+          capex_job_project_type?: string | null
+          capex_status?: string | null
+          created_at?: string
+          id?: number
+          note?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'building_year_budgets_building_id_fkey'
+            columns: ['building_id']
+            isOneToOne: false
+            referencedRelation: 'buildings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       polygons: {
         Row: {
           color: string
@@ -161,8 +253,45 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_map_views: {
+        Row: {
+          created_at: string
+          filter_key: string
+          map_heading: number | null
+          map_imagery_mode: string | null
+          map_lat: number | null
+          map_lng: number | null
+          map_tilt: number | null
+          map_zoom: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          filter_key: string
+          map_heading?: number | null
+          map_imagery_mode?: string | null
+          map_lat?: number | null
+          map_lng?: number | null
+          map_tilt?: number | null
+          map_zoom?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          filter_key?: string
+          map_heading?: number | null
+          map_imagery_mode?: string | null
+          map_lat?: number | null
+          map_lng?: number | null
+          map_tilt?: number | null
+          map_zoom?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rtus: {
         Row: {
+          budget: number | null
           building_id: number
           cooling_tons: number | null
           created_at: string
@@ -183,6 +312,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          budget?: number | null
           building_id: number
           cooling_tons?: number | null
           created_at?: string
@@ -203,6 +333,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          budget?: number | null
           building_id?: number
           cooling_tons?: number | null
           created_at?: string
@@ -474,7 +605,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_app_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       is_app_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_app_editor: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }

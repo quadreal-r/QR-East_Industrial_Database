@@ -18,11 +18,7 @@ function createSupabaseClient() {
       'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Copy .env.example to .env.local and add your Supabase project credentials.',
     )
   }
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      experimental: { passkey: true },
-    },
-  })
+  return createClient<Database>(supabaseUrl, supabaseAnonKey)
 }
 
 /** Typed Supabase client — requires env vars (no offline fallback). */

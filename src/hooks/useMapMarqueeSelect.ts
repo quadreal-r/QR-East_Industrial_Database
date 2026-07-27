@@ -57,7 +57,7 @@ export function useMapMarqueeSelect(
       const target = e.target as HTMLElement
       if (
         target.closest(
-          'button, a, .gm-bundled-control, .gm-style-cc, [data-pending-picture-marker]',
+          'button, a, input, textarea, select, label, .gm-bundled-control, .gm-style-cc, .gm-style-iw-c, .gm-style-iw, [data-pending-picture-marker]',
         )
       ) {
         return

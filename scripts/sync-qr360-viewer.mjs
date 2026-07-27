@@ -1,14 +1,18 @@
 /**
  * Sync the QR-360° viewer from the Inspections source folder into Building Map Explorer.
  *
- * Source of truth:
- *   C:\Users\Robert\Projects\QR-360°-Inspections\QR-360°-Inspections
- *   (latest QR-360°_viewer_v*.html or insp_360_viewer*.html)
+ * Source of truth (standalone QR360 product):
+ *   C:\Users\Robert\Projects\QR-360-Inspections\QR-360-Inspections
+ *   (latest QR-360°_viewer_v*.html)
  *
  * Writes:
- *   1) qr360-viewer/QR-360°_viewer_vX.Y.Z.html   — versioned copy (replaces older versions)
- *   2) public/insp360/viewer.html                 — stable URL the main app iframes
- *   3) qr360-viewer/CURRENT.json                  — pointer metadata
+ *   1) qr360-viewer/QR-360°_viewer_vX.Y.Z.html — versioned map archive (Map360 badge)
+ *   2) public/insp360/viewer.html               — stable iframe URL (Map360 badge)
+ *   3) qr360-viewer/CURRENT.json                — pointer metadata
+ *
+ * Version badges (same semver, different product prefix):
+ *   - Standalone Inspections / :8788 / workers.dev → QR360-vX.Y.Z
+ *   - Map embed (this sync)                       → Map360-vX.Y.Z
  *
  * Usage:  npm run sync:qr360-viewer
  */
@@ -20,7 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const BME_ROOT = path.resolve(__dirname, '..')
 const SOURCE_DIR =
   process.env.QR360_VIEWER_SOURCE ||
-  path.resolve('C:\\Users\\Robert\\Projects\\QR-360°-Inspections\\QR-360°-Inspections')
+  path.resolve('C:\\Users\\Robert\\Projects\\QR-360-Inspections\\QR-360-Inspections')
 const VERSIONED_DIR = path.join(BME_ROOT, 'qr360-viewer')
 const LIVE_DIR = path.join(BME_ROOT, 'public', 'insp360')
 const LIVE_FILE = path.join(LIVE_DIR, 'viewer.html')
@@ -93,15 +97,43 @@ function clearOldVersions(keepName) {
   }
 }
 
-function bumpBadgeInCopy(filePath, version) {
+/**
+ * Stamp product + semver into a viewer HTML copy.
+ * @param {'Map360'|'QR360'} product
+ */
+function stampViewerEdition(filePath, version, product) {
   let html = fs.readFileSync(filePath, 'utf8')
-  const ver = version.startsWith('v') ? version : `v${version}`
+  const num = String(version).replace(/^v/i, '')
+  const label = `${product}-v${num}`
+  const title =
+    product === 'Map360'
+      ? 'Map-embedded 360 viewer (Map360)'
+      : 'Standalone QR-360° viewer (QR360)'
+
+  if (/const VERSION_NUM=/.test(html)) {
+    html = html.replace(/const VERSION_NUM="[^"]*"/g, `const VERSION_NUM="${num}"`)
+  } else {
+    // Legacy files: still rewrite the old VERSION constant if present.
+    html = html.replace(/const VERSION="[^"]*"/g, `const VERSION="${label}"`)
+  }
+  if (/const VIEWER_PRODUCT=/.test(html)) {
+    html = html.replace(/const VIEWER_PRODUCT="[^"]*"/g, `const VIEWER_PRODUCT="${product}"`)
+  } else {
+    html = html.replace(
+      /const VERSION_NUM="[^"]*";/,
+      `const VERSION_NUM="${num}";\n  const VIEWER_PRODUCT="${product}";`,
+    )
+  }
   html = html.replace(
-    /(<span id="appVer"[^>]*>)\s*v?\d+\.\d+\.\d+\s*(<\/span>)/i,
-    `$1${ver}$2`,
+    /(<span id="appVer"[^>]*>)\s*[^<]*(<\/span>)/i,
+    `$1${label}$2`,
   )
-  html = html.replace(/const VERSION="v?\d+\.\d+\.\d+"/g, `const VERSION="${ver}"`)
+  html = html.replace(
+    /(<span id="appVer"[^>]*title=")[^"]*(")/i,
+    `$1${title}$2`,
+  )
   fs.writeFileSync(filePath, html, 'utf8')
+  return label
 }
 
 const latest = findLatestSource()
@@ -113,11 +145,17 @@ ensureDir(LIVE_DIR)
 clearOldVersions(versionedName)
 
 fs.copyFileSync(latest.full, versionedPath)
-bumpBadgeInCopy(versionedPath, latest.version)
+const mapLabel = stampViewerEdition(versionedPath, latest.version, 'Map360')
 fs.copyFileSync(versionedPath, LIVE_FILE)
 
 const meta = {
   version: latest.version,
+  mapLabel,
+  standaloneLabel: `QR360-v${latest.version}`,
+  product: {
+    map: 'Map360',
+    standalone: 'QR360',
+  },
   versionedFile: versionedName,
   liveFile: 'public/insp360/viewer.html',
   sourceFile: latest.name,
@@ -129,7 +167,7 @@ const meta = {
 fs.writeFileSync(CURRENT_JSON, JSON.stringify(meta, null, 2) + '\n', 'utf8')
 
 console.log(`[sync-qr360-viewer] synced v${latest.version}`)
-console.log(`  source : ${latest.full}`)
-console.log(`  kept   : ${versionedPath}`)
-console.log(`  live   : ${LIVE_FILE}`)
+console.log(`  source : ${latest.full}  (standalone ${meta.standaloneLabel})`)
+console.log(`  kept   : ${versionedPath}  (${mapLabel})`)
+console.log(`  live   : ${LIVE_FILE}  (${mapLabel})`)
 console.log(`  bytes  : ${meta.bytes}`)

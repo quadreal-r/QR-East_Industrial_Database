@@ -91,6 +91,8 @@ export const RTU_AGE_CRITICAL = 20
 export const RCB_DEFAULT_THRESHOLD = 20
 export const RCB_DEFAULT_BASIS: CostBasis = 'hyb'
 export const RCB_DEFAULT_YEAR = '2026'
+/** Main / column Repl. Year filter value: show RTUs with no year assignment. */
+export const RCB_REPL_YEAR_NONE = 'none'
 
 export const RCB_YEARS: Record<CostBasis, string[]> = {
   hyb: ['2026', '2027', '2028', '2029', '2030', '2031', '2032'],

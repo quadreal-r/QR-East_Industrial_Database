@@ -48,6 +48,8 @@ interface UiState {
   polygonDrawMode: boolean
   rtuPictureViewer: RtuPictureViewerState | null
   inspection360Viewer: Inspection360ViewerState | null
+  /** Tour stays mounted in memory — map is shown until resume. */
+  inspection360ViewerMinimized: boolean
   pictureCountModalOpen: boolean
   openModal: (id: ModalId) => void
   closeModal: (id: ModalId) => void
@@ -66,6 +68,9 @@ interface UiState {
   setRtuPictureViewerIndex: (index: number) => void
   updateRtuPictureViewerPictures: (pictures: RtuPictureViewerItem[], index?: number) => void
   openInspection360Viewer: (state: Inspection360ViewerState) => void
+  updateInspection360Viewer: (partial: Partial<Inspection360ViewerState>) => void
+  minimizeInspection360Viewer: () => void
+  resumeInspection360Viewer: () => void
   closeInspection360Viewer: () => void
   openPictureCountModal: () => void
   closePictureCountModal: () => void
@@ -79,6 +84,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   polygonDrawMode: false,
   rtuPictureViewer: null,
   inspection360Viewer: null,
+  inspection360ViewerMinimized: false,
   pictureCountModalOpen: false,
 
   openModal: (id) =>
@@ -139,8 +145,34 @@ export const useUiStore = create<UiState>((set, get) => ({
           }
         : {},
     ),
-  openInspection360Viewer: (state) => set({ inspection360Viewer: state }),
-  closeInspection360Viewer: () => set({ inspection360Viewer: null }),
+  openInspection360Viewer: (state) => {
+    const current = get().inspection360Viewer
+    // Same gateway already open (possibly behind the map) — bring it back without remounting.
+    if (current?.gateKey && state.gateKey && current.gateKey === state.gateKey) {
+      set({
+        inspection360Viewer: { ...current, ...state },
+        inspection360ViewerMinimized: false,
+      })
+      return
+    }
+    set({ inspection360Viewer: state, inspection360ViewerMinimized: false })
+  },
+  updateInspection360Viewer: (partial) =>
+    set((state) =>
+      state.inspection360Viewer
+        ? { inspection360Viewer: { ...state.inspection360Viewer, ...partial } }
+        : {},
+    ),
+  minimizeInspection360Viewer: () => {
+    if (!get().inspection360Viewer) return
+    set({ inspection360ViewerMinimized: true })
+  },
+  resumeInspection360Viewer: () => {
+    if (!get().inspection360Viewer) return
+    set({ inspection360ViewerMinimized: false })
+  },
+  closeInspection360Viewer: () =>
+    set({ inspection360Viewer: null, inspection360ViewerMinimized: false }),
   openPictureCountModal: () => set({ pictureCountModalOpen: true }),
   closePictureCountModal: () => set({ pictureCountModalOpen: false }),
 }))

@@ -1,6 +1,6 @@
 ---
 name: restart-localhost
-description: Restarts the QR-East_Industrial_Database Vite dev server on localhost port 5173. Use when the user asks to restart localhost, restart the dev server, fix a blank page, unstick port 5173, or says start/run dev after a stuck session.
+description: Restarts the QR-East_Industrial_Database Vite dev server on localhost port 5174. Use when the user asks to restart localhost, restart the dev server, fix a blank page, unstick port 5174, or says start/run dev after a stuck session.
 ---
 
 # Restart Localhost
@@ -12,7 +12,7 @@ Restart the local dev server for **QR-East_Industrial_Database**. Do not only te
 | Item | Value |
 |------|-------|
 | Project root | `C:\Users\Robert\Projects\QR-East_Industrial_Database` |
-| Local URL | http://127.0.0.1:5173/ (or http://localhost:5173/) |
+| Local URL | http://127.0.0.1:5174/ (or http://localhost:5174/) |
 | Default command | `npm run dev:restart` |
 
 ## Workflow
@@ -27,7 +27,7 @@ Restart progress:
 
 ### Step 1: Check existing dev terminals
 
-List the terminals folder. If a terminal is already running `npm run dev` or Vite on 5173, note it — `dev:restart` kills port 5173 and starts fresh.
+List the terminals folder. If a terminal is already running `npm run dev` or Vite on 5174, note it — `dev:restart` kills port 5174 and starts fresh. Do not touch port 5173 (QR Drawing Explorer).
 
 ### Step 2: Run restart command
 
@@ -38,7 +38,7 @@ cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 npm run dev:restart
 ```
 
-`dev:restart` runs `scripts/restart-dev.cmd`: kills any process listening on port 5173, waits 1s, then `npm run dev`.
+`dev:restart` runs `scripts/restart-dev.cmd`: kills any process listening on port 5174, waits 1s, then `npm run dev`.
 
 Run with `block_until_ms: 0` so the dev server stays running in the background.
 
@@ -54,21 +54,21 @@ Run with `block_until_ms: 0` so the dev server stays running in the background.
 
 ### Step 3: Confirm server is up
 
-Poll the background terminal until output includes Vite ready (e.g. `Local:` and `5173`) or wait ~5s and read terminal output. If restart failed (port still in use, npm error), report the error and retry once with `npm run dev:restart`.
+Poll the background terminal until output includes Vite ready (e.g. `Local:` and `5174`) or wait ~5s and read terminal output. If restart failed (port still in use, npm error), report the error and retry once with `npm run dev:restart`.
 
 ### Step 4: Report URL
 
 Tell the user:
 
 - Dev server restarted (or started)
-- Open http://127.0.0.1:5173/
+- Open http://127.0.0.1:5174/
 - Hard-refresh (Ctrl+Shift+R) if they still see a stale blank page
 
 ## Examples
 
-**User:** "Restart localhost" / "dev server is stuck" / "blank page on 5173"
+**User:** "Restart localhost" / "dev server is stuck" / "blank page on 5174"
 
-→ Run `npm run dev:restart` from repo root with `block_until_ms: 0`, poll until Vite shows `Local:` on 5173, report http://127.0.0.1:5173/
+→ Run `npm run dev:restart` from repo root with `block_until_ms: 0`, poll until Vite shows `Local:` on 5174, report http://127.0.0.1:5174/
 
 **User:** "Start the dev server" (no prior server, no port conflict)
 
@@ -82,7 +82,7 @@ Tell the user:
 
 - Commit or push — this skill is local dev only
 - Use `npm run preview` unless the user asked to preview a production build
-- Kill unrelated processes except what `restart-dev.cmd` handles on port 5173
+- Kill unrelated processes except what `restart-dev.cmd` handles on port 5174 (never kill 5173)
 
 ## Additional resources
 

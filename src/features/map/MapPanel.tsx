@@ -84,10 +84,34 @@ export function MapPanel({
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const dragMode = useSelectionStore((s) => s.dragMode)
   const setDragMode = useSelectionStore((s) => s.setDragMode)
-  const { isAuthenticated } = useAuth()
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    role,
+    canEdit,
+    user,
+    email: authEmail,
+    error: authError,
+    signOut,
+    signInAtAccessWall,
+    signInAsLocal,
+    isLocalDev,
+  } = useAuth()
   const resetFilters = useFilterStore((s) => s.resetFilters)
   const openSettings = useUiStore((s) => s.openSettings)
   const setMapViewSnapshot = useMapViewStore((s) => s.setSnapshot)
+
+  const signedInLabel = useMemo(() => {
+    const email = authEmail?.trim() || user?.email?.trim()
+    if (email) return email
+    const metaName =
+      typeof user?.user_metadata?.full_name === 'string'
+        ? user.user_metadata.full_name.trim()
+        : ''
+    return metaName || 'Signed in'
+  }, [authEmail, user])
+
+  const roleLabel = role === 'admin' ? 'Admin' : role === 'viewer' ? 'Viewer' : '…'
 
   const { mapId, isConfigured: mapsConfigured } = readGoogleMapsEnv()
 
@@ -294,7 +318,7 @@ export function MapPanel({
     onPolygonDrawClose?.()
   }, [onPolygonDrawClose])
 
-  const { showAllBuildingsView, cycleImagery } = useMapMarkers({
+  const { showAllBuildingsView, showCategoryFilterOverview, cycleImagery } = useMapMarkers({
     map,
     buildings: portfolio.buildings,
     mapBuildings,
@@ -316,6 +340,7 @@ export function MapPanel({
     mapBuildings,
     portfolio.polygons,
     portfolio.suiteEntrances,
+    showCategoryFilterOverview,
   )
 
   usePendingPictureMarkers(map, portfolio.buildings)
@@ -352,8 +377,8 @@ export function MapPanel({
       ? portfolio.buildings.find((b) => b.address === savePromptAddress)
       : undefined
   const showPortfolioSavePrompt =
-    isAuthenticated && savePromptKind === 'portfolio' && currentBuilding == null
-  const showBuildingSavePrompt = isAuthenticated && savePromptBuilding != null
+    canEdit && savePromptKind === 'portfolio' && currentBuilding == null
+  const showBuildingSavePrompt = canEdit && savePromptBuilding != null
   const mapViewSaving = saveMapViewMutation.isPending || portfolioMapViewSaving
 
   const handleSaveMapPosition = useCallback(() => {
@@ -638,6 +663,81 @@ export function MapPanel({
           <button type="button" className="btn-action" style={{ background: '#16a34a', color: '#fff', borderColor: '#16a34a' }} onClick={handleShowAll}>
             All Buildings
           </button>
+          {isAuthenticated ? (
+            <div
+              className={styles.authChip}
+              title={`${signedInLabel} · ${roleLabel}`}
+            >
+              <span className={styles.authChipUser}>{signedInLabel}</span>
+              <span
+                className={`${styles.authChipRole}${
+                  role === 'admin' ? ` ${styles.authChipRoleAdmin}` : ''
+                }`}
+              >
+                {roleLabel}
+              </span>
+              <button
+                type="button"
+                className={styles.authChipLogout}
+                onClick={() => void signOut()}
+                title="Sign out and return to Cloudflare Access"
+              >
+                Logout
+              </button>
+            </div>
+          ) : authLoading ? (
+            <span>Connecting…</span>
+          ) : (
+            <>
+              {authError ? (
+                <span
+                  className={styles.authChipError}
+                  title={typeof authError === 'string' ? authError : 'Session error'}
+                >
+                  {(() => {
+                    const text =
+                      typeof authError === 'string'
+                        ? authError
+                        : 'Could not connect your session'
+                    return text.length > 42 ? `${text.slice(0, 40)}…` : text
+                  })()}
+                </span>
+              ) : null}
+              {isLocalDev ? (
+                <div className={styles.authChipSignInGroup}>
+                  <button
+                    type="button"
+                    className={styles.authChipSignIn}
+                    onClick={() => signInAsLocal('admin')}
+                    title="Local sign-in as an Admin from Manage users"
+                  >
+                    Sign in as Admin
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.authChipSignInViewer}
+                    onClick={() => signInAsLocal('viewer')}
+                    title="Local sign-in as a Viewer from Manage users"
+                  >
+                    Sign in as Viewer
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.authChipSignIn}
+                  onClick={() => signInAtAccessWall()}
+                  title={
+                    typeof authError === 'string'
+                      ? authError
+                      : 'Sign in with Cloudflare Access'
+                  }
+                >
+                  Sign in
+                </button>
+              )}
+            </>
+          )}
           <button
             type="button"
             id="imagery-btn"

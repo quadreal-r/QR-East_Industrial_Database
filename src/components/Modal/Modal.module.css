@@ -2,7 +2,8 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
-  z-index: 22000;
+  /* Above Inspection360Viewer (21000) so overwrite/link confirms stay visible. */
+  z-index: 23000;
   display: flex;
   align-items: flex-start;
   justify-content: center;

@@ -1,0 +1,23 @@
+---
+description: Two Cloudflare accounts — never mix krutki11 (insp360) with quadreal (map app + RTU media)
+alwaysApply: true
+---
+
+# Cloudflare account split (critical)
+
+Two accounts. Do not mix keys, Wrangler login, or dashboard work.
+
+| Login | Short name | Use for | Say this to deploy |
+|-------|------------|---------|-------------------|
+| `krutki11@gmail.com` | **krutki11** | `insp360` R2 tours; Wrangler host for **QR-360°-Inspections** | `push a new build to Cloudflare krutki11` |
+| `quadreal.rpiwin@gmail.com` | **quadreal** | RTU pictures + documents R2; Wrangler host for **qr-east-industrial-database** Pages | `push a new build to Cloudflare quadreal` |
+
+## Important cross-link
+
+**qr-east-industrial-database** is hosted on **quadreal**, but it is also given access to **krutki11**’s insp360 bucket (public CDN + `INSP360_R2_*` secrets) so the integrated QR-360° Inspections viewer can open and publish tours.
+
+- Deploy map app / Access / RTU uploads → **quadreal** only
+- Tour storage / Inspections app Wrangler → **krutki11** only
+- Never reuse RTU `R2_*` keys as `INSP360_R2_*` (or the reverse)
+
+Full table: `docs/CLOUDFLARE_ACCOUNTS.md`

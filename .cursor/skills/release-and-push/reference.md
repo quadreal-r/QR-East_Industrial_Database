@@ -10,13 +10,18 @@ Dev builds append `(dev)` via `import.meta.env.DEV`.
 
 | Command | Effect |
 |---------|--------|
-| `npm run version:bump` | Patch bump (`scripts/bump-version.mjs`) |
+| `npm run version:bump:if-needed` | Patch bump when local app changes are not yet covered by the current version |
+| `npm run version:bump` | Force patch bump (`scripts/bump-version.mjs`) |
 | `npm run version:bump:semver -- minor` | Minor bump |
 | `node scripts/bump-semver.mjs major` | Major bump |
 
 Shared logic: `scripts/lib/semver-version.mjs`.
 
-## Files touched each release
+## Policy
+
+Bump map app **patch** locally after any uncommitted app changes (`npm run version:bump:if-needed`). Further edits get another bump; re-running with the same change set does not. A Cloudflare ship (`push-cloudflare-build`) publishes that version online.
+
+## Files touched when a bump happens
 
 | File | Purpose |
 |------|---------|

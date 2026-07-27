@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { collectSearchHits, openSearchHit, type SearchHit } from '@/lib/searchHits'
+import { useBuildingYearBudgetStore } from '@/stores/buildingYearBudgetStore'
 import { useFilterStore } from '@/stores/filterStore'
 import type { Building, Polygon, SuiteEntrance } from '@/types/domain'
 
@@ -63,10 +64,12 @@ export function SearchHitNav({
   suiteEntrances = [],
 }: SearchHitNavProps) {
   const search = useFilterStore((s) => s.search).trim()
+  const capexStatuses = useBuildingYearBudgetStore((s) => s.statuses)
 
   const hits = useMemo(
-    (): SearchHit[] => collectSearchHits(buildings, polygons, search, suiteEntrances),
-    [buildings, polygons, suiteEntrances, search],
+    (): SearchHit[] =>
+      collectSearchHits(buildings, polygons, search, suiteEntrances, capexStatuses),
+    [buildings, polygons, suiteEntrances, search, capexStatuses],
   )
 
   if (!hits.length) return null

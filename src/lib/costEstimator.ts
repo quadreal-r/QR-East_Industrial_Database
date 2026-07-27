@@ -86,7 +86,9 @@ export interface RcbProjectionPoint {
 }
 
 export function rcbMoney(amount: number): string {
-  return `$${Math.round(amount || 0).toLocaleString('en-CA')}`
+  const n = Math.round(amount || 0)
+  if (n < 0) return `-$${Math.abs(n).toLocaleString('en-CA')}`
+  return `$${n.toLocaleString('en-CA')}`
 }
 
 /** Display cooling tonnage as e.g. "5 Ton" or "7.5 Ton". */
@@ -131,12 +133,25 @@ export function rcbUnitCost(
   const direct = table[year]
   if (direct != null) return direct
 
+  const yearNum = Number(year)
+  if (!Number.isFinite(yearNum)) return null
+
   if (basis === 'hyb') {
     const base2026 = table['2026']
-    const yearNum = Number(year)
-    if (base2026 != null && Number.isFinite(yearNum) && yearNum > 2032) {
+    if (base2026 == null) return null
+    // Pricing sheet is 2026-based (~5%/yr). Support Capex years before 2026 and after 2032.
+    if (yearNum > 2032) {
       return Math.round(base2026 * 1.05 ** (yearNum - 2026))
     }
+    if (yearNum < 2026 && yearNum >= 2020) {
+      return Math.round(base2026 / 1.05 ** (2026 - yearNum))
+    }
+  }
+
+  // Standard sheet is a single 2025 all-in; reuse it for any Capex year view.
+  if (basis === 'std') {
+    const std2025 = table['2025']
+    if (std2025 != null) return std2025
   }
 
   return null
@@ -304,8 +319,9 @@ export function rcbCostForTier(
 }
 
 /**
- * Apply per-RTU replacement year assignments on top of the global default year.
- * Unassigned RTUs inherit defaultYear; cost follows projection-by-year pricing.
+ * Attach per-RTU replacement year assignments (planning label only).
+ * Does not change cost or age — those stay from the aged-unit cost estimate.
+ * Unassigned RTUs show defaultYear in the UI but are not treated as assigned for filters.
  */
 export function rcbLineItemsWithReplacementYears(
   items: RcbLineItem[],
@@ -314,27 +330,37 @@ export function rcbLineItemsWithReplacementYears(
   assignments: Record<string, string> = {},
   table: RcbPricingTable = DEFAULT_RCB_PRICING,
 ): RcbScheduledLineItem[] {
+  void basis
+  void table
   return items.map((item) => {
     const key = rcbReplacementYearKey(item.address, item.rtu)
     const replacementYear = assignments[key] ?? defaultYear
-    const cost =
-      rcbCostForTier(item.tierKey, basis, replacementYear, table) ?? item.cost
-    return { ...item, replacementYear, cost }
+    return { ...item, replacementYear }
   })
 }
 
-/** Drop assignments that match the default year or are invalid for the current basis. */
+/**
+ * True for a real calendar replacement year (e.g. 2027).
+ * 0 / blank / Demolition-style placeholders are not assignments (treat as None).
+ */
+export function isValidRtuReplacementYear(year: string | number | null | undefined): boolean {
+  if (year == null || year === '') return false
+  const n = typeof year === 'number' ? year : Math.round(Number(String(year).trim()))
+  return Number.isFinite(n) && n >= 2000 && n <= 2100
+}
+
+/** Keep every valid year assignment (filter/default year must not clear stored picks). */
 export function rcbSanitizeReplacementYearAssignments(
   assignments: Record<string, string>,
   allowedYears: string[],
-  defaultYear: string,
+  _defaultYear: string,
 ): Record<string, string> {
   const allowed = new Set(allowedYears)
   const next: Record<string, string> = {}
   for (const [key, year] of Object.entries(assignments)) {
-    if (year !== defaultYear && (allowed.has(year) || /^\d{4}$/.test(year))) {
-      next[key] = year
-    }
+    if (!isValidRtuReplacementYear(year)) continue
+    const normalized = String(Math.round(Number(year)))
+    if (allowed.has(normalized) || /^\d{4}$/.test(normalized)) next[key] = normalized
   }
   return next
 }
@@ -348,7 +374,7 @@ export function rcbScheduleYearOptions(
   const base = RCB_YEARS[basis] ?? [defaultYear]
   const years = new Set([...base, defaultYear, ...Object.values(assignments)])
   return [...years]
-    .filter((year) => /^\d{4}$/.test(year))
+    .filter((year) => isValidRtuReplacementYear(year))
     .sort((a, b) => Number(a) - Number(b))
 }
 
@@ -446,16 +472,25 @@ export function rcbProjection(
   result: RcbComputeResult,
   table: RcbPricingTable = DEFAULT_RCB_PRICING,
 ): RcbProjectionPoint[] {
-  const years = RCB_YEARS[result.basis] ?? [result.year]
-  const tierKeys = Object.keys(result.tiers)
+  return rcbProjectionFromTierQuantities(
+    result.basis,
+    Object.values(result.tiers).map((tier) => ({ tierKey: tier.tier, qty: tier.qty })),
+    table,
+  )
+}
 
+/** Project cost for an arbitrary mix of tonnage tiers (e.g. a filtered RTU view). */
+export function rcbProjectionFromTierQuantities(
+  basis: CostBasis,
+  tiers: Array<{ tierKey: number; qty: number }>,
+  table: RcbPricingTable = DEFAULT_RCB_PRICING,
+): RcbProjectionPoint[] {
+  const years = RCB_YEARS[basis] ?? []
   return years.map((year) => {
     let total = 0
-    for (const key of tierKeys) {
-      const tier = result.tiers[key]
-      const unit = table.pricing[key]
-      const cost = unit?.[result.basis]?.[year]
-      if (cost != null && tier) total += tier.qty * cost
+    for (const { tierKey, qty } of tiers) {
+      const cost = table.pricing[String(tierKey)]?.[basis]?.[year]
+      if (cost != null) total += qty * cost
     }
     return { year, total }
   })

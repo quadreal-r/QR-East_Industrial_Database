@@ -11,7 +11,7 @@ Project folder:
 cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 ```
 
-Local app URL after dev server starts: **http://127.0.0.1:5173/** (or http://localhost:5173/)
+Local app URL after dev server starts: **http://127.0.0.1:5174/** (or http://localhost:5174/)
 
 ---
 
@@ -20,7 +20,7 @@ Local app URL after dev server starts: **http://127.0.0.1:5173/** (or http://loc
 | Command | When to use |
 |---------|-------------|
 | `npm run dev` | Normal local dev (keep terminal open) |
-| `npm run dev:restart` | Port 5173 stuck / blank page — kills port and restarts |
+| `npm run dev:restart` | Port 5174 stuck / blank page — kills port and restarts |
 | `npm run dev:window` | Dev in its own window (survives closing Cursor terminal) |
 | `npm run dev:onedrive` | File-watching issues in OneDrive-synced folders |
 | `npm run preview` | Preview production build locally |
@@ -53,7 +53,9 @@ npm run test:watch
 
 ## Deploy to live site
 
-**App code changes** (`src/`, config, workflows):
+**App code → live Cloudflare** — say **push a new build to Cloudflare quadreal** (skill commits, pushes GitHub, then `npm run deploy`).
+
+**GitHub history only** (no live update):
 
 ```powershell
 npm run push-live
@@ -75,8 +77,8 @@ npm run migrate-json-to-supabase
 
 Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
 
-Live site: https://quadreal-r.github.io/QR-East_Industrial_Database/  
-Actions: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
+Live site: https://qr-east-industrial-database.pages.dev/  
+CI: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
 
 ---
 
@@ -126,7 +128,8 @@ copy .env.example .env.local
 | Phrase | Agent should |
 |--------|----------------|
 | "start server" / "run dev" | `npm run dev` or `npm run dev:restart` |
-| "push the code" / "push live" | `npm run push-live` or git pull → test → commit → push |
+| "push a new build to Cloudflare quadreal" | `push-cloudflare-build` (commit + push + Cloudflare deploy) |
+| "push the code" / "push live" | Prefer Cloudflare ship if they want live updated; else `npm run push-live` |
 | Feature / fix request | Implement (`.cursor/rules/programmer.mdc`), run tests, ask you to verify before commit |
 
 Related rules: `@push-new-build` for full deploy checklist.

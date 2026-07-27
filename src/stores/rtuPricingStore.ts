@@ -14,6 +14,11 @@ import {
   type RcbPricingTable,
 } from '@/lib/costEstimator.pricing'
 import {
+  isRcbReportPricingSheet,
+  mergeRcbReportPricingIntoRows,
+  parseRcbReportPricingSheet,
+} from '@/lib/rcbReportImport'
+import {
   parseRtuPricingWorkbook,
   type RtuPricingRow,
   type RtuPricingComponentField,
@@ -37,6 +42,7 @@ interface RtuPricingState {
     version: string | null,
     sourceFile: string,
   ) => Promise<void>
+  applyRcbReportPricingMerge: (rows: RtuPricingRow[], sourceFile: string) => Promise<void>
   importWorkbook: (file: File) => Promise<{ rowCount: number }>
   updateRowField: (
     tonnageKey: number,
@@ -90,8 +96,38 @@ export const useRtuPricingStore = create<RtuPricingState>((set, get) => ({
     await savePricing(cloned, version, sourceFile)
   },
 
+  applyRcbReportPricingMerge: async (rows, sourceFile) => {
+    const cloned = cloneRows(rows)
+    set({
+      rows: cloned,
+      sourceFile,
+      pricingTable: buildPricingTable(cloned),
+      revision: get().revision + 1,
+    })
+    await savePricing(cloned, get().version, sourceFile)
+  },
+
   importWorkbook: async (file: File) => {
     const buffer = await file.arrayBuffer()
+
+    // RCB cost report: merge base-year all-in into existing Cost DB tiers only.
+    if (isRcbReportPricingSheet(buffer)) {
+      const { basis, rows: reportRows } = parseRcbReportPricingSheet(buffer)
+      const merged = mergeRcbReportPricingIntoRows(get().rows, reportRows, basis)
+      if (!merged.stats.matchedTiers) {
+        throw new Error('No matching tonnage tiers found on the “RTU Pricing” sheet.')
+      }
+      const cloned = cloneRows(merged.rows)
+      set({
+        rows: cloned,
+        sourceFile: file.name,
+        pricingTable: buildPricingTable(cloned),
+        revision: get().revision + 1,
+      })
+      await savePricing(cloned, get().version, file.name)
+      return { rowCount: merged.stats.matchedTiers }
+    }
+
     const { version, rows } = parseRtuPricingWorkbook(buffer)
     if (!rows.length) {
       throw new Error('No tonnage rows found on the “RTU Pricing” sheet.')

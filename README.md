@@ -2,16 +2,18 @@
 
 QuadReal Industrial Portfolio Map — a strongly typed React SPA for exploring buildings, RTUs, tenants, utilities, and polygons on Google Maps.
 
-**Live site:** https://quadreal-r.github.io/QR-East_Industrial_Database/
+**Live site (Cloudflare Access):** https://qr-east-industrial-database.pages.dev/  
+**Source / version history:** https://github.com/quadreal-r/QR-East_Industrial_Database
 
 ## Stack
 
 - **Frontend:** Vite + React 19 + TypeScript (strict)
 - **State:** Zustand (UI/filters) + TanStack Query (data)
 - **Database:** Supabase (Postgres + Auth + RLS)
-- **Media:** Cloudflare R2 (RTU picture/document binaries only)
+- **Media:** Cloudflare R2 — RTU pictures/docs on **quadreal** (`quadreal.rpiwin@gmail.com`); QR-360° tours (`insp360`) on **krutki11** (`krutki11@gmail.com`). The map app is hosted on quadreal but reaches krutki11 for integrated tours — see [docs/CLOUDFLARE_ACCOUNTS.md](docs/CLOUDFLARE_ACCOUNTS.md).
 - **Map:** Google Maps JavaScript API (vector map)
-- **Deploy:** GitHub Actions → GitHub Pages
+- **Deploy:** Cloudflare Pages (quadreal). GitHub stores version history; CI runs checks on push (no GitHub Pages hosting).
+
 
 ## Quick start
 
@@ -37,10 +39,11 @@ Open http://localhost:5173/ after `npm run dev`.
 | `VITE_GOOGLE_MAPS_MAP_ID` | Vector map ID (default: `8e5479ffab76936efa73ede6`) |
 | `VITE_RTU_PICTURES_BASE_URL` | Cloudflare R2 public URL for RTU pictures |
 | `VITE_RTU_DOCUMENTS_BASE_URL` | Cloudflare R2 public URL for RTU documents |
+| `VITE_INSP360_BASE_URL` | Cloudflare R2 public URL for QR-360° tour files (separate account/bucket OK) |
 
-Set the same `VITE_*` values as **GitHub Actions secrets** for CI deploys — either under **Settings → Secrets and variables → Actions** (repository secrets) or under **Settings → Environments → github-pages** (environment secrets; the deploy workflow reads from the `github-pages` environment).
+Set `VITE_*` values in `.env.local` for local/dev and in the Cloudflare Pages project settings for production builds.
 
-**R2 upload secrets** (GitHub Actions + local upload scripts only — not bundled into the app):
+**R2 upload secrets** (local upload scripts only — not bundled into the app):
 
 | Secret | Description |
 |--------|-------------|
@@ -78,10 +81,12 @@ Edits write **directly to Supabase** — there is no Settings sync or JSON deplo
 | `npm run test` | Vitest unit tests |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript check |
-| `npm run push-live` | Test, commit, push to `main` |
+| `npm run push-live` | Test, commit, push to `main` (GitHub history only — does not update live Cloudflare) |
+| `npm run deploy` | Build + deploy to Cloudflare Pages (quadreal) |
 | `npm run migrate-json-to-supabase` | One-time import from legacy `supabase/data/*.json` |
 | `npm run upload-rtu-pictures-r2` | Upload local RTU images to Cloudflare R2 |
 | `npm run upload-rtu-documents-r2` | Upload RTU documents to R2 |
+| `npm run upload:insp360` | Upload `.insp360` / `.zip` tours to the separate insp360 R2 bucket |
 | `npm run sync-rtu-pictures-r2` | Compare manifest vs R2 and upload missing files |
 
 ## RTU pictures & documents

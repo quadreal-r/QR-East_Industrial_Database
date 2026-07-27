@@ -3,7 +3,7 @@ import { resolveManagerDisplayName } from '@/lib/managerNames'
 
 export const BUILDING_OPERATOR_SHEET = 'Building Operators'
 
-/** Canonical on-site operators — always offered in the sidebar filter. */
+/** Canonical on-site operators (reference roster). Sidebar filter uses live portfolio values. */
 export const KNOWN_BUILDING_OPERATORS = [
   'Aaron Meecham',
   'Christopher Peles',
@@ -11,7 +11,7 @@ export const KNOWN_BUILDING_OPERATORS = [
   'Francisco Sarmiento',
   'Michael Gregory',
   'Mohamad Tartoussi',
-  'Ramesh Ramnarine',
+  'TBD',
 ] as const
 
 export const BUILDING_OPERATOR_EXPORT_HEADERS = [
@@ -42,9 +42,15 @@ function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-/** Sidebar dropdown list: the seven known operators (stable roster). */
-export function collectBuildingOperatorFilterOptions(_buildings: Building[] = []): string[] {
-  return [...KNOWN_BUILDING_OPERATORS]
+/** Sidebar dropdown: unique operators from the current portfolio (not a hardcoded legacy list). */
+export function collectBuildingOperatorFilterOptions(buildings: Building[] = []): string[] {
+  return [
+    ...new Set(
+      buildings
+        .map((building) => building.buildingOperator?.trim())
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ].sort((a, b) => a.localeCompare(b))
 }
 
 /** True when the Excel row is a real building roster entry (not a totals footer). */

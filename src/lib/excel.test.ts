@@ -1,11 +1,28 @@
 import { describe, expect, it } from 'vitest'
+import * as XLSX from 'xlsx'
 import {
   buildRtuImportDescription,
   columnWidthsFromRows,
   formatSqftExport,
+  importPortfolioExcel,
+  PORTFOLIO_BUILDINGS_HEADERS,
+  PORTFOLIO_POLYGONS_HEADERS,
+  PORTFOLIO_RTUS_HEADERS,
+  PORTFOLIO_UTILITIES_HEADERS,
   rtuNotesForExport,
   stripCapacityRestatement,
 } from '@/lib/excel'
+
+function portfolioWorkbookBuffer(sheets: Record<string, unknown[][]>): ArrayBuffer {
+  const wb = XLSX.utils.book_new()
+  for (const [name, rows] of Object.entries(sheets)) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name)
+  }
+  const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer | Uint8Array | number[]
+  if (out instanceof ArrayBuffer) return out
+  const bytes = out instanceof Uint8Array ? out : Uint8Array.from(out)
+  return bytes.slice().buffer as ArrayBuffer
+}
 
 describe('formatSqftExport', () => {
   it('formats numeric sqft with thousands separators', () => {
@@ -146,5 +163,54 @@ describe('columnWidthsFromRows', () => {
     ])
     expect(widths[0]?.wch).toBeGreaterThanOrEqual('441 Courtneypark'.length)
     expect(widths[1]?.wch).toBeGreaterThanOrEqual('Cost (CAD)'.length)
+  })
+})
+
+describe('importPortfolioExcel headers', () => {
+  it('rejects Buildings sheets with missing headers', () => {
+    const buffer = portfolioWorkbookBuffer({
+      Buildings: [['Building Address', 'Portfolio'], ['100 Test Rd', 'Park']],
+      RTUs: [[...PORTFOLIO_RTUS_HEADERS], ['100 Test Rd', '', '', '', 'RTU-01']],
+      'Tenant Polygons': [[...PORTFOLIO_POLYGONS_HEADERS]],
+      Utilities: [[...PORTFOLIO_UTILITIES_HEADERS]],
+    })
+    expect(() => importPortfolioExcel(buffer)).toThrow(/Buildings.*headers do not match/i)
+  })
+
+  it('accepts a workbook with the full export headers', () => {
+    const buffer = portfolioWorkbookBuffer({
+      Buildings: [
+        [...PORTFOLIO_BUILDINGS_HEADERS],
+        ['100 Test Rd', '1', 'Park', 'C', 'Mgr', '1000', 'Active', 1, 0, 43.1, -79.1],
+      ],
+      RTUs: [
+        [...PORTFOLIO_RTUS_HEADERS],
+        [
+          '100 Test Rd',
+          'Park',
+          'C',
+          'Mgr',
+          'RTU-01',
+          'M',
+          'S',
+          'Make',
+          '',
+          '',
+          '',
+          43.1,
+          -79.1,
+          '',
+          1,
+          0,
+          '',
+          '',
+        ],
+      ],
+      'Tenant Polygons': [[...PORTFOLIO_POLYGONS_HEADERS]],
+      Utilities: [[...PORTFOLIO_UTILITIES_HEADERS]],
+    })
+    const data = importPortfolioExcel(buffer)
+    expect(data.buildings).toHaveLength(1)
+    expect(data.buildings[0]?.address).toBe('100 Test Rd')
   })
 })

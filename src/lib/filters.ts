@@ -1,3 +1,7 @@
+import {
+  buildingMatchesCapexStatusSearch,
+  parseCapexStatusSearchQuery,
+} from '@/lib/capexStatusSearch'
 import { RTU_AGE_WARN } from '@/lib/constants'
 import { collectBuildingOperatorFilterOptions } from '@/lib/buildingOperators'
 import { hasPlaceholderGps, hasVacant, mlCount } from '@/lib/dataQuality'
@@ -7,6 +11,7 @@ import {
   polygonsForBuilding,
 } from '@/lib/polygonBuildings'
 import { oldestRtuAge } from '@/lib/rtu'
+import { rtuMatchesSearch } from '@/lib/rtuSearch'
 import type {
   AdvFilterState,
   Building,
@@ -14,6 +19,13 @@ import type {
   FilterState,
   Polygon,
 } from '@/types/domain'
+
+export type { CapexStatusSearchLabel, CapexStatusSearchQuery } from '@/lib/capexStatusSearch'
+export {
+  isCapexStatusSearch,
+  parseCapexStatusSearch,
+  parseCapexStatusSearchQuery,
+} from '@/lib/capexStatusSearch'
 
 const ADV_RTU_AGE_THRESHOLD = 20
 
@@ -77,9 +89,19 @@ export function matchesBuildingMetadata(
   search: string,
   managerRenames?: Record<string, string>,
   polygonIndex?: PolygonBuildingIndex,
+  capexStatuses?: Record<string, string>,
 ): boolean {
   const q = normalizeSearch(search)
   if (!q) return true
+  const statusQuery = parseCapexStatusSearchQuery(search)
+  if (statusQuery && capexStatuses) {
+    return buildingMatchesCapexStatusSearch(
+      building.address,
+      statusQuery.label,
+      capexStatuses,
+      statusQuery.year,
+    )
+  }
   if (building.address.toLowerCase().includes(q)) return true
   if (building.bu?.toLowerCase().includes(q)) return true
   if (building.cluster?.toLowerCase().includes(q)) return true
@@ -99,15 +121,27 @@ function buildingPolygons(
   return index ? polygonsForBuilding(index, building.address) : []
 }
 
-/** Search match across address, metadata, tenant polygons, and RTUs. */
+/** Search match across address, metadata, tenant polygons, RTUs, and Capex status. */
 export function matchesSearch(
   building: Building,
   search: string,
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): boolean {
   const q = normalizeSearch(search)
   if (!q) return true
+
+  const statusQuery = parseCapexStatusSearchQuery(search)
+  if (statusQuery) {
+    if (!capexStatuses) return false
+    return buildingMatchesCapexStatusSearch(
+      building.address,
+      statusQuery.label,
+      capexStatuses,
+      statusQuery.year,
+    )
+  }
 
   if (building.address.toLowerCase().includes(q)) return true
   if (building.bu?.toLowerCase().includes(q)) return true
@@ -130,13 +164,7 @@ export function matchesSearch(
     return true
   }
 
-  if (
-    building.rtus?.some(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q),
-    )
-  ) {
+  if (building.rtus?.some((r) => rtuMatchesSearch(r, q))) {
     return true
   }
 
@@ -188,12 +216,15 @@ export function reconcileFilterDropdowns(
   filters: FilterState,
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): FilterState {
   const search = normalizeSearch(filters.search)
   const next = { ...filters }
 
   if (search) {
-    const searchMatches = buildings.filter((b) => matchesSearch(b, search, polygonIndex, managerRenames))
+    const searchMatches = buildings.filter((b) =>
+      matchesSearch(b, search, polygonIndex, managerRenames, capexStatuses),
+    )
     if (next.park && !searchMatches.some((b) => b.park === next.park)) {
       next.park = ''
     }
@@ -228,8 +259,8 @@ export function reconcileFilterDropdowns(
   ) {
     next.manager = ''
   }
-  // Building operator stays selected even when park/manager scope has no matches,
-  // so the full operator roster remains usable in the dropdown.
+  // Building operator stays selected even when park/manager scope has no matches.
+  // Options themselves come from live portfolio values (see collectBuildingOperatorFilterOptions).
 
   return next
 }
@@ -241,13 +272,20 @@ export function autoFillFilterDropdowns(
   skipFields: ReadonlySet<string> = new Set(),
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager' | 'buildingOperator'> {
   const next = { ...filters }
   let changed = true
 
   while (changed) {
     changed = false
-    const options = collectFilterOptions(buildings, next, polygonIndex, managerRenames)
+    const options = collectFilterOptions(
+      buildings,
+      next,
+      polygonIndex,
+      managerRenames,
+      capexStatuses,
+    )
 
     if (!next.park && !skipFields.has('park') && options.parks.length === 1) {
       next.park = options.parks[0]!
@@ -281,6 +319,7 @@ export function applyFilterSelection(
   patch: Partial<Pick<FilterState, 'park' | 'cluster' | 'manager' | 'buildingOperator'>>,
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): Pick<FilterState, 'search' | 'park' | 'cluster' | 'manager' | 'buildingOperator'> {
   const expanded = { ...patch }
   if (patch.park === '') {
@@ -298,6 +337,7 @@ export function applyFilterSelection(
     { ...filters, ...expanded },
     polygonIndex,
     managerRenames,
+    capexStatuses,
   )
   return autoFillFilterDropdowns(
     buildings,
@@ -305,6 +345,7 @@ export function applyFilterSelection(
     new Set(Object.keys(expanded)),
     polygonIndex,
     managerRenames,
+    capexStatuses,
   )
 }
 
@@ -314,12 +355,19 @@ export function applyPrimaryFilters(
   filters: FilterState,
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): Building[] {
-  const reconciled = reconcileFilterDropdowns(buildings, filters, polygonIndex, managerRenames)
+  const reconciled = reconcileFilterDropdowns(
+    buildings,
+    filters,
+    polygonIndex,
+    managerRenames,
+    capexStatuses,
+  )
   const search = normalizeSearch(reconciled.search)
 
   const filtered = buildings.filter((building) => {
-    if (!matchesSearch(building, search, polygonIndex, managerRenames)) return false
+    if (!matchesSearch(building, search, polygonIndex, managerRenames, capexStatuses)) return false
     if (reconciled.park && building.park !== reconciled.park) return false
     if (reconciled.cluster && building.cluster !== reconciled.cluster) return false
     if (reconciled.manager && !matchesManagerFilter(building, reconciled.manager, managerRenames)) return false
@@ -347,10 +395,15 @@ export function applyFilters(
   filters: FilterState,
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): Building[] {
-  return applyPrimaryFilters(buildings, filters, polygonIndex, managerRenames).filter((building) =>
-    passDqFilter(building, filters.dq, polygonIndex),
-  )
+  return applyPrimaryFilters(
+    buildings,
+    filters,
+    polygonIndex,
+    managerRenames,
+    capexStatuses,
+  ).filter((building) => passDqFilter(building, filters.dq, polygonIndex))
 }
 
 /**
@@ -362,12 +415,19 @@ export function applyCostScopeFilters(
   filters: FilterState,
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): Building[] {
-  const filtered = applyPrimaryFilters(buildings, filters, polygonIndex, managerRenames)
+  const filtered = applyPrimaryFilters(
+    buildings,
+    filters,
+    polygonIndex,
+    managerRenames,
+    capexStatuses,
+  )
   const search = normalizeSearch(filters.search)
   if (!search) return filtered
   const metadataHits = filtered.filter((building) =>
-    matchesBuildingMetadata(building, search, managerRenames, polygonIndex),
+    matchesBuildingMetadata(building, search, managerRenames, polygonIndex, capexStatuses),
   )
   return metadataHits.length > 0 ? metadataHits : filtered
 }
@@ -379,10 +439,11 @@ function buildingsForFilterOptions(
   exclude: 'park' | 'cluster' | 'manager' | 'buildingOperator',
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): Building[] {
   const search = normalizeSearch(filters.search)
   return buildings.filter((building) => {
-    if (!matchesSearch(building, search, polygonIndex, managerRenames)) return false
+    if (!matchesSearch(building, search, polygonIndex, managerRenames, capexStatuses)) return false
     if (exclude !== 'park' && filters.park && building.park !== filters.park) return false
     if (exclude !== 'cluster' && filters.cluster && building.cluster !== filters.cluster) {
       return false
@@ -413,6 +474,7 @@ export function collectFilterOptions(
   },
   polygonIndex?: PolygonBuildingIndex,
   managerRenames?: Record<string, string>,
+  capexStatuses?: Record<string, string>,
 ): {
   parks: string[]
   clusters: string[]
@@ -421,24 +483,45 @@ export function collectFilterOptions(
 } {
   const parks = [
     ...new Set(
-      buildingsForFilterOptions(buildings, filters, 'park', polygonIndex, managerRenames).map((b) => b.park),
+      buildingsForFilterOptions(
+        buildings,
+        filters,
+        'park',
+        polygonIndex,
+        managerRenames,
+        capexStatuses,
+      ).map((b) => b.park),
     ),
   ].sort()
   const clusters = [
     ...new Set(
-      buildingsForFilterOptions(buildings, filters, 'cluster', polygonIndex, managerRenames)
+      buildingsForFilterOptions(
+        buildings,
+        filters,
+        'cluster',
+        polygonIndex,
+        managerRenames,
+        capexStatuses,
+      )
         .map((b) => b.cluster)
         .filter(Boolean),
     ),
   ].sort()
   const managers = [
     ...new Set(
-      buildingsForFilterOptions(buildings, filters, 'manager', polygonIndex, managerRenames)
+      buildingsForFilterOptions(
+        buildings,
+        filters,
+        'manager',
+        polygonIndex,
+        managerRenames,
+        capexStatuses,
+      )
         .map((b) => b.manager)
         .filter(Boolean),
     ),
   ].sort()
-  // Always offer the full operator roster (not narrowed by park/manager).
+  // Operators listed from the current portfolio (unique building_operator values).
   const buildingOperators = collectBuildingOperatorFilterOptions(buildings)
 
   return { parks, clusters, managers, buildingOperators }

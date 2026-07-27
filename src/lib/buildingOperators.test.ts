@@ -4,7 +4,6 @@ import {
   buildBuildingOperatorExportRows,
   collectBuildingOperatorFilterOptions,
   isBuildingOperatorDataRow,
-  KNOWN_BUILDING_OPERATORS,
   parseBuildingOperatorSheetRow,
 } from '@/lib/buildingOperators'
 import type { Building } from '@/types/domain'
@@ -60,7 +59,7 @@ describe('applyBuildingOperatorSheet', () => {
         'BU #': '51201',
         Portfolio: 'Western Business Park',
         'Property Manager': 'Josh Starkey',
-        'Building Operator': 'Ramesh Ramnarine',
+        'Building Operator': 'TBD',
         'Operator Phone': '(416) 688-5075',
         'Ops Manager (Region)': 'Eldin Shima (West)',
         'GM Ops': 'Joseph Pimentel',
@@ -68,7 +67,7 @@ describe('applyBuildingOperatorSheet', () => {
       }),
     ])
     expect(next[0]).toMatchObject({
-      buildingOperator: 'Ramesh Ramnarine',
+      buildingOperator: 'TBD',
       operatorPhone: '(416) 688-5075',
       opsManager: 'Eldin Shima (West)',
       gmOps: 'Joseph Pimentel',
@@ -113,12 +112,19 @@ describe('buildBuildingOperatorExportRows', () => {
 })
 
 describe('collectBuildingOperatorFilterOptions', () => {
-  it('always includes all seven known operators', () => {
+  it('lists unique operators from the portfolio, not a hardcoded roster', () => {
     const options = collectBuildingOperatorFilterOptions([
       building({ address: 'A', buildingOperator: 'Aaron Meecham' }),
-      building({ address: 'B', buildingOperator: 'Unassigned (no colour match)' }),
+      building({ address: 'B', buildingOperator: 'TBD' }),
+      building({ address: 'C', buildingOperator: 'Aaron Meecham' }),
+      building({ address: 'D', buildingOperator: 'Unassigned (no colour match)' }),
+      building({ address: 'E', buildingOperator: null }),
     ])
-    expect(options).toEqual([...KNOWN_BUILDING_OPERATORS])
-    expect(options).toHaveLength(7)
+    expect(options).toEqual(['Aaron Meecham', 'TBD', 'Unassigned (no colour match)'])
+    expect(options).not.toContain('Ramesh Ramnarine')
+  })
+
+  it('returns an empty list when no buildings have operators', () => {
+    expect(collectBuildingOperatorFilterOptions([building({ address: 'A' })])).toEqual([])
   })
 })

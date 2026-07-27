@@ -445,6 +445,27 @@ export async function writeViewerGateFileHandle(
 }
 
 /**
+ * When the host still holds a previous default tour, decide whether to keep the host
+ * copy, switch to the viewer's newer default, or clear and force reconnect.
+ */
+export function staleHostTourResolution(input: {
+  expected: string
+  hostName: string
+  viewerName: string
+  viewerByteLength: number
+}): 'keep-host' | 'prefer-viewer' | 'clear-stale' {
+  const expected = String(input.expected || '').trim()
+  const hostName = String(input.hostName || '').trim()
+  if (!expected || insp360SameProjectFile(hostName, expected)) return 'keep-host'
+  const viewerName = String(input.viewerName || '').trim()
+  const viewerMatches =
+    input.viewerByteLength > 0 &&
+    Boolean(viewerName) &&
+    insp360SameProjectFile(viewerName, expected)
+  return viewerMatches ? 'prefer-viewer' : 'clear-stale'
+}
+
+/**
  * Ensure the viewer can open a linked tour: prefer host bytes, seed viewer storage, return name.
  * Do NOT rewrite viewer IndexedDB when bytes already exist — concurrent rewrite while the
  * iframe is unzipping a large tour hangs auto-open on reopen.
@@ -466,10 +487,42 @@ export async function prepareViewerGateProject(
 
   if (stored) {
     if (expected && !insp360SameProjectFile(stored.name, expected)) {
-      // Stale host bytes from a different tour — force reconnect instead of auto-opening.
-      await deleteHostGateProject(key)
-      await clearViewerGateProject(key)
-      return null
+      // Host still has a previous default tour. Prefer the viewer copy when it already
+      // holds the new default — do NOT wipe that copy (that forced a false reconnect).
+      const viewerName = (await getViewerGateProjectName(key)) || ''
+      const viewerLen = await getViewerGateProjectByteLength(key)
+      const resolution = staleHostTourResolution({
+        expected,
+        hostName: stored.name,
+        viewerName,
+        viewerByteLength: viewerLen,
+      })
+
+      if (resolution === 'prefer-viewer') {
+        await deleteHostGateProject(key)
+        await importGateProjectFromViewerIdb(key, expected)
+        const refreshed = await loadHostGateProject(key)
+        if (refreshed && insp360SameProjectFile(refreshed.name, expected)) {
+          stored = refreshed
+        } else {
+          // Host import failed, but viewer already has the expected tour.
+          return {
+            name: expected || viewerName || 'project.insp360',
+            seeded: true,
+            reused: true,
+          }
+        }
+      } else {
+        // Neither side has the expected tour — drop the stale host copy (and a
+        // mismatched viewer copy) so reconnect can pick the right file.
+        await deleteHostGateProject(key)
+        if (viewerLen > 0 && viewerName && !insp360SameProjectFile(viewerName, expected)) {
+          await clearViewerGateProject(key)
+        } else if (!viewerLen) {
+          await clearViewerGateProject(key)
+        }
+        return null
+      }
     }
     const viewerLen = await getViewerGateProjectByteLength(key)
     // Only skip rewrite when IDB already has the same-sized tour. Cache/OPFS stubs caused

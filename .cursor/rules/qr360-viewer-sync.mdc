@@ -5,32 +5,52 @@ alwaysApply: true
 
 # QR-360° viewer sync (QR-East_Industrial_Database)
 
+## Two products, one semver
+
+| Product | Badge | Where |
+|---------|-------|--------|
+| **QR360** | `QR360-vX.Y.Z` | Standalone Inspections (file / `:8788` / workers.dev) |
+| **Map360** | `Map360-vX.Y.Z` | Map app iframe (`public/insp360/viewer.html`) |
+
+Same patch numbers (`1.2.9`). Different **prefix** so you can tell which viewer you are in. Embed mode always shows **Map360**.
+
 ## Source of truth
 
 `C:\Users\Robert\Projects\QR-360°-Inspections\QR-360°-Inspections`
 
-New builds are named like `QR-360°_viewer_v1.1.3.html`.
+New builds are named like `QR-360°_viewer_v1.2.9.html` (stamped **QR360** in source).
 
-## Linked locations in this repo
+Viewer patch numbers stop at **99**, then the middle number increases (`v1.1.99` → `v1.2.0`). Same rule as the map app topbar.
 
-| Purpose | Path |
-|---------|------|
-| Versioned archive | `qr360-viewer/QR-360°_viewer_v*.html` |
-| Live iframe target | `public/insp360/viewer.html` |
-| App URL builder | `src/lib/insp360Viewer.ts` → `insp360/viewer.html` |
+## Linked locations
+
+| Purpose | Path | Badge |
+|---------|------|-------|
+| Versioned archive | `qr360-viewer/QR-360°_viewer_v*.html` | **Map360** (after sync) |
+| Live iframe target | `public/insp360/viewer.html` | **Map360** |
+| App URL builder | `src/lib/insp360Viewer.ts` → `insp360/viewer.html` | — |
 
 The main program must keep using **`insp360/viewer.html`** (stable). Never point the iframe at a versioned filename.
 
+**Two copies of the map app:** run sync in **both** when shipping:
+
+1. `C:\Users\Robert\Projects\QR-East_Industrial_Database` (local + GitHub source of truth)
+2. `C:\Users\Robert\Projects\QR-East_Industrial_Database-Cloudflare` (quadreal Pages working mirror)
+
+Every **push a new build to Cloudflare quadreal** must include `npm run sync:qr360-viewer` in the GitHub repo before build/deploy (the skill then mirrors to the Cloudflare folder) so online tours are not stuck on an old viewer.
+
+Map topbar version (`v1.14.x`) is the **map app**. The badge inside a tour (`Map360-v1.2.x`) is the **embedded viewer** — different numbers by design.
+
 ## When the user ships a new viewer version
 
-1. Confirm the new HTML exists in the Inspections source folder.
+1. Confirm the new HTML exists in the Inspections source folder (QR360 badge).
 2. Run from `QR-East_Industrial_Database`:
 
 ```powershell
 npm run sync:qr360-viewer
 ```
 
-3. That **replaces** older files in `qr360-viewer/` and overwrites `public/insp360/viewer.html`.
-4. Tell the user to hard-refresh BME / reopen the gate sphere.
+3. That **replaces** older files in `qr360-viewer/`, overwrites `public/insp360/viewer.html`, and stamps **Map360-v…**.
+4. Tell the user to hard-refresh BME / reopen the gate sphere — badge should read **Map360-v…**.
 
 Do not hand-edit `public/insp360/viewer.html` — edit the Inspections source, then sync.

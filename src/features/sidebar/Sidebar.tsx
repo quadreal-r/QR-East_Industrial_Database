@@ -7,10 +7,13 @@ import {
   reconcileFilterDropdowns,
   applyFilterSelection,
   formatTenantCountLabel,
+  isCapexStatusSearch,
   isTenantCountSearch,
+  parseCapexStatusSearchQuery,
 } from '@/lib/filters'
 import { resolveManagerDisplayName } from '@/lib/managerNames'
 import { buildPolygonBuildingIndex, polygonsForBuilding } from '@/lib/polygonBuildings'
+import { useBuildingYearBudgetStore } from '@/stores/buildingYearBudgetStore'
 import { useFilterStore } from '@/stores/filterStore'
 import { areAllLayersHidden, useLayerStore } from '@/stores/layerStore'
 import { useSelectionStore } from '@/stores/selectionStore'
@@ -62,6 +65,7 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   const setManager = useFilterStore((s) => s.setManager)
   const setBuildingOperator = useFilterStore((s) => s.setBuildingOperator)
   const managerRenames = useSettingsStore((s) => s.managerRenames)
+  const capexStatuses = useBuildingYearBudgetStore((s) => s.statuses)
 
   const layers = useLayerStore((s) => s.layers)
   const showRtuPictureCount = useLayerStore((s) => s.showRtuPictureCount)
@@ -101,10 +105,19 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   const tenantCountInfo = formatTenantCountLabel(listTenantTotal)
   // Count summary only for tenant-count queries — never for a single-building address search.
   const showTenantCountInfo = Boolean(tenantCountInfo) && isTenantCountSearch(search)
+  const capexStatusQuery = parseCapexStatusSearchQuery(search)
+  const showCapexStatusInfo = Boolean(capexStatusQuery) && isCapexStatusSearch(search)
 
   const options = useMemo(
-    () => collectFilterOptions(allBuildings, filterContext, polygonIndex, managerRenames),
-    [allBuildings, filterContext, polygonIndex, managerRenames],
+    () =>
+      collectFilterOptions(
+        allBuildings,
+        filterContext,
+        polygonIndex,
+        managerRenames,
+        capexStatuses,
+      ),
+    [allBuildings, filterContext, polygonIndex, managerRenames, capexStatuses],
   )
 
   const baseFilters = useMemo(
@@ -115,7 +128,14 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   const handleFilterChange = (
     patch: Partial<Pick<typeof baseFilters, 'park' | 'cluster' | 'manager' | 'buildingOperator'>>,
   ) => {
-    const next = applyFilterSelection(allBuildings, baseFilters, patch, polygonIndex, managerRenames)
+    const next = applyFilterSelection(
+      allBuildings,
+      baseFilters,
+      patch,
+      polygonIndex,
+      managerRenames,
+      capexStatuses,
+    )
     if (next.park !== park) setPark(next.park)
     if (next.cluster !== cluster) setCluster(next.cluster)
     if (next.manager !== manager) setManager(next.manager)
@@ -123,7 +143,13 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
   }
 
   useLayoutEffect(() => {
-    const reconciled = reconcileFilterDropdowns(allBuildings, baseFilters, polygonIndex, managerRenames)
+    const reconciled = reconcileFilterDropdowns(
+      allBuildings,
+      baseFilters,
+      polygonIndex,
+      managerRenames,
+      capexStatuses,
+    )
     if (reconciled.park !== park) setPark(reconciled.park)
     if (reconciled.cluster !== cluster) setCluster(reconciled.cluster)
     if (reconciled.manager !== manager) setManager(reconciled.manager)
@@ -135,6 +161,7 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
     allBuildings,
     polygonIndex,
     managerRenames,
+    capexStatuses,
     park,
     cluster,
     manager,
@@ -185,10 +212,20 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
             onValueChange={setSearchInput}
             onApply={applySearch}
             onClear={clearSearch}
+            placeholder="Search address, RTU, or Capex Approved, 2027…"
+            title="Search address, tenant, RTU, or Capex building status (Approved / Submitted / Rejected). Add a year: Approved, 2027"
           />
           {showTenantCountInfo ? (
             <div className={styles.tenantCountInfo} id="tenant-count-info">
               {tenantCountInfo}
+            </div>
+          ) : null}
+          {showCapexStatusInfo && capexStatusQuery ? (
+            <div className={styles.tenantCountInfo} id="capex-status-search-info">
+              Capex {capexStatusQuery.label}
+              {capexStatusQuery.year ? ` · ${capexStatusQuery.year}` : ''} ·{' '}
+              {listBuildings.length} building
+              {listBuildings.length === 1 ? '' : 's'} — building Capex pots only
             </div>
           ) : null}
           {recentSearches.length > 0 ? (

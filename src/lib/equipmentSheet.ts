@@ -57,7 +57,11 @@ export function parseEquipmentSheetRows(data: ArrayBuffer): EquipmentSheetRow[] 
   const headerIdx = matrix.findIndex(
     (row) => String(row[EQUIPMENT_COL.replacementYear] ?? '').trim() === 'RTU Replacement Year',
   )
-  if (headerIdx < 0) return []
+  if (headerIdx < 0) {
+    throw new Error(
+      'Import blocked: “Equipment” sheet headers do not match the expected Capital workbook format (column E must be “RTU Replacement Year”).',
+    )
+  }
 
   const rows: EquipmentSheetRow[] = []
   for (let r = headerIdx + 1; r < matrix.length; r++) {

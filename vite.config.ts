@@ -1,40 +1,126 @@
-import { defineConfig, type Plugin } from 'vite'
+import { createClient } from '@supabase/supabase-js'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
+import { pickLocalDevEmail, type LocalDevAs } from './src/lib/localDevEmail'
 
-const GITHUB_PAGES_BASE = '/QR-East_Industrial_Database/'
+const projectRoot = path.resolve(__dirname)
 
-/** Dev uses base `/`. Redirect GitHub Pages bookmarks so asset paths stay correct. */
-function devGithubPagesRedirect(): Plugin {
+function localSessionPlugin(env: Record<string, string>): Plugin {
   return {
-    name: 'dev-github-pages-redirect',
+    name: 'local-supabase-session',
+    apply: 'serve',
     configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const url = req.url ?? '/'
-        if (url === GITHUB_PAGES_BASE || url.startsWith(`${GITHUB_PAGES_BASE}?`)) {
-          const qs = url.includes('?') ? url.slice(url.indexOf('?')) : ''
-          res.writeHead(302, { Location: `/${qs}` })
-          res.end()
+      server.middlewares.use('/api/session', async (request, response) => {
+        response.setHeader('Content-Type', 'application/json')
+        response.setHeader('Cache-Control', 'no-store')
+        if (request.method !== 'GET') {
+          response.statusCode = 405
+          response.end(JSON.stringify({ error: 'Method not allowed' }))
           return
         }
-        if (url.startsWith(GITHUB_PAGES_BASE)) {
-          const rest = url.slice(GITHUB_PAGES_BASE.length) || ''
-          res.writeHead(302, { Location: `/${rest}` })
-          res.end()
+
+        const supabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL
+        const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
+        if (!supabaseUrl || !serviceRoleKey) {
+          response.statusCode = 500
+          response.end(JSON.stringify({ error: 'Set SUPABASE_SERVICE_ROLE_KEY in .env.local' }))
           return
         }
-        next()
+
+        try {
+          const admin = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { autoRefreshToken: false, persistSession: false },
+          })
+          const requestUrl = new URL(request.url || '/api/session', 'http://127.0.0.1')
+          const asParam = requestUrl.searchParams.get('as')
+          const as: LocalDevAs | null =
+            asParam === 'admin' || asParam === 'viewer' ? asParam : null
+
+          const { data: roleRows, error: rolesError } = await admin
+            .from('app_roles')
+            .select('email, role')
+            .order('created_at')
+          if (rolesError) throw rolesError
+
+          const adminEmails = (roleRows ?? [])
+            .filter((row) => row.role === 'admin' && typeof row.email === 'string')
+            .map((row) => row.email as string)
+          const viewerEmails = (roleRows ?? [])
+            .filter((row) => row.role === 'viewer' && typeof row.email === 'string')
+            .map((row) => row.email as string)
+
+          const email = pickLocalDevEmail({
+            as,
+            configuredEmail: env.LOCAL_DEV_EMAIL ?? '',
+            adminEmails,
+            viewerEmails,
+          })
+
+          // Respect Manage users / app_roles. Never force Admin on every refresh —
+          // that was overwriting Viewer demotions during local testing.
+          const { data: existingRole, error: roleLookupError } = await admin
+            .from('app_roles')
+            .select('role')
+            .eq('email', email)
+            .maybeSingle()
+          if (roleLookupError) throw roleLookupError
+
+          let role: 'admin' | 'viewer'
+          if (existingRole?.role === 'admin' || existingRole?.role === 'viewer') {
+            role = existingRole.role
+          } else {
+            // First local login only: seed Admin so a fresh machine is usable.
+            const { error: seedError } = await admin
+              .from('app_roles')
+              .insert({ email, role: 'admin' })
+            if (seedError) throw seedError
+            role = 'admin'
+          }
+
+          const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+            type: 'magiclink',
+            email,
+          })
+          if (linkError) throw linkError
+          const tokenHash = link.properties?.hashed_token
+          if (!tokenHash) throw new Error('Supabase did not return a session token')
+
+          const { data: verified, error: verifyError } = await admin.auth.verifyOtp({
+            type: 'email',
+            token_hash: tokenHash,
+          })
+          if (verifyError) throw verifyError
+          if (!verified.session) throw new Error('Supabase did not create a session')
+
+          response.end(
+            JSON.stringify({
+              access_token: verified.session.access_token,
+              refresh_token: verified.session.refresh_token,
+              email,
+              role,
+            }),
+          )
+        } catch (error) {
+          console.error('Could not create local Supabase session', error)
+          response.statusCode = 500
+          response.end(
+            JSON.stringify({
+              error: error instanceof Error ? error.message : 'Could not create local session',
+            }),
+          )
+        }
       })
     },
   }
 }
 
-const projectRoot = path.resolve(__dirname)
-
-export default defineConfig(({ command }) => ({
-  plugins: [react(), ...(command === 'serve' ? [devGithubPagesRedirect()] : [])],
-  // GitHub Pages needs the subpath; local dev is simpler at http://localhost:5173/
-  base: command === 'serve' ? '/' : GITHUB_PAGES_BASE,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, projectRoot, '')
+  return {
+  plugins: [react(), localSessionPlugin(env)],
+  // Site root (`/`) for local + Cloudflare Pages.
+  base: process.env.VITE_BASE?.trim() || '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -46,7 +132,8 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     host: '127.0.0.1',
-    port: 5173,
+    // 5173 is reserved for QR Drawing Explorer on this machine.
+    port: 5174,
     strictPort: true,
     open: '/',
     // Keep the dev process alive through transient client disconnects (hard refresh, tab close).
@@ -64,4 +151,5 @@ export default defineConfig(({ command }) => ({
       ],
     },
   },
-}))
+  }
+})

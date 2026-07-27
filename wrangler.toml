@@ -1,0 +1,5 @@
+# Cloudflare Pages project for the Access-gated map app (quadreal account).
+# Deploy: npm run deploy  (via push-cloudflare-build skill)
+name = "qr-east-industrial-database"
+compatibility_date = "2026-04-01"
+pages_build_output_dir = "dist"

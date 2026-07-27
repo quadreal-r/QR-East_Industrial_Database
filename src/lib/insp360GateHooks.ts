@@ -11,8 +11,25 @@ export const INSP360_REQUEST_HOST_FILE_PICK_MSG = 'insp360:requestHostFilePick'
 export const INSP360_REQUEST_CHANGE_TOUR_MSG = 'insp360:requestChangeTour'
 export const INSP360_PREPARE_CLOSE_MSG = 'insp360:prepareClose'
 export const INSP360_READY_CLOSE_MSG = 'insp360:readyToClose'
+/** Host → embed: pack/mirror the open tour into gate storage for Cloudflare publish. */
+/** Host → viewer: pack for Cloudflare publish (or tour.json-only when pins changed). Optional cloudKey hint. */
+export const INSP360_PREPARE_PUBLISH_MSG = 'insp360:preparePublish'
+/** Embed → host: publish pack finished (ok true/false). */
+export const INSP360_PUBLISH_READY_MSG = 'insp360:publishReady'
 /** Viewer → host: progress while opening a linked/picked .insp360 from a gateway. */
 export const INSP360_OPEN_PROGRESS_MSG = 'insp360:openProgress'
+/** Embed → host: list gate-scoped cloud tours for Double Tour. */
+export const INSP360_REQUEST_CLOUD_LIST_MSG = 'insp360:requestCloudList'
+/** Host → embed: cloud list result (or error). */
+export const INSP360_CLOUD_LIST_MSG = 'insp360:cloudList'
+/** Embed → host: soft Dashboard (cloud picker) opened or closed. */
+export const INSP360_EMBED_DASH_MSG = 'insp360:embedDash'
+/** Host → embed: rename the open tour to match the gateway. */
+export const INSP360_SET_PROJECT_NAME_MSG = 'insp360:setProjectName'
+/** Embed → host: set (or clear) which tour is the gateway default. */
+export const INSP360_SET_GATE_DEFAULT_TOUR_MSG = 'insp360:setGateDefaultTour'
+export const INSP360_UPLOAD_TOUR_JSON_MSG = 'insp360:uploadTourJson'
+export const INSP360_TOUR_JSON_UPLOAD_RESULT_MSG = 'insp360:tourJsonUploadResult'
 export const INSP360_LOCAL_PREFIX = 'insp360-local:'
 
 export type Insp360OpenProgressPayload = {
@@ -59,14 +76,17 @@ export type Insp360ProjectOpenPayload = {
 /** Confirm copy when closing an unlinked tour from a gateway. */
 export function insp360LinkGateConfirmMessage(
   projectName: string | null | undefined,
-  options?: { fileName?: string | null },
+  options?: { fileName?: string | null; cloud?: boolean },
 ): string {
   const label = insp360ProjectDisplayName(projectName) || 'this tour'
   const fileLabel = insp360ProjectDisplayName(options?.fileName)
+  const linkNote = options?.cloud
+    ? 'This attaches the Cloudflare tour URL to this gateway so it opens automatically for everyone.'
+    : 'This links the tour on this PC/browser only — it does not upload to Cloudflare. Use Publish to Cloudflare & link if others need it online.'
   if (fileLabel && fileLabel.toLowerCase() !== label.toLowerCase()) {
-    return `Link “${label}” to this gateway so it opens automatically next time?\n\nTour file: ${fileLabel}`
+    return `Link “${label}” to this gateway so it opens automatically next time?\n\nTour file: ${fileLabel}\n\n${linkNote}`
   }
-  return `Link “${label}” to this gateway so it opens automatically next time?`
+  return `Link “${label}” to this gateway so it opens automatically next time?\n\n${linkNote}`
 }
 
 /** Confirm copy when changing which tour is linked to a gateway. */
@@ -169,23 +189,65 @@ export function insp360SameProjectFile(
 }
 
 /**
+ * True when the tour open in the viewer is this gate's permanent Cloudflare link.
+ * Used to hide Publish while viewing that linked tour; show it again for a different local/cloud tour.
+ */
+export function isOpenTourPermanentCloudLink(options: {
+  permanentUrl: string | null | undefined
+  openCloudKey?: string | null
+  openCloudUrl?: string | null
+  /** When cloud identity is missing, match by open file name (downloaded permanent URL). */
+  openProjectName?: string | null
+}): boolean {
+  const permanent = String(options.permanentUrl || '').trim()
+  if (!permanent) return false
+  const key = String(options.openCloudKey || '').trim()
+  const url = String(options.openCloudUrl || '').trim()
+  if (url) {
+    if (url === permanent) return true
+    try {
+      if (decodeURIComponent(url) === decodeURIComponent(permanent)) return true
+    } catch {
+      /* ignore */
+    }
+    if (insp360SameProjectFile(url, permanent)) return true
+  }
+  if (key) {
+    if (key === permanent || permanent.endsWith(key)) return true
+    try {
+      const path = decodeURIComponent(new URL(permanent).pathname).replace(/^\/+/, '')
+      if (path === key || path.endsWith(`/${key}`)) return true
+    } catch {
+      if (permanent.includes(key)) return true
+    }
+    if (insp360SameProjectFile(key, permanent)) return true
+  }
+  // No cloud identity → only treat as the permanent tour when the open name matches that URL.
+  // A differently named local file must return false so Publish can replace the link.
+  const openName = String(options.openProjectName || '').trim()
+  return Boolean(openName && insp360SameProjectFile(openName, permanent))
+}
+
+/**
  * Tour label for map popups.
- * Prefers the local gate hook (opened/saved .insp360), then a remote inspection_url.
+ * Prefers a permanent remote inspection_url (matches Enter / cloud open), then a local hook.
  */
 export function resolveInsp360TourLabel(
   gateKey: string | null | undefined,
   inspectionUrl: string | null | undefined,
-): { connected: boolean; label: string } {
+): { connected: boolean; label: string; kind: 'local' | 'cloud' | 'none' } {
+  const url = inspectionUrl?.trim()
+  if (url) {
+    const name = insp360ProjectDisplayName(url) || url
+    return { connected: true, label: `Cloudflare: ${name}`, kind: 'cloud' }
+  }
   const hook = getInsp360GateHook(gateKey)
   // Only trust hooks that were saved with real project bytes in the parent app.
   if (hook?.name && hook.hosted === true) {
-    return { connected: true, label: insp360ProjectDisplayName(hook.name) }
+    const name = insp360ProjectDisplayName(hook.name) || hook.name
+    return { connected: true, label: `On this PC: ${name}`, kind: 'local' }
   }
-  const url = inspectionUrl?.trim()
-  if (url) {
-    return { connected: true, label: insp360ProjectDisplayName(url) }
-  }
-  return { connected: false, label: 'Not connected yet' }
+  return { connected: false, label: 'Not connected yet', kind: 'none' }
 }
 
 /** Remote/public tour URL safe to fetch in the embed iframe. Local hooks are cache-only. */
@@ -203,6 +265,15 @@ export function shouldPromptLinkGate(options: {
   gateKey: string | null | undefined
   projectOpen: boolean
   alreadyLinked: boolean
+  /** Permanent Supabase / R2 Tour URL — no local Link step needed. */
+  hasOnlineTour?: boolean
+  /**
+   * Gate already has a default tour that is not this open one.
+   * Do not auto-prompt to replace it — reassign only via Link / Set as default.
+   */
+  gateAlreadyAssigned?: boolean
 }): boolean {
+  if (options.hasOnlineTour) return false
+  if (options.gateAlreadyAssigned) return false
   return Boolean(options.gateKey && options.projectOpen && !options.alreadyLinked)
 }

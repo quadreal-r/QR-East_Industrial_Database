@@ -194,7 +194,7 @@ describe('mapInfoWindow', () => {
     const html = buildDetailInfoHtml('inspection360', entrance, {
       buildingAddress: '6150 Kennedy Road',
     })
-    expect(html).toContain('360° GATE')
+    expect(html).not.toContain('360° GATE')
     expect(html).toContain('Enter QR-360° Tour')
     expect(html).toContain('data-iw-action="inspection360-open"')
     expect(html).toContain('↔ Move')
@@ -240,7 +240,7 @@ describe('mapInfoWindow', () => {
       inspection_url: null,
     }
     const html = buildDetailInfoHtml('electrical', utility)
-    expect(html).toContain('ELECTRICAL 360°')
+    expect(html).not.toContain('ELECTRICAL 360°')
     expect(html).toContain('Enter QR-360° Tour')
     expect(html).toContain('data-iw-action="inspection360-open"')
     expect(html).toContain('↔ Move')
@@ -277,7 +277,7 @@ describe('mapInfoWindow', () => {
       inspection_url: 'insp360/projects/sprinkler-a.insp360',
     }
     const html = buildDetailInfoHtml('sprinkler', utility)
-    expect(html).toContain('SPRINKLER 360°')
+    expect(html).not.toContain('SPRINKLER 360°')
     expect(html).toContain('Connected')
     expect(html).toContain('Enter QR-360° Tour')
   })

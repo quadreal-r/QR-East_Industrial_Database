@@ -12,7 +12,9 @@ import {
   type SearchHighlightKind,
   type SearchHighlightTarget,
 } from '@/lib/searchHighlightTargets'
+import { MAP_PULSE_SEARCH_HIGHLIGHTS_EVENT } from '@/lib/searchHits'
 import { useFilterStore } from '@/stores/filterStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 import type { Building, Polygon, SuiteEntrance } from '@/types/domain'
 
 export const MAP_DISMISS_SEARCH_HIGHLIGHTS_EVENT = 'map:dismissSearchHighlights'
@@ -65,6 +67,28 @@ function clearCircles(entries: HighlightCircle[]): void {
   }
 }
 
+function circleBelongsToBuilding(target: SearchHighlightTarget, address: string): boolean {
+  const want = address.trim().toLowerCase()
+  if (!want) return false
+  if (target.buildingAddress?.trim().toLowerCase() === want) return true
+  if (target.kind === 'building' && target.label.trim().toLowerCase() === want) return true
+  if (target.label.toLowerCase().startsWith(`${want} ·`)) return true
+  return false
+}
+
+/** Restart the 3-beat attention pulse on matching search rings. */
+function pulseCirclesForBuilding(entries: HighlightCircle[], address: string): void {
+  for (const entry of entries) {
+    if (!circleBelongsToBuilding(entry.target, address)) continue
+    const root = entry.marker.querySelector('.search-hit-circle') as HTMLElement | null
+    if (!root) continue
+    root.classList.remove('search-hit-circle-pulse')
+    // Force restart so a second click pulses again.
+    void root.offsetWidth
+    root.classList.add('search-hit-circle-pulse')
+  }
+}
+
 function drawCircles(
   map: google.maps.Map,
   targets: SearchHighlightTarget[],
@@ -83,6 +107,9 @@ function drawCircles(
     // Host element must also ignore hits — content pointer-events alone is not enough.
     marker.style.pointerEvents = 'none'
     marker.setAttribute('data-search-hit-circle', '1')
+    if (target.buildingAddress) {
+      marker.setAttribute('data-search-hit-building', target.buildingAddress)
+    }
     marker.gmpClickable = false
     return { marker, target }
   })
@@ -106,9 +133,10 @@ function highlightKey(parts: {
 
 /**
  * Draw temporary red circles for search hits or park/cluster/manager/operator
- * filters — never pan, zoom, or rotate. Circle screen size stays constant
- * across zoom. Drawn as Advanced Markers so rings sit above address text.
- * Dismiss on map click-away.
+ * filters. Circle screen size stays constant across zoom. Drawn as Advanced
+ * Markers so rings sit above address text. Dismiss on map click-away.
+ * Category filter changes (no text search) open the All Buildings overview
+ * on Google imagery and leave red rings only on the chosen category.
  */
 export function useSearchHitCircles(
   map: google.maps.Map | null,
@@ -116,6 +144,7 @@ export function useSearchHitCircles(
   filteredBuildings: Building[],
   polygons: Polygon[] = [],
   suiteEntrances: SuiteEntrance[] = [],
+  onCategoryFilterOverview?: () => void,
 ): void {
   const search = useFilterStore((s) => s.search)
   const park = useFilterStore((s) => s.park)
@@ -125,10 +154,16 @@ export function useSearchHitCircles(
   const circlesRef = useRef<HighlightCircle[]>([])
   const dismissedRef = useRef(false)
   const lastKeyRef = useRef('')
+  const overviewRef = useRef(onCategoryFilterOverview)
+
+  useEffect(() => {
+    overviewRef.current = onCategoryFilterOverview
+  }, [onCategoryFilterOverview])
 
   useEffect(() => {
     const key = highlightKey({ search, park, cluster, manager, buildingOperator })
-    if (key !== lastKeyRef.current) {
+    const keyChanged = key !== lastKeyRef.current
+    if (keyChanged) {
       lastKeyRef.current = key
       dismissedRef.current = false
     }
@@ -151,9 +186,16 @@ export function useSearchHitCircles(
       targets = collectClusterHighlightTargets(filteredBuildings)
     }
 
-    if (!targets.length) return
+    if (targets.length) {
+      circlesRef.current = drawCircles(map, targets)
+    }
 
-    circlesRef.current = drawCircles(map, targets)
+    // Like All Buildings + category on Google: full portfolio overview, red rings
+    // only on the filter. Skip text search, clear-filters, and data refreshes.
+    if (keyChanged && !q && hasFilter) {
+      useSelectionStore.getState().clearSelection()
+      overviewRef.current?.()
+    }
 
     return () => {
       clearCircles(circlesRef.current)
@@ -179,7 +221,18 @@ export function useSearchHitCircles(
       clearCircles(circlesRef.current)
       circlesRef.current = []
     }
+    const pulse = (e: Event) => {
+      const address = String(
+        (e as CustomEvent<{ address?: string }>).detail?.address || '',
+      ).trim()
+      if (!address || !circlesRef.current.length) return
+      pulseCirclesForBuilding(circlesRef.current, address)
+    }
     window.addEventListener(MAP_DISMISS_SEARCH_HIGHLIGHTS_EVENT, dismiss)
-    return () => window.removeEventListener(MAP_DISMISS_SEARCH_HIGHLIGHTS_EVENT, dismiss)
+    window.addEventListener(MAP_PULSE_SEARCH_HIGHLIGHTS_EVENT, pulse)
+    return () => {
+      window.removeEventListener(MAP_DISMISS_SEARCH_HIGHLIGHTS_EVENT, dismiss)
+      window.removeEventListener(MAP_PULSE_SEARCH_HIGHLIGHTS_EVENT, pulse)
+    }
   }, [])
 }

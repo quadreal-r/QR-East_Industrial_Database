@@ -57,6 +57,15 @@ describe('normalizeRtuName', () => {
     expect(normalizeRtuName('RTU- 12B')).toBe('rtu 12b')
   })
 
+  it('matches short RT labels and unpadded numbers', () => {
+    expect(normalizeRtuName('RT01')).toBe('rtu 01')
+    expect(normalizeRtuName('RT05')).toBe('rtu 05')
+    expect(normalizeRtuName('RTU-6')).toBe('rtu 06')
+    expect(normalizeRtuName('RTU 1')).toBe('rtu 01')
+    expect(normalizeRtuName('RTU-1 Roof Top Unit')).toBe('rtu 01')
+    expect(normalizeRtuName('RTU-1A')).toBe('rtu 01a')
+  })
+
   it('matches workbook and portfolio hybrid labels', () => {
     expect(normalizeRtuName('RTU 05  Hybrid')).toBe(normalizeRtuName('RTU- 05 Hybrid'))
     expect(normalizeRtuName('RTU 04  Hybrid')).toBe(normalizeRtuName('RTU- 04 Hybrid'))

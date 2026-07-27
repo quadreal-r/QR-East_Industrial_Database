@@ -1,9 +1,11 @@
+import { isCapexStatusSearch } from '@/lib/capexStatusSearch'
 import { isTenantCountSearch } from '@/lib/filters'
 import {
   buildingForPolygon,
   buildPolygonBuildingIndex,
   polygonsForBuilding,
 } from '@/lib/polygonBuildings'
+import { rtuMatchesSearch } from '@/lib/rtuSearch'
 import {
   defaultEntrancePosition,
   ensureSuiteEntrances,
@@ -11,13 +13,15 @@ import {
 } from '@/lib/suiteEntrances'
 import type { Building, Polygon, SuiteEntrance } from '@/types/domain'
 
-export type SearchHighlightKind = 'building' | 'cluster' | 'suite'
+export type SearchHighlightKind = 'building' | 'cluster' | 'suite' | 'rtu'
 
 export interface SearchHighlightTarget {
   kind: SearchHighlightKind
   label: string
   lat: number
   lng: number
+  /** Building address this ring belongs to — used to pulse on sidebar click. */
+  buildingAddress?: string
 }
 
 /** On-screen radius in CSS pixels — stays constant while the map zooms. */
@@ -25,6 +29,7 @@ export const SEARCH_HIGHLIGHT_RADIUS_PX: Record<SearchHighlightKind, number> = {
   building: 48,
   cluster: 64,
   suite: 40,
+  rtu: 36,
 }
 
 export interface SearchHighlightContext {
@@ -56,6 +61,29 @@ function buildingMatchesQuery(building: Building, q: string): boolean {
   if (building.manager?.toLowerCase().includes(q)) return true
   if (building.buildingOperator?.toLowerCase().includes(q)) return true
   return false
+}
+
+function buildingAddressMatchesQuery(building: Building, q: string): boolean {
+  return building.address.toLowerCase().includes(q)
+}
+
+function collectBuildingAddressHighlightTargets(
+  buildings: Building[],
+  q: string,
+): SearchHighlightTarget[] {
+  const targets: SearchHighlightTarget[] = []
+  for (const building of buildings) {
+    if (!buildingAddressMatchesQuery(building, q)) continue
+    if (!Number.isFinite(building.lat) || !Number.isFinite(building.lng)) continue
+    targets.push({
+      kind: 'building',
+      label: building.address,
+      lat: building.lat,
+      lng: building.lng,
+      buildingAddress: building.address,
+    })
+  }
+  return targets
 }
 
 function centroid(buildings: Building[]): { lat: number; lng: number } {
@@ -102,6 +130,18 @@ export function collectClusterHighlightTargets(buildings: Building[]): SearchHig
     if (target) targets.push(target)
   }
   return targets.sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** Lat/lng points for fitting the map (e.g. All Buildings overview fallback). */
+export function collectFilterFitPoints(
+  buildings: Building[],
+): Array<{ lat: number; lng: number }> {
+  const points: Array<{ lat: number; lng: number }> = []
+  for (const building of buildings) {
+    if (!Number.isFinite(building.lat) || !Number.isFinite(building.lng)) continue
+    points.push({ lat: building.lat, lng: building.lng })
+  }
+  return points
 }
 
 function polygonMatchesTenantQuery(polygon: Polygon, q: string): boolean {
@@ -162,7 +202,42 @@ export function collectSuiteHighlightTargets(
       label: tenant ? `${polygon.name} · ${tenant}` : polygon.name,
       lat,
       lng,
+      buildingAddress: building.address,
     })
+  }
+
+  return targets
+}
+
+/**
+ * Circle RTU markers whose name / description / serial / model / make / suite
+ * matches the search (e.g. a serial number or Lennox model).
+ */
+export function collectRtuHighlightTargets(
+  buildings: Building[],
+  search: string,
+): SearchHighlightTarget[] {
+  const q = normalizeSearch(search)
+  if (!q) return []
+
+  const targets: SearchHighlightTarget[] = []
+  const seen = new Set<string>()
+
+  for (const building of buildings) {
+    for (const rtu of building.rtus ?? []) {
+      if (!rtuMatchesSearch(rtu, q)) continue
+      if (!Number.isFinite(rtu.lat) || !Number.isFinite(rtu.lng)) continue
+      const key = `${rtu.lat.toFixed(6)},${rtu.lng.toFixed(6)},${rtu.name}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      targets.push({
+        kind: 'rtu',
+        label: `${building.address} · ${rtu.name}`,
+        lat: rtu.lat,
+        lng: rtu.lng,
+        buildingAddress: building.address,
+      })
+    }
   }
 
   return targets
@@ -173,7 +248,9 @@ export function collectSuiteHighlightTargets(
  * - park name match → one circle per cluster inside that park
  * - else cluster name match → circle that cluster
  * - else tenant name match → circle matching suite gateways
- * - else → circle matching buildings
+ * - else building address match → circle address markers only (never RTUs)
+ * - else RTU / equipment field match → circle matching RTUs
+ * - else → circle matching buildings (BU / manager / operator)
  */
 export function collectSearchHighlightTargets(
   buildings: Building[],
@@ -184,6 +261,8 @@ export function collectSearchHighlightTargets(
   if (!q || buildings.length === 0) return []
   // Count-style "tenants" search is text-only under the search field.
   if (isTenantCountSearch(q)) return []
+  // Capex status search filters buildings only; map uses building hit nav.
+  if (isCapexStatusSearch(q)) return []
 
   const parks = [...new Set(buildings.map((b) => b.park).filter(Boolean))].sort()
   const matchedParks = parks.filter((park) => park.toLowerCase().includes(q))
@@ -208,6 +287,13 @@ export function collectSearchHighlightTargets(
   )
   if (suiteTargets.length > 0) return suiteTargets
 
+  // Address search → building pins only. Do not ring RTUs on the same property.
+  const addressTargets = collectBuildingAddressHighlightTargets(buildings, q)
+  if (addressTargets.length > 0) return addressTargets
+
+  const rtuTargets = collectRtuHighlightTargets(buildings, search)
+  if (rtuTargets.length > 0) return rtuTargets
+
   const targets: SearchHighlightTarget[] = []
   for (const building of buildings) {
     if (!buildingMatchesQuery(building, q)) continue
@@ -217,6 +303,7 @@ export function collectSearchHighlightTargets(
       label: building.address,
       lat: building.lat,
       lng: building.lng,
+      buildingAddress: building.address,
     })
   }
   return targets

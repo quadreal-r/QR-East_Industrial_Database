@@ -39,15 +39,30 @@ export function clearMarqueeTargets(): void {
   targets.clear()
 }
 
-/** Keep drag selection when marker/polygon clicks bubble to multiple map listeners. */
+/** Keep map/marker clicks from clearing popups during the current pointer gesture. */
 export function suppressMapClickClearOnce(): void {
   suppressMapClickClear = true
   if (suppressMapClickClearResetScheduled) return
   suppressMapClickClearResetScheduled = true
-  queueMicrotask(() => {
+
+  const finish = (): void => {
+    if (!suppressMapClickClearResetScheduled) return
     suppressMapClickClear = false
     suppressMapClickClearResetScheduled = false
-  })
+    if (typeof window === 'undefined') return
+    window.removeEventListener('pointerup', finish, true)
+    window.removeEventListener('mouseup', finish, true)
+  }
+
+  if (typeof window !== 'undefined') {
+    // Survive text-selection / input interaction — microtask was clearing too early
+    // and map click would close the InfoWindow mid-edit.
+    window.addEventListener('pointerup', finish, { capture: true })
+    window.addEventListener('mouseup', finish, { capture: true })
+    window.setTimeout(finish, 750)
+  } else {
+    queueMicrotask(finish)
+  }
 }
 
 export function consumeMapClickClearSuppression(): boolean {

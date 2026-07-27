@@ -47,3 +47,6 @@ scripts/clean-rtu-note-duplicates.mjs
 # Local RTU picture lists
 nogps-list.txt
 nogps-not-on-cdn.txt
+# Scratch test output
+test-results-log.txt
+vitest-gate-out.txt

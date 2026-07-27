@@ -1,5 +1,7 @@
 import { useCallback, useRef } from 'react'
 import type { MutableRefObject } from 'react'
+import { prefetchInsp360Tour } from '@/lib/insp360TourCache'
+import { buildInspection360GateKey, resolveInspection360ProjectUrl } from '@/lib/insp360Viewer'
 import { confirm } from '@/stores/confirmStore'
 import {
   setAppMarkerCursor,
@@ -16,12 +18,13 @@ import {
 } from '@/lib/mapInfoWindow'
 import { buildingDragKey } from '@/lib/dragSelection'
 import { suppressMapClickClearOnce } from '@/lib/mapMarqueeSelect'
-import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScroll } from '@/lib/mapPopups'
+import { closeAllMapPopups, ensureInfoWindowVisible, bindMapPopupWheelScroll, bindMapPopupInteractionGuard } from '@/lib/mapPopups'
 import {
   resolveInsp360TourLabel,
   resolveInsp360ViewerProjectUrl,
 } from '@/lib/insp360GateHooks'
-import { buildInspection360GateKey } from '@/lib/insp360Viewer'
+import { getGateInspectionUrlFromPortfolio } from '@/lib/insp360GateTours'
+import { usePortfolioStore } from '@/stores/portfolioStore'
 import { afterMapViewChange } from '@/lib/mapRotation'
 import {
   addRtuPicturesFromFiles,
@@ -75,13 +78,39 @@ export function useInfoWindowActions(
 ) {
   /** Drop prior InfoWindow DOM listeners so repeated opens do not stack handlers. */
   const infoWindowActionsAbortRef = useRef<AbortController | null>(null)
-  const { isAuthenticated } = useAuth()
+  /** Background cloud-tour prefetch while a gate popup is open. */
+  const tourPrefetchAbortRef = useRef<AbortController | null>(null)
+  const { canEdit } = useAuth()
+
+  const cancelTourPrefetch = useCallback(() => {
+    tourPrefetchAbortRef.current?.abort()
+    tourPrefetchAbortRef.current = null
+  }, [])
+
+  const startTourPrefetch = useCallback(
+    (inspectionUrl: string | null | undefined) => {
+      cancelTourPrefetch()
+      const raw = String(inspectionUrl || '').trim()
+      if (!raw) return
+      let resolved = raw
+      try {
+        resolved = resolveInspection360ProjectUrl(raw)
+      } catch {
+        /* keep raw */
+      }
+      if (!resolved || !/^https?:\/\//i.test(resolved)) return
+      const ac = new AbortController()
+      tourPrefetchAbortRef.current = ac
+      void prefetchInsp360Tour(resolved, { signal: ac.signal })
+    },
+    [cancelTourPrefetch],
+  )
 
   const requireEditAuth = useCallback(() => {
-    if (isAuthenticated) return true
-    showToastError('Sign in to edit the map.')
+    if (canEdit) return true
+    showToastError('Admin access is required to edit the map.')
     return false
-  }, [isAuthenticated])
+  }, [canEdit])
 
   const stopSoloMove = useCallback(() => {
     const solo = soloMoveRef.current
@@ -137,9 +166,11 @@ export function useInfoWindowActions(
     (building: Building, marker: AppMapMarker) => {
       if (!map || !infoWindowRef.current) return
       if (activeInfoMarkerRef.current === marker) {
+        cancelTourPrefetch()
         closeAllMapPopups()
         return
       }
+      cancelTourPrefetch()
       closeAllMapPopups()
       activeDetailInfoRef.current = null
       clearActiveRtuPictures()
@@ -147,7 +178,7 @@ export function useInfoWindowActions(
       const managerRenames = useSettingsStore.getState().managerRenames
       infoWindowRef.current.setContent(
         buildBuildingInfoHtml(building, tenantPolygons, managerRenames, {
-          showMove: isAuthenticated,
+          showMove: canEdit,
         }),
       )
       infoWindowRef.current.open({ map, anchor: marker })
@@ -155,7 +186,16 @@ export function useInfoWindowActions(
       activeInfoMarkerRef.current = marker
       afterMapViewChange(map)
     },
-    [map, infoWindowRef, activeInfoMarkerRef, activeDetailInfoRef, polygonIndexRef, clearActiveRtuPictures, isAuthenticated],
+    [
+      map,
+      infoWindowRef,
+      activeInfoMarkerRef,
+      activeDetailInfoRef,
+      polygonIndexRef,
+      clearActiveRtuPictures,
+      canEdit,
+      cancelTourPrefetch,
+    ],
   )
 
   const detailHtmlOptions = useCallback(
@@ -179,18 +219,27 @@ export function useInfoWindowActions(
         )
         tourInspectionUrl = utility.inspection_url?.trim() || null
       }
+      // Prefer live portfolio over marker snapshot so link/unlink shows up without hard refresh.
+      const livePortfolio = usePortfolioStore.getState().portfolio
+      if (
+        tourGateKey &&
+        livePortfolio &&
+        (livePortfolio.suiteEntrances.length > 0 || livePortfolio.utilities.length > 0)
+      ) {
+        tourInspectionUrl = getGateInspectionUrlFromPortfolio(livePortfolio, tourGateKey)
+      }
       const tour = resolveInsp360TourLabel(tourGateKey, tourInspectionUrl)
       return {
         buildingAddress: entry.building?.address,
         pendingPictureAssignCount,
-        showMove: isAuthenticated,
-        showEdit: isAuthenticated,
-        showDelete: isAuthenticated,
+        showMove: canEdit,
+        showEdit: canEdit,
+        showDelete: canEdit,
         tourConnected: tour.connected,
         tourLabel: tour.label,
       }
     },
-    [isAuthenticated],
+    [canEdit],
   )
 
   const refreshRtuDocumentsView = useCallback(async () => {
@@ -235,6 +284,7 @@ export function useInfoWindowActions(
       if (!map || !infoWindowRef.current) return
       const { type, data, marker } = entry
       if (activeInfoMarkerRef.current === marker) {
+        cancelTourPrefetch()
         closeAllMapPopups()
         return
       }
@@ -255,8 +305,46 @@ export function useInfoWindowActions(
       activeInfoMarkerRef.current = marker
       setAppMarkerVisible(marker, true)
       afterMapViewChange(map)
+
+      // Intent prefetch: warm cloud tour cache while the gate popup is open.
+      if (entry.type === 'inspection360') {
+        const entrance = entry.data as SuiteEntrance
+        const gateKey = buildInspection360GateKey(
+          'suite',
+          entrance,
+          entrance.building_id ?? entry.building?.id,
+        )
+        const livePortfolio = usePortfolioStore.getState().portfolio
+        const liveUrl =
+          (livePortfolio ? getGateInspectionUrlFromPortfolio(livePortfolio, gateKey) : null) ??
+          entrance.inspection_url
+        startTourPrefetch(liveUrl)
+      } else if (entry.type === 'electrical' || entry.type === 'sprinkler') {
+        const utility = entry.data as Utility
+        const gateKey = buildInspection360GateKey(
+          entry.type === 'electrical' ? 'electrical' : 'sprinkler',
+          utility,
+          entry.building?.id,
+        )
+        const livePortfolio = usePortfolioStore.getState().portfolio
+        const liveUrl =
+          (livePortfolio ? getGateInspectionUrlFromPortfolio(livePortfolio, gateKey) : null) ??
+          utility.inspection_url
+        startTourPrefetch(liveUrl)
+      } else {
+        cancelTourPrefetch()
+      }
     },
-    [map, infoWindowRef, activeInfoMarkerRef, activeDetailInfoRef, clearActiveRtuPictures, detailHtmlOptions],
+    [
+      map,
+      infoWindowRef,
+      activeInfoMarkerRef,
+      activeDetailInfoRef,
+      clearActiveRtuPictures,
+      detailHtmlOptions,
+      startTourPrefetch,
+      cancelTourPrefetch,
+    ],
   )
 
   const attachInfoWindowActions = useCallback(() => {
@@ -273,15 +361,18 @@ export function useInfoWindowActions(
         document.querySelector('.gm-style-iw-d')
       if (!container) return
 
+      const iwShell = container.closest('.gm-style-iw-c') ?? container
+      bindMapPopupWheelScroll(iwShell, { signal })
+      bindMapPopupInteractionGuard(iwShell, map, { signal })
+
       const keepPopupOpenOnMapClick = (e: Event) => {
         suppressMapClickClearOnce()
         e.stopPropagation()
       }
       container.addEventListener('click', keepPopupOpenOnMapClick, { signal })
       container.addEventListener('mousedown', keepPopupOpenOnMapClick, { signal })
-
-      const iwShell = container.closest('.gm-style-iw-c') ?? container
-      bindMapPopupWheelScroll(iwShell, { signal })
+      container.addEventListener('pointerdown', keepPopupOpenOnMapClick, { signal })
+      container.addEventListener('selectstart', keepPopupOpenOnMapClick, { signal })
 
       container.querySelector('[data-iw-action="close"]')?.addEventListener(
         'click',
@@ -474,11 +565,16 @@ export function useInfoWindowActions(
               entrance,
               entrance.building_id ?? ctx.entry.building?.id,
             )
+            const livePortfolio = usePortfolioStore.getState().portfolio
+            const liveUrl =
+              (livePortfolio
+                ? getGateInspectionUrlFromPortfolio(livePortfolio, gateKey)
+                : null) ?? entrance.inspection_url
             useUiStore.getState().openInspection360Viewer({
               buildingAddress,
               suiteName: entrance.name,
               title: entrance.name,
-              projectUrl: resolveInsp360ViewerProjectUrl(entrance.inspection_url),
+              projectUrl: resolveInsp360ViewerProjectUrl(liveUrl),
               scene: null,
               gateKey,
             })
@@ -489,11 +585,16 @@ export function useInfoWindowActions(
             const utility = ctx.entry.data as Utility
             const gateKind = ctx.entry.type === 'electrical' ? 'electrical' : 'sprinkler'
             const gateKey = buildInspection360GateKey(gateKind, utility, ctx.entry.building?.id)
+            const livePortfolio = usePortfolioStore.getState().portfolio
+            const liveUrl =
+              (livePortfolio
+                ? getGateInspectionUrlFromPortfolio(livePortfolio, gateKey)
+                : null) ?? utility.inspection_url
             useUiStore.getState().openInspection360Viewer({
               buildingAddress: ctx.entry.building?.address ?? utility.description ?? '',
               suiteName: utility.name,
               title: utility.name,
-              projectUrl: resolveInsp360ViewerProjectUrl(utility.inspection_url),
+              projectUrl: resolveInsp360ViewerProjectUrl(liveUrl),
               scene: null,
               gateKey,
             })
@@ -664,12 +765,12 @@ export function useInfoWindowActions(
         void refreshRtuPicturesView()
       }
 
-      container
-        .querySelector('[data-iw-action="picture-prev"]')
-        ?.addEventListener('click', () => stepPicture(-1), { signal })
-      container
-        .querySelector('[data-iw-action="picture-next"]')
-        ?.addEventListener('click', () => stepPicture(1), { signal })
+      container.querySelectorAll('[data-iw-action="picture-prev"]').forEach((el) => {
+        el.addEventListener('click', () => stepPicture(-1), { signal })
+      })
+      container.querySelectorAll('[data-iw-action="picture-next"]').forEach((el) => {
+        el.addEventListener('click', () => stepPicture(1), { signal })
+      })
 
       container
         .querySelector('[data-iw-action="picture-open-viewer"]')
@@ -806,5 +907,6 @@ export function useInfoWindowActions(
     openBuildingInfo,
     openDetailInfo,
     attachInfoWindowActions,
+    cancelTourPrefetch,
   }
 }

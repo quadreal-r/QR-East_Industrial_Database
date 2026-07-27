@@ -32,12 +32,12 @@ export interface SettingsModalProps {
   portfolio: PortfolioData
   onImport: (data: PortfolioData) => void
   onPortfolioPatch: (data: PortfolioData) => void
+  /** Write pending portfolio to Supabase immediately (used by Edit 360° Gates). */
+  onPersistPortfolio: (data: PortfolioData) => Promise<void>
   onOpenPolygonDraw: () => void
   onOpenAddMarker: () => void
   onOpenAddInspection360: () => void
   onSaved?: () => void
-  isAuthenticated: boolean
-  onSignIn: () => void
 }
 
 function PropertyManagerNamesEditor({
@@ -49,7 +49,7 @@ function PropertyManagerNamesEditor({
 }) {
   const managerRenames = useSettingsStore((s) => s.managerRenames)
   const saveSettings = useSettingsStore((s) => s.saveSettings)
-  const { isAuthenticated } = useAuth()
+  const { canEdit } = useAuth()
 
   const [slots, setSlots] = useState<ManagerSlot[]>(() =>
     managerSlotsFromPortfolio(portfolio.buildings, managerRenames),
@@ -74,8 +74,8 @@ function PropertyManagerNamesEditor({
   }
 
   const handleApply = () => {
-    if (!isAuthenticated) {
-      showToastError('Sign in to save manager names.')
+    if (!canEdit) {
+      showToastError('Admin access is required to save manager names.')
       return
     }
     const committed = commitDraft(selectedIndex, draftName, slots)
@@ -149,15 +149,15 @@ function SettingsForm({
   onClose,
   onImport,
   onPortfolioPatch,
+  onPersistPortfolio,
   onOpenPolygonDraw,
   onOpenAddMarker,
   onOpenAddInspection360,
-  onSignIn,
 }: SettingsFormProps) {
   const setThemeIndex = useSettingsStore((s) => s.setThemeIndex)
   const applyTheme = useSettingsStore((s) => s.applyTheme)
   const saveSettings = useSettingsStore((s) => s.saveSettings)
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, canEdit, role, user } = useAuth()
 
   const dragMode = useSelectionStore((s) => s.dragMode)
   const dragSelectedCount = useSelectionStore((s) => s.dragSelectedKeys.length)
@@ -188,12 +188,12 @@ function SettingsForm({
   const handleThemeSelect = (index: number) => {
     applyTheme(index)
     setThemeIndex(index)
-    if (isAuthenticated) void saveSettings()
+    if (canEdit) void saveSettings()
   }
 
   const handleEditPositions = () => {
-    if (!isAuthenticated) {
-      showToastError('Sign in to edit map positions.')
+    if (!canEdit) {
+      showToastError('Admin access is required to edit map positions.')
       return
     }
     setDragMode(!dragMode)
@@ -203,11 +203,6 @@ function SettingsForm({
   const handleImport = (data: PortfolioData) => {
     onImport(data)
     handleClose()
-  }
-
-  const handleSignInClick = () => {
-    handleClose()
-    onSignIn()
   }
 
   return (
@@ -227,12 +222,14 @@ function SettingsForm({
       <div className={styles.body}>
         <section>
           {isAuthenticated ? (
-            <p className={styles.authStatus}>Signed in as {user?.email}</p>
+            <p className={styles.authStatus}>
+              {user?.email} · {role === 'admin' ? 'Admin' : 'Viewer'}
+            </p>
           ) : (
-            <p className={styles.authStatus}>Signed out — sign in to edit, import, or export.</p>
+            <p className={styles.authStatus}>Connecting to your Access session…</p>
           )}
           <SettingsToolButton
-            tooltip="Sign in, password, passkeys, and two-factor authentication."
+            tooltip="View your Access identity, role, and logout."
             onClick={() => setSettingsView('account')}
           >
             Account
@@ -255,7 +252,7 @@ function SettingsForm({
           </select>
         </section>
 
-        {isAuthenticated ? (
+        {canEdit ? (
           <>
             <section>
               <SettingsSectionLabel
@@ -348,20 +345,25 @@ function SettingsForm({
                   onImport={handleImport}
                   onExportComplete={handleClose}
                   mode="both"
-                  isAuthenticated={isAuthenticated}
+                  canEdit={canEdit}
                 />
               </div>
             </section>
           </>
         ) : (
           <section>
-            <SettingsSectionLabel>Edits &amp; export</SettingsSectionLabel>
+            <SettingsSectionLabel>Viewer access</SettingsSectionLabel>
             <p className={styles.authLockedHint}>
-              Sign in to edit the map, add markers, import, or export data.
+              Viewers can browse and export downloads. Admin access is required to edit or import.
             </p>
-            <SettingsToolButton tooltip="Open the sign-in form." onClick={handleSignInClick}>
-              Sign in to edit
-            </SettingsToolButton>
+            <ImportExportButtons
+              portfolio={portfolio}
+              buildings={portfolio.buildings}
+              onImport={handleImport}
+              onExportComplete={handleClose}
+              mode="export"
+              canEdit={false}
+            />
           </section>
         )}
       </div>
@@ -384,6 +386,7 @@ function SettingsForm({
         onClose={() => setInspection360EditorOpen(false)}
         portfolio={portfolio}
         onPortfolioPatch={onPortfolioPatch}
+        onPersistPortfolio={onPersistPortfolio}
         onOpenAddInspection360={() => {
           setInspection360EditorOpen(false)
           handleClose()

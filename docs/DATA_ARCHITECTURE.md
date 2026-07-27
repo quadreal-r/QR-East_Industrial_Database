@@ -20,7 +20,8 @@ flowchart LR
 |-------|----------------|
 | **Supabase** | Buildings, RTUs, tenants, utilities, polygons, RTU schedule, pricing, settings, picture/document metadata |
 | **Cloudflare R2** | RTU picture and document file bytes only |
-| **GitHub Actions** | Build + deploy the React app to GitHub Pages on push to `main` |
+| **Cloudflare Pages** | Hosts the React app (quadreal account) |
+| **GitHub** | Source history / version tracking; CI runs typecheck, lint, and tests on push |
 
 There is **no JSON sync pipeline** and no Settings → “Sync to Cloudflare” flow. Edits made while signed in write directly to Supabase.
 
@@ -94,11 +95,8 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (server-side only).
 
 ## Deploy
 
-Push to `main` (or `npm run push-live`) triggers [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml):
-
-1. typecheck, lint, test, build
-2. optional RTU picture upload to R2
-3. deploy to GitHub Pages
+- **Live app:** Cloudflare Pages via the `push-cloudflare-build` skill (`npm run deploy` on the quadreal account).
+- **GitHub `main`:** version history. Pushing runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (typecheck, lint, test) — it does **not** publish the site.
 
 Map data changes take effect immediately in Supabase — no separate data deploy.
 

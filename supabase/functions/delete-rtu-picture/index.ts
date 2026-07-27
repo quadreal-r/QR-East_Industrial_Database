@@ -171,6 +171,10 @@ Deno.serve(async (req) => {
   if (userError || !user) {
     return json({ error: 'Unauthorized' }, 401)
   }
+  const { data: canEdit, error: roleError } = await supabaseUser.rpc('is_app_editor')
+  if (roleError || !canEdit) {
+    return json({ error: 'Admin access required' }, 403)
+  }
 
   let payload: { buildingAddress?: string; rtuName?: string; fileName?: string }
   try {

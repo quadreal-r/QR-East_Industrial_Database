@@ -33,7 +33,7 @@ import {
   unregisterMarqueeTarget,
 } from '@/lib/mapMarqueeSelect'
 import { tryConsumeMapAddMarkerPick } from '@/lib/mapAddMarkerPick'
-import { applySavedMapView, panToPreserveRotation } from '@/lib/mapRotation'
+import { panToPreserveRotation } from '@/lib/mapRotation'
 import { focusBuildingCamera } from '@/lib/buildingMapView'
 import { imageryModeIndexFromId } from '@/lib/imageryMode'
 import { usePortfolioMapViewStore } from '@/stores/portfolioMapViewStore'
@@ -63,7 +63,7 @@ import { areAllLayersHidden, useLayerStore } from '@/stores/layerStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useUiStore } from '@/stores/uiStore'
 import {
-  fitMapToBuildingMarkers,
+  applyAllBuildingsOverviewCamera,
   syncDetailMarkerPositions,
   applyPendingMarkerPositions,
   buildMarkerStructureKey,
@@ -147,6 +147,7 @@ export function useMapMarkers({
   const buildingMarkersRef = useRef<BuildingMarkerEntry[]>([])
   const detailMarkersRef = useRef<DetailMarkerEntry[]>([])
   const hasInitialBuildingFitRef = useRef(false)
+  const portfolioMapViewLoaded = usePortfolioMapViewStore((s) => s.loaded)
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
   const activeInfoMarkerRef = useRef<AppMapMarker | null>(null)
   const activeDetailInfoRef = useRef<ActiveDetailInfo | null>(null)
@@ -270,7 +271,7 @@ export function useMapMarkers({
     setLastDragUndo,
   )
 
-  const { stopSoloMove, commitSoloMove, openBuildingInfo, openDetailInfo, attachInfoWindowActions } =
+  const { stopSoloMove, commitSoloMove, openBuildingInfo, openDetailInfo, attachInfoWindowActions, cancelTourPrefetch } =
     useInfoWindowActions(
       map,
       detailMarkersRef,
@@ -324,6 +325,7 @@ export function useMapMarkers({
     infoWindowRef.current = new google.maps.InfoWindow({ maxWidth: 360, disableAutoPan: true })
     infoWindowRef.current.addListener('closeclick', () => {
       if (shouldSuppressInfoWindowCloseReset()) return
+      cancelTourPrefetch()
       const marker = activeInfoMarkerRef.current
       if (marker) {
         const entry = detailMarkersRef.current.find((e) => e.marker === marker)
@@ -562,15 +564,6 @@ export function useMapMarkers({
     map.addListener('zoom_changed', refreshDetailVisibility)
     map.addListener('idle', refreshDetailVisibility)
 
-    if (!hasInitialBuildingFitRef.current && buildingMarkersRef.current.length > 0) {
-      hasInitialBuildingFitRef.current = true
-      const entries = buildingMarkersRef.current
-      google.maps.event.addListenerOnce(map, 'idle', () => {
-        if (hasPendingHardRefreshView() || wasHardRefreshViewApplied()) return
-        fitMapToBuildingMarkers(map, entries)
-      })
-    }
-
     void refreshRtuPictureBadges()
 
     return () => {
@@ -609,6 +602,7 @@ export function useMapMarkers({
     refreshDragSelectionStyles,
     clearActiveRtuPictures,
     setLastDragUndo,
+    cancelTourPrefetch,
   ])
 
   useEffect(() => {
@@ -748,6 +742,35 @@ export function useMapMarkers({
 
   const visibleAddressesRef = useRef('')
 
+  // Match the green All Buildings button on first open (wait for saved overview to load).
+  useEffect(() => {
+    if (!map || hasInitialBuildingFitRef.current) return
+    if (!portfolioMapViewLoaded) return
+    if (buildingMarkersRef.current.length === 0) return
+
+    hasInitialBuildingFitRef.current = true
+    const entries = [...buildingMarkersRef.current]
+
+    const applyStartupOverview = () => {
+      if (hasPendingHardRefreshView() || wasHardRefreshViewApplied()) return
+      const saved = usePortfolioMapViewStore.getState().view
+      const mode = applyAllBuildingsOverviewCamera(map, entries, saved)
+      if (mode === 'saved' && saved?.imageryMode) {
+        const applied = applyMode(imageryModeIndexFromId(saved.imageryMode))
+        if (applied) onImageryModeChange?.(applied)
+      }
+    }
+
+    applyStartupOverview()
+    google.maps.event.addListenerOnce(map, 'idle', applyStartupOverview)
+  }, [
+    map,
+    portfolioMapViewLoaded,
+    markerStructureKey,
+    applyMode,
+    onImageryModeChange,
+  ])
+
   // Green All Buildings button: show every pin, then restore the saved overview
   // camera when one exists (otherwise fit all markers on screen).
   const showAllBuildingsView = useCallback(() => {
@@ -761,14 +784,10 @@ export function useMapMarkers({
       setAppMarkerVisible(entry.marker, true)
     }
     const saved = usePortfolioMapViewStore.getState().view
-    if (saved) {
-      applySavedMapView(map, saved)
-      if (saved.imageryMode) {
-        const applied = applyMode(imageryModeIndexFromId(saved.imageryMode))
-        if (applied) onImageryModeChange?.(applied)
-      }
-    } else {
-      fitMapToBuildingMarkers(map, buildingMarkersRef.current)
+    applyAllBuildingsOverviewCamera(map, buildingMarkersRef.current, saved)
+    if (saved?.imageryMode) {
+      const applied = applyMode(imageryModeIndexFromId(saved.imageryMode))
+      if (applied) onImageryModeChange?.(applied)
     }
     refreshDetailVisibility()
   }, [
@@ -779,6 +798,23 @@ export function useMapMarkers({
     onImageryModeChange,
     refreshDetailVisibility,
   ])
+
+  // Category filter (park/cluster/manager/operator): full portfolio overview + always Google.
+  // Do not keep Esri from a building visit, and do not restore saved overview imagery.
+  const showCategoryFilterOverview = useCallback(() => {
+    if (!map) return
+    for (const entry of buildingMarkersRef.current) {
+      setAppMarkerVisible(entry.marker, true)
+    }
+    applyAllBuildingsOverviewCamera(
+      map,
+      buildingMarkersRef.current,
+      usePortfolioMapViewStore.getState().view,
+    )
+    const applied = applyMode(0)
+    if (applied) onImageryModeChange?.(applied)
+    refreshDetailVisibility()
+  }, [map, buildingMarkersRef, applyMode, onImageryModeChange, refreshDetailVisibility])
 
   useEffect(() => {
     if (
@@ -828,6 +864,7 @@ export function useMapMarkers({
     fitAllMarkers,
     showAllMarkers,
     showAllBuildingsView,
+    showCategoryFilterOverview,
     cycleImagery,
     refreshDetailVisibility,
     buildingMarkersRef,

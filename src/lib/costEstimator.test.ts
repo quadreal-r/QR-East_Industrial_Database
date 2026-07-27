@@ -1,9 +1,9 @@
 import legacyBuildings from '../../supabase/data/buildings.json'
 import {
   formatRtuTons,
+  isValidRtuReplacementYear,
   rcbBuildScheduledExport,
   rcbCompute,
-  rcbCostForTier,
   rcbLineItemsForBuilding,
   rcbLineItemsWithReplacementYears,
   rcbMoney,
@@ -57,6 +57,17 @@ describe('rcbUnitCost', () => {
     expect(unit).toBeDefined()
     expect(rcbUnitCost(unit!, 'hyb', '2026')).toBe(34679)
   })
+
+  it('de-escalates hybrid pricing for Capex year 2025', () => {
+    const unit = RTU_PRICING['5']
+    expect(rcbUnitCost(unit!, 'hyb', '2025')).toBe(Math.round(34679 / 1.05))
+  })
+
+  it('reuses standard 2025 pricing for later Capex years', () => {
+    const unit = RTU_PRICING['5']
+    expect(rcbUnitCost(unit!, 'std', '2025')).toBe(33687)
+    expect(rcbUnitCost(unit!, 'std', '2028')).toBe(33687)
+  })
 })
 
 describe('rcbCompute', () => {
@@ -92,7 +103,7 @@ describe('rcbCompute', () => {
     expect(tiers.reduce((sum, tier) => sum + tier.qty, 0)).toBe(items.length)
   })
 
-  it('applies per-RTU replacement years with projected pricing', () => {
+  it('attaches replacement year as a label without changing cost or age', () => {
     const subset = buildings.filter((b) => b.address === '1850 Derry Road East')
     const result = rcbCompute(subset, {
       basis: 'hyb',
@@ -104,31 +115,45 @@ describe('rcbCompute', () => {
     const first = base[0]
     expect(first).toBeDefined()
 
-    const baseCost2026 = rcbCostForTier(first!.tierKey, 'hyb', '2026')
-    const baseCost2028 = rcbCostForTier(first!.tierKey, 'hyb', '2028')
-    expect(baseCost2026).toBeTruthy()
-    expect(baseCost2028).toBeGreaterThan(baseCost2026!)
-
     const key = `${first!.address}::${first!.rtu}`
     const scheduled = rcbLineItemsWithReplacementYears(base, 'hyb', '2026', {
       [key]: '2028',
     })
     const scheduledItem = scheduled.find((item) => item.rtu === first!.rtu)
     expect(scheduledItem?.replacementYear).toBe('2028')
-    expect(scheduledItem?.cost).toBe(baseCost2028)
+    expect(scheduledItem?.cost).toBe(first!.cost)
+    expect(scheduledItem?.age).toBe(first!.age)
   })
 
-  it('sanitizes assignments when default year changes', () => {
+  it('keeps all valid year assignments including the default year', () => {
     const assignments = {
       'A::RTU-01': '2027',
       'B::RTU-02': '2028',
+      'C::RTU-03': '2026',
     }
     expect(
       rcbSanitizeReplacementYearAssignments(assignments, ['2026', '2027', '2028'], '2027'),
-    ).toEqual({ 'B::RTU-02': '2028' })
+    ).toEqual(assignments)
   })
 
-  it('builds scheduled export totals from per-RTU replacement years', () => {
+  it('treats legacy 0 / invalid years as None (not assigned)', () => {
+    expect(isValidRtuReplacementYear(0)).toBe(false)
+    expect(isValidRtuReplacementYear('0')).toBe(false)
+    expect(isValidRtuReplacementYear('2027')).toBe(true)
+    expect(
+      rcbSanitizeReplacementYearAssignments(
+        {
+          'A::RTU-01': '0',
+          'B::RTU-02': '2027',
+          'C::RTU-03': '1999',
+        },
+        ['2026', '2027'],
+        '2026',
+      ),
+    ).toEqual({ 'B::RTU-02': '2027' })
+  })
+
+  it('builds scheduled export with replacement year labels (cost unchanged)', () => {
     const subset = buildings.filter((b) => b.address === '1850 Derry Road East')
     const result = rcbCompute(subset, {
       basis: 'hyb',
@@ -142,7 +167,7 @@ describe('rcbCompute', () => {
     const key = rcbReplacementYearKey(first!.address, first!.rtu)
     const scheduled = rcbBuildScheduledExport(result, { [key]: '2028' })
     expect(scheduled.customizedCount).toBe(1)
-    expect(scheduled.totals.cost).toBeGreaterThan(result.totals.cost)
+    expect(scheduled.totals.cost).toBe(result.totals.cost)
     expect(scheduled.perBldg[0]?.cost).toBe(scheduled.totals.cost)
     expect(scheduled.items.find((item) => item.rtu === first!.rtu)?.replacementYear).toBe('2028')
   })

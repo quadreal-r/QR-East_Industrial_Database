@@ -2,40 +2,53 @@
   flex-shrink: 0;
   border-top: 2px solid var(--accent, #7db8ff);
   background: var(--surface2, #143d78);
-  max-height: 56px;
-  transition: max-height 0.25s ease;
+  /* Tall enough for the full KPI row (incl. Est. Cost + Budget) when closed. */
+  max-height: 58px;
+  transition: max-height 0.2s ease, flex-basis 0.2s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Stay inside the main column (map + cost) — never spill below the window. */
+  min-height: 0;
 }
 
 .banner.open,
 .bannerOpen {
-  max-height: 46vh;
+  /* Share of the main column so the map shrinks and the bottom stays on-screen. */
+  flex: 0 0 48%;
+  max-height: 48%;
+  height: 48%;
 }
 
 .bannerBuildingDetail {
-  max-height: 62vh;
+  max-height: 48%;
 }
 
 .bannerBuildingDetail.bannerOpen {
-  max-height: 62vh;
+  flex: 0 0 62%;
+  max-height: 62%;
+  height: 62%;
 }
 
 .bar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 9px 16px;
-  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  flex-wrap: nowrap;
   flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  background: var(--surface2, #143d78);
+  min-width: 0;
 }
 
 .rcbTitle {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  min-width: 150px;
+  min-width: 0;
+  flex: 0 1 140px;
 }
 
 .rcbTitleT1 {
@@ -58,10 +71,12 @@
 
 .rcbKpis {
   display: flex;
-  gap: 18px;
+  gap: 0;
   align-items: stretch;
-  flex: 1;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .rcbKpi {
@@ -69,8 +84,10 @@
   flex-direction: column;
   justify-content: center;
   gap: 1px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-left: 1px solid var(--border, #2e6ec0);
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .rcbKpi:first-child {
@@ -91,7 +108,7 @@
 }
 
 .rcbKpiTotal .kVal {
-  font-size: 22px;
+  font-size: 18px;
   color: #7fffcf;
 }
 
@@ -99,11 +116,29 @@
   color: #7fffcf;
 }
 
+.rcbKpiBudget .kValBudget {
+  font-size: 18px;
+}
+
+.kValBudget {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fde68a;
+  font-family: 'DM Mono', monospace;
+}
+
+.kLabBudget {
+  color: #fde68a;
+}
+
 .rcbControls {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .rcbCtl {
@@ -112,6 +147,7 @@
   gap: 5px;
   font-size: 11px;
   color: var(--text-secondary, #c8dff8);
+  white-space: nowrap;
 }
 
 .rcbCtl input[type='number'],
@@ -120,8 +156,20 @@
   border: 1px solid var(--border, #2e6ec0);
   color: #fff;
   border-radius: 4px;
-  font-size: 11px;
-  padding: 3px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.2;
+  padding: 4px 10px;
+  height: 30px;
+  min-height: 30px;
+  box-sizing: border-box;
+}
+
+/* Same box size as Basis — only a stronger border so the year still stands out. */
+.replYearSelect {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-color: rgba(125, 184, 255, 0.65);
 }
 
 .ageStepper {
@@ -203,6 +251,29 @@
   color: #fff;
 }
 
+.rcbBtnXls:hover {
+  border-color: #22c55e;
+  color: #fff;
+  background: #15803d;
+}
+
+.rcbBtnImport {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.rcbBtnImport:hover:not(:disabled) {
+  border-color: #22c55e;
+  color: #fff;
+  background: #15803d;
+}
+
+.rcbBtnImport:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .rcbBtnPdf {
   background: #dc2626;
   border-color: #dc2626;
@@ -215,31 +286,50 @@
   background: #b91c1c;
 }
 
+.hiddenFile {
+  display: none;
+}
+
 .detail {
   display: none;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   border-top: 1px solid var(--border, #2e6ec0);
-  overflow-y: auto;
-  overflow-x: auto;
-  padding: 0 16px 14px;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
+  padding: 0 16px;
 }
 
 .bannerOpen .detail {
-  display: block;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tables scroll inside here; KPI bar / footnotes stay put. */
+.detailBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .rcbDetailGrid {
   display: flex;
   gap: 22px;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .rcbTblwrap {
-  flex: 1;
-  min-width: 340px;
+  flex: 1 1 auto;
+  min-width: 280px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .rcbTblwrap h4 {
@@ -248,12 +338,138 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted, #90b8e0);
-  margin: 10px 0 6px;
+  margin: 0;
+  padding: 0 0 0 2px;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background: var(--surface2, #143d78);
+  box-sizing: border-box;
+}
+
+.byBuildingHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  box-sizing: border-box;
+  background: var(--surface2, #143d78);
+}
+
+.byBuildingHead h4 {
+  padding: 0;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.byBuildingHeadControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.budgetFilterToggle {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border, #2e6ec0);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.budgetFilterBtn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #90b8e0);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.budgetFilterBtn + .budgetFilterBtn {
+  border-left: 1px solid var(--border, #2e6ec0);
+}
+
+.budgetFilterBtn:hover {
+  color: #fff;
+  background: rgba(125, 184, 255, 0.12);
+}
+
+.budgetFilterBtnActive {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fde68a;
+}
+
+.removeBudgetTh {
+  width: 3.25rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.removeBudgetTd {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.removeBudgetCheck {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #fbbf24;
+}
+
+.removeBudgetCheck:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.budgetRemoved {
+  text-decoration: line-through;
+  color: var(--text-muted, #90b8e0);
+  opacity: 0.75;
+}
+
+/* Only the table data scrolls; section title stays above. */
+.rcbTblScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Room so the last rows are not clipped at the panel edge. */
+  padding-bottom: 20px;
+  /* Hide scrollbar; mouse wheel / trackpad still scroll. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.rcbTblScroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .rcbTbl {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 11.5px;
 }
 
@@ -262,8 +478,19 @@
   font-weight: 600;
   color: var(--text-muted, #90b8e0);
   font-size: 10px;
-  padding: 4px 8px;
+  padding: 0 8px;
+  height: 28px;
+  max-height: 28px;
+  line-height: 1.2;
+  box-sizing: border-box;
+  white-space: nowrap;
+  vertical-align: middle;
   border-bottom: 1px solid var(--border, #2e6ec0);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Opaque so row text never shows through column headers. */
+  background: var(--surface2, #143d78);
 }
 
 .rcbTbl th.num,
@@ -272,10 +499,43 @@
   font-family: 'DM Mono', monospace;
 }
 
+.ageHeaderTh {
+  min-width: 3.25rem;
+  max-width: 4.5rem;
+  white-space: normal;
+  vertical-align: bottom;
+  line-height: 1.15;
+}
+
+.ageHeaderTh .sortableTh {
+  white-space: normal;
+  height: auto;
+  min-height: 28px;
+  line-height: 1.15;
+  overflow: visible;
+  text-overflow: unset;
+  padding: 2px 0;
+}
+
+.ageHeaderLabel {
+  display: block;
+  white-space: normal;
+  line-height: 1.15;
+  max-width: 4.5rem;
+}
+
+.rcbCtlAgeLabel {
+  max-width: 5.5rem;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: left;
+}
+
 .rcbTbl td {
   padding: 4px 8px;
   border-bottom: 1px solid rgba(46, 110, 192, 0.25);
   color: var(--text-secondary, #c8dff8);
+  background: var(--surface2, #143d78);
 }
 
 .rcbTbl tr:hover td {
@@ -286,14 +546,18 @@
   font-weight: 700;
   color: #fff;
   border-top: 2px solid var(--accent, #7db8ff);
+  background: var(--surface2, #143d78);
 }
 
 .rcbFoot {
   font-size: 10px;
   color: var(--text-muted, #90b8e0);
-  margin-top: 10px;
-  line-height: 1.5;
+  margin: 4px 0 8px;
+  line-height: 1.4;
   font-style: italic;
+  flex: 0 0 auto;
+  max-height: 2.8em;
+  overflow: hidden;
 }
 
 .rcbChev {
@@ -324,8 +588,22 @@
   color: var(--accent, #7db8ff);
 }
 
+/* Cluster / Manager: single line; overflow clipped; full name via title on hover. */
+.clusterCell,
+.managerCell {
+  max-width: 7.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .buildingDetail {
   padding-top: 4px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .buildingDetailHeader {
@@ -333,7 +611,15 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  margin: 8px 0 4px;
+  margin: 0 0 4px;
+  padding: 8px 0 6px;
+  flex-shrink: 0;
+  background: var(--surface2, #143d78);
+}
+
+.buildingDetail .rcbDetailGrid {
+  flex: 1;
+  min-height: 0;
 }
 
 .rcbBackBtn {
@@ -388,11 +674,341 @@
   font-size: 16px;
 }
 
+.budgetKpiLabel {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #90b8e0);
+  margin-bottom: 2px;
+}
+
+.buildingBudgetKpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.capexRemainingOk,
+.capexRemainingNeutral,
+.capexRemainingOver {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  line-height: 1.15;
+}
+
+.capexRemainingOk {
+  color: #86efac;
+}
+
+.capexRemainingNeutral {
+  color: #fde68a;
+}
+
+.capexRemainingOver {
+  color: #fca5a5;
+}
+
+.capexPotEdit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.capexPotEditLab {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #90b8e0);
+}
+
+/* Match .rcbYearSelect height/chrome; sized for values like $999.99.
+   `input.` prefix beats legacy `input[type=text]{width:100%}`. */
+input.budgetInput {
+  background: var(--bg, #194a8d);
+  border: 1px solid var(--border, #2e6ec0);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  line-height: 1.2;
+  padding: 2px 4px;
+  width: 4.5rem;
+  max-width: 4.5rem;
+  min-width: 4.5rem;
+  height: 26px;
+  min-height: 26px;
+  box-sizing: border-box;
+  text-align: right;
+}
+
+input.budgetInput:focus {
+  outline: none;
+  border-color: var(--accent, #7db8ff);
+}
+
+.buildingBudgetInput {
+  width: 5.5rem;
+  max-width: 5.5rem;
+  min-width: 5.5rem;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fde68a;
+  border-color: #fbbf24;
+}
+
+.capexSourceStrip {
+  flex-shrink: 0;
+  margin: 0 12px 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 6px;
+  background: rgba(15, 40, 80, 0.55);
+}
+
+.capexSourceStripTitle {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fde68a;
+  margin-bottom: 6px;
+}
+
+.capexSourceHeader,
+.capexSourceItem {
+  display: grid;
+  grid-template-columns: 52px 88px 92px 72px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.capexSourceHeader {
+  margin-bottom: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #90b8e0;
+}
+
+.capexSourceList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.capexSourceItem {
+  color: var(--text, #d7e8ff);
+}
+
+.capexSourceItemActive {
+  color: #fff;
+}
+
+.capexSourceYearBtn {
+  appearance: none;
+  border: 1px solid rgba(125, 184, 255, 0.45);
+  background: rgba(25, 74, 141, 0.8);
+  color: #d7e8ff;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+
+.capexSourceItemActive .capexSourceYearBtn {
+  border-color: #fbbf24;
+  color: #fde68a;
+}
+
+.capexSourceAmount {
+  font-family: 'DM Mono', monospace;
+  font-weight: 600;
+  color: #fde68a;
+}
+
+.capexSourceStatus,
+.capexSourceStatusEmpty {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.capexSourceStatusEmpty {
+  color: var(--text-muted, #90b8e0);
+  background: transparent;
+  padding-left: 0;
+}
+
+.capexSourceStatusApproved {
+  color: #14532d;
+  background: #86efac;
+}
+
+.capexSourceStatusSubmitted {
+  color: #713f12;
+  background: #fde68a;
+}
+
+.capexSourceStatusRejected {
+  color: #7f1d1d;
+  background: #fca5a5;
+}
+
+.capexSourceJobType,
+.capexSourceJobTypeEmpty {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 0;
+  white-space: nowrap;
+  color: #d7e8ff;
+}
+
+.capexSourceJobTypeEmpty {
+  color: var(--text-muted, #90b8e0);
+  font-weight: 500;
+}
+
+.capexSourceNote {
+  white-space: pre-line;
+  word-break: break-word;
+  color: #cfe0f5;
+}
+
+.budgetTd {
+  width: 5.25rem;
+  min-width: 5.25rem;
+  max-width: 5.25rem;
+  padding-right: 18px;
+  vertical-align: middle;
+}
+
+.notesTh,
+.notesTd {
+  padding-left: 14px;
+  white-space: nowrap;
+}
+
+.rtuBudgetAllocTh {
+  width: 5.25rem;
+  max-width: 5.25rem;
+  white-space: normal;
+  vertical-align: bottom;
+  padding-right: 18px;
+}
+
+.rtuBudgetAllocTh .sortableTh {
+  white-space: normal;
+  line-height: 1.15;
+  height: auto;
+  min-height: 28px;
+  overflow: visible;
+  text-overflow: unset;
+  text-align: right;
+  padding: 2px 0;
+}
+
+.rtuBudgetAllocLabel {
+  display: block;
+  white-space: normal;
+  line-height: 1.15;
+  max-width: 5rem;
+  text-align: right;
+}
+
+.budgetYearsCell {
+  font-size: 10px;
+  color: var(--text-muted, #90b8e0);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budgetVarianceNeutral,
+.budgetVarianceOver,
+.budgetVarianceUnder {
+  font-size: 9px;
+  font-family: 'DM Mono', monospace;
+}
+
+.budgetVarianceNeutral {
+  color: var(--text-muted, #90b8e0);
+}
+
+.budgetVarianceOver {
+  color: #86efac;
+}
+
+.budgetVarianceUnder {
+  color: #fca5a5;
+}
+
 .buildingDetailHint {
   margin: 4px 0 0;
   font-size: 10px;
   color: var(--text-muted, #90b8e0);
   font-style: italic;
+}
+
+.yearPotStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 10px;
+  flex-shrink: 0;
+}
+
+.yearPotChip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #2e6ec0);
+  background: rgba(30, 80, 150, 0.35);
+  color: var(--text, #e8f1ff);
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  cursor: pointer;
+  text-align: left;
+}
+
+.yearPotChip strong {
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.yearPotChip:hover {
+  border-color: var(--accent, #7db8ff);
+}
+
+.yearPotChipActive {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
 }
 
 .replYearTh,
@@ -403,11 +1019,11 @@
 }
 
 .replYearTh {
-  min-width: 92px;
+  min-width: 64px;
 }
 
 .replYearTd {
-  min-width: 92px;
+  min-width: 64px;
 }
 
 .rcbYearSelect {
@@ -415,10 +1031,14 @@
   border: 1px solid var(--border, #2e6ec0);
   color: #fff;
   border-radius: 4px;
-  font-size: 10px;
-  padding: 2px 4px;
-  width: auto;
-  min-width: 92px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  line-height: 1.2;
+  padding: 2px 6px;
+  width: 72px;
+  height: 26px;
+  min-height: 26px;
+  min-width: 0;
   box-sizing: border-box;
   cursor: pointer;
 }
@@ -435,19 +1055,28 @@
 .sortableTh {
   display: block;
   width: 100%;
-  margin: 0 0 4px;
+  margin: 0;
   padding: 0;
   border: none;
   background: none;
   color: var(--text-muted, #90b8e0);
   font-size: 10px;
   font-weight: 600;
+  line-height: 28px;
+  height: 28px;
   text-align: left;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sortableTh:hover {
   color: var(--accent, #7db8ff);
+}
+
+.rcbTbl th.num .sortableTh {
+  text-align: right;
 }
 
 .rcbYearFilter {
@@ -474,6 +1103,7 @@
   padding: 3px 8px;
   cursor: pointer;
   white-space: nowrap;
+  margin-left: 4px;
 }
 
 .rtuNotesBtn:hover {

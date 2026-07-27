@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Push local app code to GitHub main. Deploy runs automatically via deploy.yml on push.
+ * Push local app code to GitHub main for version tracking.
+ * Does NOT deploy the live Cloudflare site — use the push-cloudflare-build skill for that.
  *
  * Usage:
  *   npm run push-live
@@ -12,7 +13,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const ACTIONS_URL = 'https://github.com/quadreal-r/QR-East_Industrial_Database/actions/workflows/deploy.yml'
+const ACTIONS_URL = 'https://github.com/quadreal-r/QR-East_Industrial_Database/actions/workflows/ci.yml'
+const LIVE_URL = 'https://qr-east-industrial-database.pages.dev/'
 
 const EXCLUDE_FROM_COMMIT = ['.env.local', 'nogps-list.txt', 'nogps-not-on-cdn.txt']
 
@@ -26,16 +28,14 @@ function runCapture(cmd) {
 }
 
 function parseArgs(argv) {
-  const flags = new Set()
   const messageParts = []
   for (const arg of argv) {
-    if (arg === '--push-only') flags.add('push-only')
-    else if (arg.startsWith('-')) flags.add(arg)
+    if (arg === '--push-only') continue // kept for old scripts; GitHub push never deploys live
+    else if (arg.startsWith('-')) continue
     else messageParts.push(arg)
   }
   return {
-    pushOnly: flags.has('--push-only'),
-    message: messageParts.join(' ').trim() || 'chore: push app to live site',
+    message: messageParts.join(' ').trim() || 'chore: push app to GitHub',
   }
 }
 
@@ -43,7 +43,7 @@ function shellQuote(value) {
   return `"${value.replace(/"/g, '\\"')}"`
 }
 
-const { pushOnly, message } = parseArgs(process.argv.slice(2))
+const { message } = parseArgs(process.argv.slice(2))
 
 run('npm run typecheck')
 run('npm run lint')
@@ -72,10 +72,8 @@ if (status) {
 run('git pull --rebase origin main')
 run('git push origin main')
 
-console.log('\nPushed to main.')
-if (pushOnly) {
-  console.log('Push-only mode — deploy.yml runs from the push hook.')
-} else {
-  console.log(`Watch deploy: ${ACTIONS_URL}`)
-}
+console.log('\nPushed to main (GitHub version tracking).')
+console.log(`CI checks: ${ACTIONS_URL}`)
+console.log(`Live site is Cloudflare — not updated by this push: ${LIVE_URL}`)
+console.log('To publish live, use: push a new build to Cloudflare quadreal')
 console.log('Map data lives in Supabase. RTU picture/document files live on Cloudflare R2.')

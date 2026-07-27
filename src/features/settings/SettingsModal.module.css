@@ -219,6 +219,42 @@
   opacity: 0.9;
 }
 
+.activityToolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activityActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.activityPreviewWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.activityPreview {
+  margin: 0;
+  max-height: min(360px, 50vh);
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(125, 184, 255, 0.22);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text-secondary, #c8dff8);
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .pwLabelRow {
   display: flex;
   align-items: center;
@@ -362,6 +398,63 @@
   gap: 8px;
 }
 
+.userListSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.userListSearchRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.userListSearchRow .mgrInput {
+  flex: 1;
+  margin: 0;
+}
+
+.userListMeta {
+  font-size: 10px;
+  color: var(--text-muted, #90b8e0);
+  margin: 0;
+}
+
+.userListScroll {
+  max-height: min(320px, 45vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(125, 184, 255, 0.22);
+  background: rgba(8, 18, 36, 0.45);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 184, 255, 0.35) transparent;
+}
+
+.userListScroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.userListScroll::-webkit-scrollbar-thumb {
+  background: rgba(125, 184, 255, 0.35);
+  border-radius: 8px;
+}
+
+.userListEmpty {
+  margin: 0;
+  padding: 12px 4px;
+  font-size: 12px;
+  color: var(--text-muted, #90b8e0);
+  text-align: center;
+}
+
 .passkeyList {
   margin: 0 0 8px;
   padding: 0;
@@ -378,6 +471,50 @@
   gap: 8px;
   font-size: 12px;
   color: var(--text-secondary, #c8dff8);
+  flex-shrink: 0;
+}
+
+.userRowAdmin {
+  padding: 4px 6px;
+  margin: 0 -6px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+}
+
+.userRowIdentity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.userRowEmail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.userRoleChip {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #c8dff8;
+  background: rgba(125, 184, 255, 0.12);
+  border: 1px solid rgba(125, 184, 255, 0.35);
+}
+
+.userRoleChipAdmin {
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.45);
 }
 
 .authStatus {

@@ -30,17 +30,72 @@ import { loadRtuPictureManifest, rtuPictureKey } from '@/lib/rtuPictures'
 import { buildRtuPictureExportBundle } from '@/lib/rtuPictureExport'
 import { injectFreezePanes } from '@/lib/xlsxFreeze'
 import type { RcbComputeResult } from '@/lib/costEstimator'
+import { assertSheetHeaders } from '@/lib/excelHeaders'
+import { buildStyledRcbWorkbook } from '@/lib/rcbExcelExport'
 import {
   buildRcbPresentation,
-  presentationToAllUnitsRows,
-  presentationToByBuildingRows,
-  presentationToByUnitSizeRows,
-  presentationToCostOfWaitingRows,
-  presentationToDashboardRows,
-  presentationToPricingRows,
   rcbExportFilenameBase,
+  type BuildRcbPresentationOptions,
 } from '@/lib/rcbPresentation'
 import type { RcbPricingTable } from '@/lib/costEstimator.pricing'
+
+/** Portfolio Excel sheet headers — export and import must stay in sync. */
+export const PORTFOLIO_BUILDINGS_HEADERS = [
+  'Building Address',
+  'BU #',
+  'Portfolio',
+  'Cluster',
+  'Manager',
+  'Sq Ft',
+  'Status',
+  'RTU Count',
+  'Tenant Polygons',
+  'Latitude',
+  'Longitude',
+] as const
+
+export const PORTFOLIO_RTUS_HEADERS = [
+  'Building Address',
+  'Portfolio',
+  'Cluster',
+  'Manager',
+  'RTU Name',
+  'Model',
+  'Serial',
+  'Make',
+  'Date Installed',
+  'Heating Capacity',
+  'Cooling Capacity',
+  'Latitude',
+  'Longitude',
+  'Notes',
+  'Count',
+  'Picture Count',
+  'Picture Files',
+  'Picture URLs (Cloudflare)',
+] as const
+
+export const PORTFOLIO_POLYGONS_HEADERS = [
+  'Building Address',
+  'Portfolio',
+  'Cluster',
+  'Manager',
+  'Suite',
+  'Tenant Name',
+  'Point Count',
+  'Color',
+  'Paths (JSON)',
+  'Centroid Lat',
+  'Centroid Lng',
+] as const
+
+export const PORTFOLIO_UTILITIES_HEADERS = [
+  'Type',
+  'Name',
+  'Description',
+  'Latitude',
+  'Longitude',
+] as const
 
 export {
   formatCompactMoney,
@@ -419,19 +474,7 @@ export async function exportPortfolioExcel(
   XLSX.utils.book_append_sheet(
     wb,
     buildSheet(
-      [
-        'Building Address',
-        'BU #',
-        'Portfolio',
-        'Cluster',
-        'Manager',
-        'Sq Ft',
-        'Status',
-        'RTU Count',
-        'Tenant Polygons',
-        'Latitude',
-        'Longitude',
-      ],
+      [...PORTFOLIO_BUILDINGS_HEADERS],
       buildingsRows,
       COL_WIDTHS.buildings,
       { numFmtMap: { 5: FMT_INT, 7: FMT_INT, 8: FMT_INT, 9: FMT_COORD, 10: FMT_COORD } },
@@ -441,26 +484,7 @@ export async function exportPortfolioExcel(
   XLSX.utils.book_append_sheet(
     wb,
     buildSheet(
-      [
-        'Building Address',
-        'Portfolio',
-        'Cluster',
-        'Manager',
-        'RTU Name',
-        'Model',
-        'Serial',
-        'Make',
-        'Date Installed',
-        'Heating Capacity',
-        'Cooling Capacity',
-        'Latitude',
-        'Longitude',
-        'Notes',
-        'Count',
-        'Picture Count',
-        'Picture Files',
-        'Picture URLs (Cloudflare)',
-      ],
+      [...PORTFOLIO_RTUS_HEADERS],
       rtusRows,
       COL_WIDTHS.rtus,
       {
@@ -484,19 +508,7 @@ export async function exportPortfolioExcel(
   XLSX.utils.book_append_sheet(
     wb,
     buildSheet(
-      [
-        'Building Address',
-        'Portfolio',
-        'Cluster',
-        'Manager',
-        'Suite',
-        'Tenant Name',
-        'Point Count',
-        'Color',
-        'Paths (JSON)',
-        'Centroid Lat',
-        'Centroid Lng',
-      ],
+      [...PORTFOLIO_POLYGONS_HEADERS],
       polygonsRows,
       COL_WIDTHS.polygons,
       { numFmtMap: { 9: FMT_COORD, 10: FMT_COORD } },
@@ -506,7 +518,7 @@ export async function exportPortfolioExcel(
   XLSX.utils.book_append_sheet(
     wb,
     buildSheet(
-      ['Type', 'Name', 'Description', 'Latitude', 'Longitude'],
+      [...PORTFOLIO_UTILITIES_HEADERS],
       utilitiesRows,
       COL_WIDTHS.utilities,
       { numFmtMap: { 3: FMT_COORD, 4: FMT_COORD } },
@@ -582,21 +594,18 @@ export function columnWidthsFromRows(
   return widths.map((wch) => ({ wch }))
 }
 
-function aoaToSheetWithColumnWidths(rows: unknown[][]): XLSX.WorkSheet {
-  const ws = XLSX.utils.aoa_to_sheet(rows)
-  ws['!cols'] = columnWidthsFromRows(rows)
-  return ws
-}
-
-function sheetToObjects(ws: XLSX.WorkSheet): Record<string, unknown>[] {
+function sheetHeaderAndObjects(ws: XLSX.WorkSheet): {
+  headers: string[]
+  rows: Record<string, unknown>[]
+} {
   const raw = XLSX.utils.sheet_to_json<(string | number | Date)[]>(ws, {
     header: 1,
     defval: '',
     raw: false,
   })
-  if (raw.length < 2) return []
+  if (raw.length < 1) return { headers: [], rows: [] }
   const headers = raw[0]!.map((h) => str(h))
-  return raw
+  const rows = raw
     .slice(1)
     .filter((row) => row.some((v) => v !== ''))
     .map((row) => {
@@ -606,6 +615,11 @@ function sheetToObjects(ws: XLSX.WorkSheet): Record<string, unknown>[] {
       })
       return obj
     })
+  return { headers, rows }
+}
+
+function sheetToObjects(ws: XLSX.WorkSheet): Record<string, unknown>[] {
+  return sheetHeaderAndObjects(ws).rows
 }
 
 /** Parse an imported workbook into normalized portfolio data. */
@@ -624,10 +638,29 @@ export function importPortfolioExcel(buffer: ArrayBuffer): PortfolioData {
     throw new Error('Missing sheet: "Tenant Polygons". Please use the exported file format.')
   }
 
-  const buildingRows = sheetToObjects(wb.Sheets['Buildings']!)
-  const rtuRows = sheetToObjects(wb.Sheets['RTUs']!)
-  const polygonRows = sheetToObjects(wb.Sheets[polygonSheetName]!)
-  const utilityRows = sheetToObjects(wb.Sheets['Utilities']!)
+  const buildingsSheet = sheetHeaderAndObjects(wb.Sheets['Buildings']!)
+  const rtusSheet = sheetHeaderAndObjects(wb.Sheets['RTUs']!)
+  const polygonsSheet = sheetHeaderAndObjects(wb.Sheets[polygonSheetName]!)
+  const utilitiesSheet = sheetHeaderAndObjects(wb.Sheets['Utilities']!)
+
+  assertSheetHeaders(buildingsSheet.headers, PORTFOLIO_BUILDINGS_HEADERS, 'Buildings')
+  assertSheetHeaders(rtusSheet.headers, PORTFOLIO_RTUS_HEADERS, 'RTUs')
+  assertSheetHeaders(polygonsSheet.headers, PORTFOLIO_POLYGONS_HEADERS, polygonSheetName)
+  assertSheetHeaders(utilitiesSheet.headers, PORTFOLIO_UTILITIES_HEADERS, 'Utilities')
+
+  if (wb.SheetNames.includes(BUILDING_OPERATOR_SHEET)) {
+    const operatorsSheet = sheetHeaderAndObjects(wb.Sheets[BUILDING_OPERATOR_SHEET]!)
+    assertSheetHeaders(
+      operatorsSheet.headers,
+      BUILDING_OPERATOR_EXPORT_HEADERS,
+      BUILDING_OPERATOR_SHEET,
+    )
+  }
+
+  const buildingRows = buildingsSheet.rows
+  const rtuRows = rtusSheet.rows
+  const polygonRows = polygonsSheet.rows
+  const utilityRows = utilitiesSheet.rows
 
   const rtusByAddress = new Map<string, Rtu[]>()
   for (const row of rtuRows) {
@@ -703,59 +736,42 @@ export function importPortfolioExcel(buffer: ArrayBuffer): PortfolioData {
   return { buildings, utilities, polygons, suiteEntrances: [] }
 }
 
-/** Export RTU replacement cost estimate (RCB) to Excel. */
-export function exportRcbExcel(
+/** Export RTU replacement cost estimate (RCB) to Excel (styled Dashboard template). */
+export async function exportRcbExcel(
   result: RcbComputeResult,
   scopeLabel: string,
   options: {
     replacementYearByRtu?: Record<string, string>
+    replacementNotesByRtu?: BuildRcbPresentationOptions['replacementNotesByRtu']
     pricingTable?: RcbPricingTable
+    includeScheduledUnit?: BuildRcbPresentationOptions['includeScheduledUnit']
+    rtuBudgets?: BuildRcbPresentationOptions['rtuBudgets']
+    buildingYearBudgets?: BuildRcbPresentationOptions['buildingYearBudgets']
+    buildingYearNotes?: BuildRcbPresentationOptions['buildingYearNotes']
+    excludedBudgets?: BuildRcbPresentationOptions['excludedBudgets']
+    shareAddressesFor?: BuildRcbPresentationOptions['shareAddressesFor']
+    budgetDedupeKeyFor?: BuildRcbPresentationOptions['budgetDedupeKeyFor']
+    /** Short scope segment for the download name (defaults to scopeLabel). */
+    filenameScope?: string
+    /** Year / FY segment for the download name (defaults to plan year). */
+    filenameYear?: string
   } = {},
-): void {
-  const presentation = buildRcbPresentation(result, scopeLabel, options)
-
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(
-    wb,
-    aoaToSheetWithColumnWidths(presentationToDashboardRows(presentation)),
-    'Dashboard',
-  )
-  XLSX.utils.book_append_sheet(
-    wb,
-    aoaToSheetWithColumnWidths(presentationToPricingRows(presentation)),
-    'RTU Pricing',
-  )
-  XLSX.utils.book_append_sheet(
-    wb,
-    aoaToSheetWithColumnWidths(presentationToByBuildingRows(presentation)),
-    'By Building',
-  )
-  XLSX.utils.book_append_sheet(
-    wb,
-    aoaToSheetWithColumnWidths(presentationToCostOfWaitingRows(presentation)),
-    'Cost of Waiting',
-  )
-  XLSX.utils.book_append_sheet(
-    wb,
-    aoaToSheetWithColumnWidths(presentationToByUnitSizeRows(presentation)),
-    'By Unit Size',
-  )
-  XLSX.utils.book_append_sheet(
-    wb,
-    aoaToSheetWithColumnWidths(presentationToAllUnitsRows(presentation)),
-    'All Units',
-  )
-
-  const raw = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
-  const frozen = injectFreezePanes(new Uint8Array(raw), {
-    'RTU Pricing': 3,
-    'By Building': 2,
-    'Cost of Waiting': 2,
-    'By Unit Size': 2,
-    'All Units': 2,
+): Promise<void> {
+  const presentation = buildRcbPresentation(result, scopeLabel, {
+    replacementYearByRtu: options.replacementYearByRtu,
+    replacementNotesByRtu: options.replacementNotesByRtu,
+    pricingTable: options.pricingTable,
+    includeScheduledUnit: options.includeScheduledUnit,
+    rtuBudgets: options.rtuBudgets,
+    buildingYearBudgets: options.buildingYearBudgets,
+    buildingYearNotes: options.buildingYearNotes,
+    excludedBudgets: options.excludedBudgets,
+    shareAddressesFor: options.shareAddressesFor,
+    budgetDedupeKeyFor: options.budgetDedupeKeyFor,
   })
-  downloadXlsx(
-    frozen,
-    `${rcbExportFilenameBase(scopeLabel, presentation.defaultYear, presentation.today)}.xlsx`,
-  )
+
+  const buffer = await buildStyledRcbWorkbook(presentation)
+  const scopeForName = options.filenameScope ?? scopeLabel
+  const yearForName = options.filenameYear ?? presentation.defaultYear
+  downloadXlsx(new Uint8Array(buffer), `${rcbExportFilenameBase(scopeForName, yearForName)}.xlsx`)
 }

@@ -128,16 +128,19 @@ describe('mapMarqueeSelect', () => {
     ).toBe(false)
   })
 
-  it('keeps map-click clear suppressed for multiple listeners in one turn', () => {
+  it('keeps map-click clear suppressed until the pointer gesture ends', () => {
     suppressMapClickClearOnce()
     expect(consumeMapClickClearSuppression()).toBe(true)
     expect(consumeMapClickClearSuppression()).toBe(true)
+    window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    expect(consumeMapClickClearSuppression()).toBe(false)
   })
 
-  it('resets map-click clear suppression after the current turn', async () => {
+  it('resets map-click clear suppression after pointerup', () => {
     suppressMapClickClearOnce()
     expect(consumeMapClickClearSuppression()).toBe(true)
-    await Promise.resolve()
+    // jsdom lacks PointerEvent; Event is enough for the capture listener.
+    window.dispatchEvent(new Event('pointerup', { bubbles: true }))
     expect(consumeMapClickClearSuppression()).toBe(false)
   })
 

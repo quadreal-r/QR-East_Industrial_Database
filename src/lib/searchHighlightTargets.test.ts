@@ -3,6 +3,7 @@ import legacyBuildings from '../../supabase/data/buildings.json'
 import legacyPolygons from '../../supabase/data/polygons.json'
 import {
   collectClusterHighlightTargets,
+  collectFilterFitPoints,
   collectSearchHighlightTargets,
   collectSuiteHighlightTargets,
   metersForScreenRadius,
@@ -84,6 +85,30 @@ describe('collectClusterHighlightTargets', () => {
   })
 })
 
+describe('collectFilterFitPoints', () => {
+  it('returns lat/lng for each building with valid coordinates', () => {
+    const scoped = buildings.filter((b) => b.cluster === 'Dixie 2 (x 13)')
+    expect(collectFilterFitPoints(scoped)).toEqual([{ lat: 43.661, lng: -79.654 }])
+  })
+
+  it('skips buildings with invalid coordinates', () => {
+    const mixed = [
+      buildings[0]!,
+      building({ address: 'No Coord', lat: Number.NaN, lng: -79.65 }),
+      building({ address: 'Also Bad', lat: 43.66, lng: Number.NaN }),
+    ]
+    expect(collectFilterFitPoints(mixed)).toEqual([{ lat: 43.661, lng: -79.654 }])
+  })
+
+  it('includes every building when fitting the All Buildings overview fallback', () => {
+    expect(collectFilterFitPoints(buildings)).toEqual([
+      { lat: 43.661, lng: -79.654 },
+      { lat: 43.662, lng: -79.655 },
+      { lat: 43.58, lng: -79.72 },
+    ])
+  })
+})
+
 describe('collectSearchHighlightTargets', () => {
   it('returns nothing for blank search', () => {
     expect(collectSearchHighlightTargets(buildings, '  ')).toEqual([])
@@ -96,6 +121,32 @@ describe('collectSearchHighlightTargets', () => {
       kind: 'building',
       label: '1495 Bonhill Road',
     })
+  })
+
+  it('address search circles only the building pin, not RTUs on that property', () => {
+    const withRtus: Building[] = [
+      building({
+        address: '1495 Bonhill Road',
+        rtus: [
+          {
+            name: 'RTU-1',
+            description: '1495 Bonhill Road roof',
+            lat: 43.6611,
+            lng: -79.6541,
+            serial: '1495-BONHILL-01',
+            model: 'Lennox LDT060',
+          },
+        ],
+      }),
+    ]
+    const targets = collectSearchHighlightTargets(withRtus, '1495 Bonhill')
+    expect(targets).toEqual([
+      expect.objectContaining({
+        kind: 'building',
+        label: '1495 Bonhill Road',
+      }),
+    ])
+    expect(targets.every((t) => t.kind === 'building')).toBe(true)
   })
 
   it('circles each cluster inside a matching park (not one park ring)', () => {
@@ -121,6 +172,66 @@ describe('collectSearchHighlightTargets', () => {
         expect.objectContaining({ kind: 'building', label: '1535 Meyerside Drive' }),
       ]),
     )
+  })
+
+  it('circles matching RTUs by serial number', () => {
+    const withSerial: Building[] = [
+      building({
+        address: '1495 Bonhill Road',
+        rtus: [
+          {
+            name: 'RTU-1',
+            description: '',
+            lat: 43.6611,
+            lng: -79.6541,
+            serial: 'SN-5510-ABC',
+            model: 'Lennox LDT060H5-PKG',
+            make: 'Lennox',
+          },
+          {
+            name: 'RTU-2',
+            description: '',
+            lat: 43.6612,
+            lng: -79.6542,
+            serial: 'OTHER-99',
+          },
+        ],
+      }),
+    ]
+    const targets = collectSearchHighlightTargets(withSerial, '5510-abc')
+    expect(targets).toEqual([
+      expect.objectContaining({
+        kind: 'rtu',
+        label: '1495 Bonhill Road · RTU-1',
+        lat: 43.6611,
+        lng: -79.6541,
+      }),
+    ])
+  })
+
+  it('circles matching RTUs by model / make', () => {
+    const withModel: Building[] = [
+      building({
+        address: '1495 Bonhill Road',
+        rtus: [
+          {
+            name: 'RTU-3',
+            description: '',
+            lat: 43.6613,
+            lng: -79.6543,
+            model: 'Lennox LDT060H5-PKG',
+            make: 'Lennox',
+          },
+        ],
+      }),
+    ]
+    const byModel = collectSearchHighlightTargets(withModel, 'LDT060')
+    expect(byModel).toHaveLength(1)
+    expect(byModel[0]).toMatchObject({ kind: 'rtu', label: '1495 Bonhill Road · RTU-3' })
+
+    const byMake = collectSearchHighlightTargets(withModel, 'lennox')
+    expect(byMake).toHaveLength(1)
+    expect(byMake[0]!.kind).toBe('rtu')
   })
 
   it('circles the suite gateway for a tenant name like Baxter', () => {

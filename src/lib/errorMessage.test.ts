@@ -6,12 +6,19 @@ describe('errorMessage', () => {
     expect(errorMessage(new Error('Save failed'))).toBe('Save failed')
   })
 
-  it('reads Supabase-style error objects', () => {
+  it('reads nested error objects instead of showing [object Object]', () => {
     expect(
       errorMessage({
-        message: 'column tenants.polygon_id does not exist',
-        details: 'Check migration',
+        error: { message: 'JWTExpired: "exp" claim timestamp check failed' },
       }),
-    ).toBe('column tenants.polygon_id does not exist\nCheck migration')
+    ).toBe('JWTExpired: "exp" claim timestamp check failed')
+    expect(errorMessage({ detail: { code: 'bad', reason: 'nope' } })).toContain('bad')
+  })
+
+  it('ignores the useless [object Object] string and uses the fallback', () => {
+    expect(errorMessage('[object Object]', 'Could not connect')).toBe('Could not connect')
+    expect(errorMessage({ message: '[object Object]' }, 'Could not connect')).toBe(
+      'Could not connect',
+    )
   })
 })

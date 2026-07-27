@@ -14,7 +14,7 @@ function readRtuPicturesBaseUrlFromEnv(): string | undefined {
   return value || undefined
 }
 
-/** CDN / R2 public base for image files. Falls back to GitHub Pages static folder in dev. */
+/** CDN / R2 public base for image files. Falls back to local/public static folder in dev. */
 export function getRtuPicturesBaseUrl(): string {
   const fromEnv = readRtuPicturesBaseUrlFromEnv()
   if (fromEnv) return normalizeBaseUrl(fromEnv)

@@ -12,6 +12,18 @@ describe('detectExcelWorkbookKind', () => {
     expect(detectExcelWorkbookKind(['Equipment', 'RTU Pricing', 'Summary'])).toBe('capital')
   })
 
+  it('detects RTU replacement cost report export', () => {
+    expect(
+      detectExcelWorkbookKind([
+        'Dashboard',
+        'RTU Pricing',
+        'By Building',
+        'By Unit Size',
+        'All Units',
+      ]),
+    ).toBe('rcbReport')
+  })
+
   it('rejects unknown workbooks', () => {
     expect(() => detectExcelWorkbookKind(['Sheet1'])).toThrow(/Unrecognized workbook/)
   })

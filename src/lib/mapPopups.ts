@@ -39,14 +39,81 @@ export function bindMapPopupWheelScroll(
   container.addEventListener('wheel', onWheel, { passive: false, signal: options.signal })
 }
 
-/** After an InfoWindow opens, block wheel events from reaching the map zoom handlers. */
+/**
+ * Stop map pan/click from eating text selection and edits inside InfoWindows.
+ * Uses bubble phase so popup buttons/inputs still receive the event first.
+ * Disables map dragging while the pointer is down inside the popup.
+ */
+export function bindMapPopupInteractionGuard(
+  container: Element,
+  map: google.maps.Map | null | undefined,
+  options: { signal?: AbortSignal } = {},
+): void {
+  const stopBubble = (event: Event): void => {
+    event.stopPropagation()
+  }
+
+  // Bubble (not capture): target handlers on Close / Copy / Move / Enter must run first.
+  for (const type of ['pointerdown', 'mousedown', 'touchstart', 'click', 'dblclick'] as const) {
+    container.addEventListener(type, stopBubble, { signal: options.signal })
+  }
+
+  let dragLocked = false
+  const lockMap = (): void => {
+    if (!map || dragLocked) return
+    dragLocked = true
+    map.setOptions({ draggable: false })
+  }
+  const unlockMap = (): void => {
+    if (!map || !dragLocked) return
+    dragLocked = false
+    map.setOptions({ draggable: true })
+  }
+
+  const onPointerDown = (): void => {
+    lockMap()
+  }
+  const onPointerUp = (): void => {
+    unlockMap()
+  }
+
+  const onFocusIn = (event: Event): void => {
+    const target = event.target
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    ) {
+      lockMap()
+    }
+  }
+  const onFocusOut = (): void => {
+    queueMicrotask(() => {
+      const active = document.activeElement
+      if (active && container.contains(active)) return
+      unlockMap()
+    })
+  }
+
+  container.addEventListener('pointerdown', onPointerDown, { signal: options.signal })
+  window.addEventListener('pointerup', onPointerUp, { capture: true, signal: options.signal })
+  window.addEventListener('mouseup', onPointerUp, { capture: true, signal: options.signal })
+  window.addEventListener('touchend', onPointerUp, { capture: true, signal: options.signal })
+  container.addEventListener('focusin', onFocusIn, { signal: options.signal })
+  container.addEventListener('focusout', onFocusOut, { signal: options.signal })
+  options.signal?.addEventListener('abort', unlockMap)
+}
+
+/** After an InfoWindow opens, block wheel / pan events from reaching the map. */
 export function bindMapPopupWheelScrollFromInfoWindow(
   infoWindow: google.maps.InfoWindow,
   map: google.maps.Map,
 ): void {
   google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
     const shell = map.getDiv().querySelector('.gm-style-iw-c')
-    if (shell) bindMapPopupWheelScroll(shell)
+    if (!shell) return
+    bindMapPopupWheelScroll(shell)
+    bindMapPopupInteractionGuard(shell, map)
   })
 }
 

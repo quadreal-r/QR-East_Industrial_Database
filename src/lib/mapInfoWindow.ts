@@ -67,13 +67,6 @@ function inspection360TourButton(hasTour: boolean): string {
   return `<button type="button" class="iw-pic-btn" data-iw-action="inspection360-open" title="${title}">🌐 Enter QR-360° Tour</button>`
 }
 
-function sphereGateBadgeLabel(layerKey: LayerKey): string {
-  if (layerKey === 'inspection360') return '360° GATE'
-  if (layerKey === 'electrical') return 'ELECTRICAL 360°'
-  if (layerKey === 'sprinkler') return 'SPRINKLER 360°'
-  return layerKey.toUpperCase()
-}
-
 function isUtilitySphereGate(layerKey: LayerKey): boolean {
   return layerKey === 'electrical' || layerKey === 'sprinkler'
 }
@@ -439,7 +432,6 @@ export function buildDetailInfoHtml(
       : ''
     const tourBtn = inspection360TourButton(hasTour)
     const plainText = buildDetailInfoPlainText(layerKey, data, options)
-    const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">${sphereGateBadgeLabel(layerKey)}</span></div>`
     const body = [
       buildingRow,
       tenantLine
@@ -447,7 +439,7 @@ export function buildDetailInfoHtml(
         : '',
       tourStatus,
     ].join('')
-    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${body}</div>${actionFooter(`${tourBtn}${moveBtn}`)}</div>`
+    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${closeButton()}</div><div class="iw-body">${body}</div>${actionFooter(`${tourBtn}${moveBtn}`)}</div>`
   }
 
   if (isUtilitySphereGate(layerKey) && 'utility_type' in data) {
@@ -484,8 +476,7 @@ export function buildDetailInfoHtml(
         : `<button class="iw-del-btn" data-iw-action="delete" data-iw-layer="${layerKey}" data-iw-name="${escapeHtml(name)}" data-iw-building="${escapeHtml(options?.buildingAddress ?? '')}" title="Delete this marker">🗑 Delete</button>`
     const tourBtn = inspection360TourButton(hasTour)
     const plainText = buildDetailInfoPlainText(layerKey, data, options)
-    const badgeHtml = `<div class="iw-badges"><span class="iw-badge" style="background:${cfg.fill}22;color:${cfg.fill};border:1px solid ${cfg.fill}44">${sphereGateBadgeLabel(layerKey)}</span></div>`
-    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${badgeHtml}${closeButton()}</div><div class="iw-body">${noteRows}${tourStatus}</div>${actionFooter(`${copyButton()}${tourBtn}${moveBtn}${deleteBtn}`)}</div>`
+    return `<div class="iw">${copySource(plainText)}<div class="iw-head"><div class="iw-name">${escapeHtml(name)}</div>${closeButton()}</div><div class="iw-body">${noteRows}${tourStatus}</div>${actionFooter(`${copyButton()}${tourBtn}${moveBtn}${deleteBtn}`)}</div>`
   }
 
   const lines = desc.split(/\r?\n/).filter(Boolean)
@@ -613,17 +604,21 @@ export function buildRtuPicturesHtml(
     ? `<div class="iw-pictures-empty">No pictures yet.</div>
       <p class="iw-pictures-hint">Choose images from your computer to attach to this RTU.</p>`
     : `<div class="iw-pictures-view">
-      <button type="button" class="iw-pictures-nav" data-iw-action="picture-prev" title="Previous picture"${total <= 1 ? ' disabled' : ''}>‹</button>
       <div class="iw-pictures-frame">
+        <button type="button" class="iw-pictures-nav iw-pictures-nav-prev" data-iw-action="picture-prev" title="Previous picture"${total <= 1 ? ' disabled' : ''} aria-label="Previous picture">‹</button>
         <button type="button" class="iw-pictures-link" data-iw-action="picture-open-viewer" title="Open full size in viewer">
           <img class="iw-pictures-img" src="${escapeHtml(current!.thumbUrl)}" alt="${escapeHtml(current!.fileName)}" onload="${RTU_PICTURE_IMG_ONLOAD}" onerror="${RTU_PICTURE_IMG_ONERROR}" />
           <div class="iw-pictures-missing" style="display:none">Image not found on server. Use Add pictures to upload a replacement, or Hide to remove this entry.</div>
         </button>
+        <button type="button" class="iw-pictures-nav iw-pictures-nav-next" data-iw-action="picture-next" title="Next picture"${total <= 1 ? ' disabled' : ''} aria-label="Next picture">›</button>
       </div>
-      <button type="button" class="iw-pictures-nav" data-iw-action="picture-next" title="Next picture"${total <= 1 ? ' disabled' : ''}>›</button>
     </div>
     <div class="iw-pictures-meta">
-      <span class="iw-pictures-counter">${safeIndex + 1} / ${total}</span>
+      <div class="iw-pictures-stepper">
+        <button type="button" class="iw-pictures-step" data-iw-action="picture-prev" title="Previous picture"${total <= 1 ? ' disabled' : ''}>← Prev</button>
+        <span class="iw-pictures-counter">${safeIndex + 1} / ${total}</span>
+        <button type="button" class="iw-pictures-step" data-iw-action="picture-next" title="Next picture"${total <= 1 ? ' disabled' : ''}>Next →</button>
+      </div>
       <span class="iw-pictures-name">${escapeHtml(current!.fileName)}</span>
     </div>`
 

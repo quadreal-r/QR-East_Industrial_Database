@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useBuildingYearBudgetStore } from '@/stores/buildingYearBudgetStore'
 import { useFilterStore } from '@/stores/filterStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { applyCostScopeFilters, applyPrimaryFilters, reconcileFilterDropdowns } from '@/lib/filters'
@@ -13,6 +14,7 @@ export function useFilteredBuildings(buildings: Building[], polygons: Polygon[] 
   const buildingOperator = useFilterStore((state) => state.buildingOperator)
   const adv = useFilterStore((state) => state.adv)
   const managerRenames = useSettingsStore((state) => state.managerRenames)
+  const capexStatuses = useBuildingYearBudgetStore((state) => state.statuses)
 
   const polygonIndex = useMemo(
     () => buildPolygonBuildingIndex(buildings, polygons),
@@ -34,18 +36,39 @@ export function useFilteredBuildings(buildings: Building[], polygons: Polygon[] 
 
   // Reconcile once and reuse for both filtered and cost-scope passes
   const reconciledFilters = useMemo(
-    () => reconcileFilterDropdowns(buildings, filters, polygonIndex, managerRenames),
-    [buildings, filters, polygonIndex, managerRenames],
+    () =>
+      reconcileFilterDropdowns(
+        buildings,
+        filters,
+        polygonIndex,
+        managerRenames,
+        capexStatuses,
+      ),
+    [buildings, filters, polygonIndex, managerRenames, capexStatuses],
   )
 
   const filteredBuildings = useMemo(
-    () => applyPrimaryFilters(buildings, reconciledFilters, polygonIndex, managerRenames),
-    [buildings, reconciledFilters, polygonIndex, managerRenames],
+    () =>
+      applyPrimaryFilters(
+        buildings,
+        reconciledFilters,
+        polygonIndex,
+        managerRenames,
+        capexStatuses,
+      ),
+    [buildings, reconciledFilters, polygonIndex, managerRenames, capexStatuses],
   )
 
   const costScopeBuildings = useMemo(
-    () => applyCostScopeFilters(buildings, reconciledFilters, polygonIndex, managerRenames),
-    [buildings, reconciledFilters, polygonIndex, managerRenames],
+    () =>
+      applyCostScopeFilters(
+        buildings,
+        reconciledFilters,
+        polygonIndex,
+        managerRenames,
+        capexStatuses,
+      ),
+    [buildings, reconciledFilters, polygonIndex, managerRenames, capexStatuses],
   )
 
   return {

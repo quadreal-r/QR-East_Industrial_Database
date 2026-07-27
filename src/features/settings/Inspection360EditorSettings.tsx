@@ -5,11 +5,12 @@ import { confirm } from '@/stores/confirmStore'
 import { matchesUtility } from '@/lib/dragSelection'
 import {
   getInsp360GateHook,
-  insp360ChangeTourConfirmMessage,
   insp360ProjectDisplayName,
   resolveInsp360TourLabel,
 } from '@/lib/insp360GateHooks'
+import { insp360RemoveTourConfirmMessage } from '@/lib/insp360GateTours'
 import { unlinkInsp360GateTour } from '@/lib/insp360GateProjectStore'
+import { closeAllMapPopups } from '@/lib/mapPopups'
 import { buildInspection360GateKey } from '@/lib/insp360Viewer'
 import {
   buildingForEntrance,
@@ -19,8 +20,10 @@ import {
   suiteEntranceMatchesSearch,
   suiteEntranceOptionKey,
 } from '@/lib/suiteEntrances'
+import { errorMessage } from '@/lib/errorMessage'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useUiStore } from '@/stores/uiStore'
 import type { LayerKey, PortfolioData, SuiteEntrance, Utility, UtilityType } from '@/types/domain'
 import selectStyles from '@/components/Select/Select.module.css'
 import styles from './SettingsModal.module.css'
@@ -30,6 +33,7 @@ export interface Inspection360EditorSettingsProps {
   onClose: () => void
   portfolio: PortfolioData
   onPortfolioPatch: (data: PortfolioData) => void
+  onPersistPortfolio: (data: PortfolioData) => Promise<void>
   onOpenAddInspection360: () => void
 }
 
@@ -96,6 +100,7 @@ interface Inspection360EditorFormProps {
   onClose: () => void
   portfolio: PortfolioData
   onPortfolioPatch: (data: PortfolioData) => void
+  onPersistPortfolio: (data: PortfolioData) => Promise<void>
   onOpenAddInspection360: () => void
   initialSelectedKey: string
 }
@@ -104,6 +109,7 @@ function Inspection360EditorForm({
   onClose,
   portfolio,
   onPortfolioPatch,
+  onPersistPortfolio,
   onOpenAddInspection360,
   initialSelectedKey,
 }: Inspection360EditorFormProps) {
@@ -111,6 +117,7 @@ function Inspection360EditorForm({
   const [gateKind, setGateKind] = useState<GateKind>('suite')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedKey, setSelectedKey] = useState(initialSelectedKey)
+  const [saving, setSaving] = useState(false)
 
   const sortedEntrances = useMemo(
     () =>
@@ -297,36 +304,62 @@ function Inspection360EditorForm({
   }
 
   const handleApplyEdits = () => {
+    if (saving) return
+
+    let next: PortfolioData
     if (gateKind === 'suite') {
       if (!selectedEntrance) {
         showToastError('Select a 360° gate first.')
         return
       }
-      const nextEntrances = updateEntrance(suiteEntrances, selectedEntrance, {
-        name: draftName.trim() || selectedEntrance.name,
-        description: draftDescription.trim(),
-        inspection_url: draftInspectionUrl.trim() || null,
-      })
-      onPortfolioPatch({ ...portfolio, suiteEntrances: nextEntrances })
-      showToastSuccess('✓ 360° gate updated — save to keep changes.')
-      return
+      next = {
+        ...portfolio,
+        suiteEntrances: updateEntrance(suiteEntrances, selectedEntrance, {
+          name: draftName.trim() || selectedEntrance.name,
+          description: draftDescription.trim(),
+          inspection_url: draftInspectionUrl.trim() || null,
+        }),
+      }
+    } else {
+      if (!selectedUtility) {
+        showToastError('Select a room gate first.')
+        return
+      }
+      next = {
+        ...portfolio,
+        utilities: utilities.map((item) =>
+          matchesUtility(item, selectedUtility)
+            ? {
+                ...item,
+                name: draftName.trim() || selectedUtility.name,
+                description: draftDescription.trim(),
+                inspection_url: draftInspectionUrl.trim() || null,
+              }
+            : item,
+        ),
+      }
     }
-    if (!selectedUtility) {
-      showToastError('Select a room gate first.')
-      return
-    }
-    const nextUtilities = utilities.map((item) =>
-      matchesUtility(item, selectedUtility)
-        ? {
-            ...item,
-            name: draftName.trim() || selectedUtility.name,
-            description: draftDescription.trim(),
-            inspection_url: draftInspectionUrl.trim() || null,
+
+    setSaving(true)
+    void onPersistPortfolio(next)
+      .then(() => {
+        const gateKey = selectedGateKey
+        const nextUrl = draftInspectionUrl.trim() || null
+        if (gateKey) {
+          const viewer = useUiStore.getState().inspection360Viewer
+          if (viewer?.gateKey === gateKey) {
+            useUiStore.getState().updateInspection360Viewer({ projectUrl: nextUrl })
           }
-        : item,
-    )
-    onPortfolioPatch({ ...portfolio, utilities: nextUtilities })
-    showToastSuccess('✓ Room gate updated — save to keep changes.')
+        }
+        closeAllMapPopups()
+        onClose()
+      })
+      .catch((error) => {
+        showToastError(errorMessage(error, 'Could not save 360° gate'))
+      })
+      .finally(() => {
+        setSaving(false)
+      })
   }
 
   const handleDelete = () => {
@@ -378,27 +411,61 @@ function Inspection360EditorForm({
     })
   }
 
-  const handleChangeTour = () => {
+  const handleRemoveTourLink = () => {
     if (!selectedGateKey) {
       showToastError('Select a 360° gate first.')
       return
     }
-    if (!linkedLocalTour) {
-      showToastError(
-        'No local tour file is linked to this gate. Open the gate on the map and link a .insp360, or set a Tour URL above.',
-      )
+    const hasLocal = Boolean(linkedLocalTour)
+    const hasOnline = Boolean(draftInspectionUrl.trim() || tourStatusLabel.connected)
+    if (!hasLocal && !hasOnline) {
+      showToastError('This gate has no tour link to remove.')
       return
     }
-    void confirm(insp360ChangeTourConfirmMessage(linkedLocalTour), {
-      confirmLabel: 'Change tour',
+    const label =
+      linkedLocalTour ||
+      tourStatusLabel.label ||
+      draftInspectionUrl.trim() ||
+      draftName.trim() ||
+      null
+    void confirm(insp360RemoveTourConfirmMessage(label), {
+      confirmLabel: 'Remove link',
       cancelLabel: 'Keep linked',
     }).then(async (ok) => {
-      if (!ok) return
-      await unlinkInsp360GateTour(selectedGateKey)
-      setTourLinkTick((n) => n + 1)
-      showToastSuccess(
-        '✓ Tour unlinked. Open this gate on the map, choose the correct .insp360, then Link when you close.',
-      )
+      if (!ok || !selectedGateKey) return
+      setSaving(true)
+      try {
+        await unlinkInsp360GateTour(selectedGateKey)
+        setTourLinkTick((n) => n + 1)
+        setDraftInspectionUrl('')
+        let next: PortfolioData = { ...portfolio }
+        if (gateKind === 'suite' && selectedEntrance) {
+          next = {
+            ...portfolio,
+            suiteEntrances: updateEntrance(suiteEntrances, selectedEntrance, {
+              inspection_url: null,
+            }),
+          }
+        } else if (selectedUtility) {
+          next = {
+            ...portfolio,
+            utilities: utilities.map((item) =>
+              matchesUtility(item, selectedUtility) ? { ...item, inspection_url: null } : item,
+            ),
+          }
+        }
+        await onPersistPortfolio(next)
+        const viewer = useUiStore.getState().inspection360Viewer
+        if (viewer?.gateKey === selectedGateKey) {
+          useUiStore.getState().updateInspection360Viewer({ projectUrl: null })
+        }
+        closeAllMapPopups()
+        showToastSuccess('✓ Tour link removed — gate shows Not connected yet.')
+      } catch (error) {
+        showToastError(errorMessage(error, 'Could not remove tour link'))
+      } finally {
+        setSaving(false)
+      }
     })
   }
 
@@ -417,8 +484,10 @@ function Inspection360EditorForm({
         className={styles.mgrFieldLabel}
         style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12 }}
       >
-        {kindMeta.hint} Paste a Tour URL to open that QR-360° project from the map popup. To switch
-        which local .insp360 is linked, use Change tour here or Gear → Change tour… inside the tour.
+        {kindMeta.hint} Create or Open a tour on this PC to link it locally (this browser only). Paste a
+        Cloudflare Tour URL here for a shared online tour. Or open the tour and use{' '}
+        <strong>Publish to Cloudflare &amp; link</strong> to upload. Remove tour link clears both local and
+        cloud links (gate shows “Not connected yet”).
       </p>
 
       <label className={styles.mgrFieldLabel} htmlFor="inspection360-gate-kind">
@@ -543,7 +612,7 @@ function Inspection360EditorForm({
             className={styles.mgrInput}
             value={draftInspectionUrl}
             onChange={(e) => setDraftInspectionUrl(e.target.value)}
-            placeholder="https://…/project.insp360 or insp360/projects/room.insp360"
+            placeholder="https://…/tour.insp360 or building/suite-7.insp360"
           />
 
           <p
@@ -588,21 +657,28 @@ function Inspection360EditorForm({
           style={{
             width: '100%',
             justifyContent: 'flex-start',
-            color: linkedLocalTour ? '#fbbf24' : undefined,
+            color:
+              linkedLocalTour || draftInspectionUrl.trim() || tourStatusLabel.connected
+                ? '#fbbf24'
+                : undefined,
           }}
-          disabled={!selectedGateKey || !linkedLocalTour}
-          onClick={handleChangeTour}
+          disabled={
+            saving ||
+            !selectedGateKey ||
+            !(linkedLocalTour || draftInspectionUrl.trim() || tourStatusLabel.connected)
+          }
+          onClick={handleRemoveTourLink}
         >
-          Change tour…
+          Remove tour link
         </button>
         <button
           type="button"
           className="btn-action"
           style={{ width: '100%', justifyContent: 'flex-start' }}
-          disabled={!(gateKind === 'suite' ? selectedEntrance : selectedUtility)}
+          disabled={saving || !(gateKind === 'suite' ? selectedEntrance : selectedUtility)}
           onClick={handleApplyEdits}
         >
-          ✎ Save edits
+          {saving ? 'Saving…' : '✎ Save edits'}
         </button>
         <button
           type="button"
@@ -623,6 +699,7 @@ export function Inspection360EditorSettings({
   onClose,
   portfolio,
   onPortfolioPatch,
+  onPersistPortfolio,
   onOpenAddInspection360,
 }: Inspection360EditorSettingsProps) {
   const { buildings, suiteEntrances } = portfolio
@@ -651,6 +728,7 @@ export function Inspection360EditorSettings({
           onClose={onClose}
           portfolio={portfolio}
           onPortfolioPatch={onPortfolioPatch}
+          onPersistPortfolio={onPersistPortfolio}
           onOpenAddInspection360={onOpenAddInspection360}
           initialSelectedKey={initialSelectedKey}
         />

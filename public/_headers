@@ -1,0 +1,10 @@
+# Never cache the app shell — stale index.html with wrong asset paths = blank page.
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Fingerprinted assets can be cached long-term.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

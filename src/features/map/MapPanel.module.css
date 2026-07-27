@@ -199,3 +199,123 @@
 .topbarLeft {
   min-width: 0;
 }
+
+.authChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, 48vw);
+  padding: 4px 6px 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #2947a3);
+  background: var(--surface2, #0f1a3a);
+  min-width: 0;
+}
+
+.authChipUser {
+  font-size: 11px;
+  /* DM Mono only ships 400/500 — 600+ is browser-faked and looks blurry. */
+  font-weight: 500;
+  color: var(--text-primary, #f0f4ff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  font-family: 'DM Mono', ui-monospace, monospace;
+}
+
+.authChipRole {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #c8dff8;
+  background: rgba(125, 184, 255, 0.12);
+  border: 1px solid rgba(125, 184, 255, 0.35);
+}
+
+.authChipRoleAdmin {
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.authChipLogout {
+  flex-shrink: 0;
+  appearance: none;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.authChipLogout:hover {
+  background: rgba(248, 113, 113, 0.22);
+  color: #fff;
+  border-color: #f87171;
+}
+
+.authChipSignInGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.authChipSignIn {
+  flex-shrink: 0;
+  appearance: none;
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  background: rgba(37, 99, 235, 0.2);
+  color: #bfdbfe;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.authChipSignIn:hover {
+  background: rgba(37, 99, 235, 0.35);
+  color: #fff;
+  border-color: #60a5fa;
+}
+
+.authChipSignInViewer {
+  flex-shrink: 0;
+  appearance: none;
+  border: 1px solid rgba(125, 184, 255, 0.4);
+  background: rgba(125, 184, 255, 0.1);
+  color: #c8dff8;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.authChipSignInViewer:hover {
+  background: rgba(125, 184, 255, 0.22);
+  color: #fff;
+  border-color: rgba(125, 184, 255, 0.65);
+}
+
+.authChipError {
+  flex-shrink: 1;
+  max-width: min(280px, 28vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fca5a5;
+}

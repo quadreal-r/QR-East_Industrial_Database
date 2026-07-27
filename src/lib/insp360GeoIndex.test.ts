@@ -14,6 +14,15 @@ const portfolio: PortfolioData = {
       sqft: '55,264',
       cluster: 'A',
       manager: 'Manager',
+      rtus: [
+        {
+          name: 'RTU-01',
+          description: 'Roof',
+          lat: 43.74005,
+          lng: -79.61005,
+          model: 'AAON',
+        },
+      ],
     },
   ],
   utilities: [
@@ -33,6 +42,22 @@ const portfolio: PortfolioData = {
       lat: 43.7402,
       lng: -79.6102,
     },
+    {
+      id: 4,
+      utility_type: 'Fire Hydrants',
+      name: 'FH-1',
+      description: '',
+      lat: 43.7403,
+      lng: -79.6103,
+    },
+    {
+      id: 5,
+      utility_type: 'Natural Gas Shut-Off',
+      name: 'Gas Main',
+      description: '',
+      lat: 43.7404,
+      lng: -79.6104,
+    },
   ],
   polygons: [
     {
@@ -51,7 +76,7 @@ const portfolio: PortfolioData = {
 }
 
 describe('buildInsp360GeoIndex', () => {
-  it('maps buildings, tenant polygons, and utility rooms for the QR-360 viewer', () => {
+  it('maps buildings, tenant polygons, utilities, and RTUs from the live portfolio', () => {
     const geo = buildInsp360GeoIndex(portfolio)
 
     expect(geo.buildings).toHaveLength(1)
@@ -59,6 +84,7 @@ describe('buildInsp360GeoIndex', () => {
       a: '145 Carrier Drive',
       p: 'East Business Park (x 22)',
       sf: 55264,
+      rtuCount: 1,
     })
 
     expect(geo.polys).toHaveLength(1)
@@ -69,8 +95,21 @@ describe('buildInsp360GeoIndex', () => {
     })
     expect(geo.polys[0]!.path).toHaveLength(3)
 
-    expect(geo.rooms).toHaveLength(2)
-    expect(geo.rooms.map((room) => room.type).sort()).toEqual(['electrical', 'sprinkler'])
+    expect(geo.rooms).toHaveLength(4)
+    expect(geo.rooms.map((room) => room.type).sort()).toEqual([
+      'electrical',
+      'gas',
+      'hydrant',
+      'sprinkler',
+    ])
     expect(geo.rooms.every((room) => room.a === '145 Carrier Drive')).toBe(true)
+
+    expect(geo.rtus).toHaveLength(1)
+    expect(geo.rtuTotal).toBe(1)
+    expect(geo.rtus[0]).toMatchObject({
+      a: '145 Carrier Drive',
+      name: 'RTU-01',
+      model: 'AAON',
+    })
   })
 })

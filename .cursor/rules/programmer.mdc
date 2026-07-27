@@ -17,18 +17,28 @@ Treat every feature, fix, or change request as a full implementation task. The u
 npm run typecheck
 npm run lint
 npm test
+npm run version:bump:if-needed
 ```
 
-Fix failures yourself. Do not ask the user to interpret test output unless you are blocked.
+`version:bump:if-needed` bumps the **local** map app patch version whenever there are uncommitted app changes that are not already covered by the current local version. Fix check failures yourself. Do not ask the user to interpret test output unless you are blocked.
 
 4. **Hand off for verification** — tell them plainly:
-   - What changed (behavior, not code)
-   - What to try in the app at http://127.0.0.1:5173/
-   - Whether they need to refresh or restart the dev server
+ - What changed (behavior, not code)
+ - What to try in the app at http://127.0.0.1:5174/
+ - Whether they need to refresh or restart the dev server
+ - The new topbar version after the bump (e.g. `v1.14.2`)
+ - Patch numbers stop at 99, then the middle number goes up (`v1.13.99` → `v1.14.0`)
 
 5. **Iterate** until they are satisfied. Keep working in the same chat when they report issues.
 
-6. **Commit/push only when asked** — e.g. "Everything is good now, push the code". Until then, do not commit or push. See `@push-new-build` or `@release-and-push` when they are ready to ship.
+6. **Commit/push only when asked** — e.g. "Everything is good now, push the code". Until then, do not commit or push. For a live site update, prefer `push-cloudflare-build` (quadreal): commit + push + Cloudflare deploy. GitHub-only history: `@release-and-push` / `@push-new-build`.
+
+## Version policy
+
+- **Always bump locally** after app changes (`npm run version:bump:if-needed`) so the topbar version moves with the work.
+- Patch numbers go `0`–`99`, then the middle number increases (`v1.13.99` → `v1.14.0`).
+- Further edits in the same session get another patch bump; re-running with no new edits does not bump again.
+- **Push** publishes the current local version online.
 
 ## Do not
 

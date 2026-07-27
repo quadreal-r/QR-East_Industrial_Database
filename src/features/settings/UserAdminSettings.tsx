@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import type { AppRole } from '@/app/authContext'
 import { Modal } from '@/components/Modal/Modal'
-import { confirm } from '@/stores/confirmStore'
 import {
-  createAppUser,
-  deleteAppUser,
-  listAppUsers,
-  type AppUser,
+  deleteAppUserRole,
+  listAppUserRoles,
+  saveAppUserRole,
 } from '@/data/adminUsersApi'
-import { showToastError, showToastSuccess } from '@/lib/toast'
+import { recordActivityEvent } from '@/data/activityApi'
 import { useAuth } from '@/hooks/useAuth'
+import { confirm } from '@/stores/confirmStore'
+import { showToastError, showToastSuccess } from '@/lib/toast'
 import selectStyles from '@/components/Select/Select.module.css'
 import styles from './SettingsModal.module.css'
 
@@ -18,220 +19,206 @@ export interface UserAdminSettingsProps {
   onClose: () => void
 }
 
-function userLabel(user: AppUser): string {
-  if (user.name && user.email) return `${user.name} (${user.email})`
-  return user.email || user.name || 'User'
-}
-
 export function UserAdminSettings({ open, onClose }: UserAdminSettingsProps) {
   const queryClient = useQueryClient()
-  const { user: currentUser } = useAuth()
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [name, setName] = useState('')
+  const { user } = useAuth()
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
+  const [role, setRole] = useState<AppRole>('viewer')
+  const [search, setSearch] = useState('')
 
-  const usersQuery = useQuery({
-    queryKey: ['appUsers'],
-    queryFn: listAppUsers,
+  const rolesQuery = useQuery({
+    queryKey: ['appUserRoles'],
+    queryFn: listAppUserRoles,
     enabled: open,
   })
 
-  const users = usersQuery.data ?? []
-  const resolvedSelectedId =
-    selectedUserId && users.some((user) => user.id === selectedUserId)
-      ? selectedUserId
-      : (users[0]?.id ?? '')
-  const selectedUser = users.find((user) => user.id === resolvedSelectedId)
+  const filteredRoles = useMemo(() => {
+    const rows = rolesQuery.data ?? []
+    const q = search.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter(
+      (entry) =>
+        entry.email.includes(q) ||
+        entry.role.includes(q) ||
+        (entry.role === 'admin' ? 'admin' : 'viewer').includes(q),
+    )
+  }, [rolesQuery.data, search])
 
-  const createMutation = useMutation({
-    mutationFn: createAppUser,
-    onSuccess: async (created) => {
-      showToastSuccess(`✓ Created user ${userLabel(created)}`)
-      setName('')
+  const saveMutation = useMutation({
+    mutationFn: saveAppUserRole,
+    onSuccess: async (saved) => {
+      void recordActivityEvent({
+        eventType: 'role_save',
+        resourceKey: saved.email,
+        meta: { role: saved.role },
+      })
+      showToastSuccess(`✓ ${saved.email} is now ${saved.role === 'admin' ? 'an Admin' : 'a Viewer'}`)
       setEmail('')
-      setPassword('')
-      setConfirmPassword('')
-      setShowPassword(false)
-      setSelectedUserId(created.id)
-      await queryClient.invalidateQueries({ queryKey: ['appUsers'] })
+      setRole('viewer')
+      await queryClient.invalidateQueries({ queryKey: ['appUserRoles'] })
     },
-    onError: (error) => {
-      showToastError(error instanceof Error ? error.message : 'Could not create user')
-    },
+    onError: (error) =>
+      showToastError(error instanceof Error ? error.message : 'Could not save role'),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: deleteAppUser,
-    onSuccess: async () => {
-      if (selectedUser) {
-        showToastSuccess(`✓ Deleted user ${userLabel(selectedUser)}`)
-      }
-      setSelectedUserId('')
-      await queryClient.invalidateQueries({ queryKey: ['appUsers'] })
+    mutationFn: deleteAppUserRole,
+    onSuccess: async (_void, targetEmail) => {
+      void recordActivityEvent({
+        eventType: 'role_delete',
+        resourceKey: targetEmail,
+      })
+      showToastSuccess('✓ User role removed; they will default to Viewer next time')
+      await queryClient.invalidateQueries({ queryKey: ['appUserRoles'] })
     },
-    onError: (error) => {
-      showToastError(error instanceof Error ? error.message : 'Could not delete user')
-    },
+    onError: (error) =>
+      showToastError(error instanceof Error ? error.message : 'Could not remove role'),
   })
 
-  const busy = createMutation.isPending || deleteMutation.isPending
-  const loading = usersQuery.isLoading
+  const busy = saveMutation.isPending || deleteMutation.isPending
+  const total = rolesQuery.data?.length ?? 0
 
-  const handleCreate = (event: React.FormEvent) => {
+  const handleSave = (event: React.FormEvent) => {
     event.preventDefault()
-    if (!name.trim() || !email.trim() || !password) {
-      showToastError('Name, email, and password are required.')
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail) {
+      showToastError('Enter an email address.')
       return
     }
-    if (password.length < 6) {
-      showToastError('Password must be at least 6 characters.')
+    if (normalizedEmail === user?.email?.toLowerCase() && role !== 'admin') {
+      showToastError('You cannot change your own Admin role to Viewer.')
       return
     }
-    if (password !== confirmPassword) {
-      showToastError('Passwords do not match.')
-      return
-    }
-    createMutation.mutate({ name, email, password })
+    saveMutation.mutate({ email: normalizedEmail, role })
   }
 
-  const handleDelete = () => {
-    if (!selectedUser) {
-      showToastError('Select a user first.')
+  const handleDelete = async (targetEmail: string) => {
+    if (targetEmail === user?.email?.toLowerCase()) {
+      showToastError('You cannot remove your own Admin role.')
       return
     }
-    if (selectedUser.id === currentUser?.id) {
-      showToastError('You cannot delete your own account here.')
-      return
+    if (await confirm(`Remove the saved role for "${targetEmail}"?`)) {
+      deleteMutation.mutate(targetEmail)
     }
-    void confirm(`Delete user "${userLabel(selectedUser)}"? They will no longer be able to sign in.`).then(
-      (ok) => {
-        if (!ok || !selectedUser) return
-        deleteMutation.mutate(selectedUser.id)
-      },
-    )
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Manage users" width={420} align="center">
+    <Modal open={open} onClose={onClose} title="Manage users" width={520} align="center">
       <div className={styles.body}>
-        <p className={styles.mgrFieldLabel} style={{ textTransform: 'none', letterSpacing: 0, fontSize: 12 }}>
-          Create Supabase sign-in accounts for editors. Users sign in with their email and password.
+        <p className={styles.hint}>
+          Assign Admin (can edit) or Viewer (view only). New people also need to be on the
+          Cloudflare Access allowlist to receive a login code — ask your Cloudflare admin to add
+          their email there, or use an address ending in <code>@quadreal.com</code> (those are
+          already allowed).
         </p>
-
-        <form onSubmit={handleCreate}>
-          <label className={styles.mgrFieldLabel} htmlFor="user-admin-name">
-            Name
-          </label>
+        <form onSubmit={handleSave}>
+          <label className={styles.mgrFieldLabel} htmlFor="role-email">Email</label>
           <input
-            id="user-admin-name"
-            type="text"
-            className={styles.mgrInput}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-            disabled={busy}
-          />
-
-          <label className={styles.mgrFieldLabel} htmlFor="user-admin-email" style={{ marginTop: 8 }}>
-            Email
-          </label>
-          <input
-            id="user-admin-email"
+            id="role-email"
             type="email"
             className={styles.mgrInput}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="off"
+            onChange={(event) => setEmail(event.target.value)}
             disabled={busy}
+            required
           />
-
-          <div className={styles.pwLabelRow}>
-            <label className={styles.mgrFieldLabel} htmlFor="user-admin-password">
-              Password
-            </label>
-            <button
-              type="button"
-              className={styles.pwToggle}
-              onClick={() => setShowPassword((prev) => !prev)}
-              aria-pressed={showPassword}
-              disabled={busy}
-            >
-              {showPassword ? 'Hide' : 'Show'}
-            </button>
-          </div>
-          <input
-            id="user-admin-password"
-            type={showPassword ? 'text' : 'password'}
-            className={styles.mgrInput}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            disabled={busy}
-          />
-
-          <label className={styles.mgrFieldLabel} htmlFor="user-admin-confirm-password" style={{ marginTop: 8 }}>
-            Confirm password
+          <label className={styles.mgrFieldLabel} htmlFor="role-value" style={{ marginTop: 8 }}>
+            Role
           </label>
-          <input
-            id="user-admin-confirm-password"
-            type={showPassword ? 'text' : 'password'}
-            className={styles.mgrInput}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
+          <select
+            id="role-value"
+            className={selectStyles.select}
+            value={role}
+            onChange={(event) => setRole(event.target.value === 'admin' ? 'admin' : 'viewer')}
             disabled={busy}
-          />
-          {confirmPassword && confirmPassword !== password ? (
-            <p className={styles.pwMismatch}>Passwords do not match.</p>
-          ) : null}
-
+          >
+            <option value="viewer">Viewer</option>
+            <option value="admin">Admin</option>
+          </select>
           <button type="submit" className={styles.mgrApplyBtn} disabled={busy}>
-            Add user
+            Save role
           </button>
         </form>
 
-        <label className={styles.mgrFieldLabel} htmlFor="user-admin-select" style={{ marginTop: 16 }}>
-          Existing users
-        </label>
-        <select
-          id="user-admin-select"
-          className={selectStyles.select}
-          value={resolvedSelectedId}
-          disabled={loading || busy || users.length === 0}
-          onChange={(e) => setSelectedUserId(e.target.value)}
-        >
-          {loading ? (
-            <option value="">Loading users…</option>
-          ) : users.length ? (
-            users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {userLabel(user)}
-              </option>
-            ))
-          ) : (
-            <option value="">No users yet</option>
-          )}
-        </select>
-
-        {usersQuery.isError ? (
-          <p className={styles.pwMismatch}>
-            {usersQuery.error instanceof Error ? usersQuery.error.message : 'Could not load users'}
-          </p>
-        ) : null}
-
-        <div className={styles.tools} style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className="btn-action"
-            style={{ width: '100%', justifyContent: 'flex-start', color: '#f87171' }}
-            disabled={!selectedUser || busy || selectedUser.id === currentUser?.id}
-            onClick={handleDelete}
-          >
-            🗑 Delete selected user
-          </button>
+        <div className={styles.userListSection}>
+          <p className={styles.sectionLabel} style={{ marginBottom: 0 }}>Assigned roles</p>
+          <div className={styles.userListSearchRow}>
+            <input
+              type="search"
+              className={styles.mgrInput}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by email or role…"
+              aria-label="Search users"
+              disabled={rolesQuery.isLoading}
+            />
+            {search.trim() ? (
+              <button
+                type="button"
+                className={styles.linkBtn}
+                onClick={() => setSearch('')}
+                disabled={busy}
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+          {!rolesQuery.isLoading && !rolesQuery.isError ? (
+            <p className={styles.userListMeta}>
+              {search.trim()
+                ? `Showing ${filteredRoles.length} of ${total}`
+                : `${total} user${total === 1 ? '' : 's'}`}
+            </p>
+          ) : null}
+          {rolesQuery.isLoading ? <p className={styles.hint}>Loading…</p> : null}
+          {rolesQuery.isError ? (
+            <p className={styles.pwMismatch}>
+              {rolesQuery.error instanceof Error
+                ? rolesQuery.error.message
+                : 'Could not load roles'}
+            </p>
+          ) : null}
+          {!rolesQuery.isLoading && !rolesQuery.isError ? (
+            <div className={styles.userListScroll} role="list">
+              {filteredRoles.length === 0 ? (
+                <p className={styles.userListEmpty}>
+                  {total === 0
+                    ? 'No assigned roles yet.'
+                    : 'No users match that search.'}
+                </p>
+              ) : (
+                filteredRoles.map((entry) => {
+                  const isAdmin = entry.role === 'admin'
+                  return (
+                    <div
+                      key={entry.email}
+                      className={`${styles.passkeyRow}${isAdmin ? ` ${styles.userRowAdmin}` : ''}`}
+                      role="listitem"
+                    >
+                      <span className={styles.userRowIdentity}>
+                        <span className={styles.userRowEmail}>{entry.email}</span>
+                        <span
+                          className={`${styles.userRoleChip}${
+                            isAdmin ? ` ${styles.userRoleChipAdmin}` : ''
+                          }`}
+                        >
+                          {isAdmin ? 'Admin' : 'Viewer'}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.linkBtn}
+                        disabled={busy || entry.email === user?.email?.toLowerCase()}
+                        onClick={() => void handleDelete(entry.email)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </Modal>

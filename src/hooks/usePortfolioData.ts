@@ -31,12 +31,12 @@ export function usePortfolioData(_options: UsePortfolioDataOptions = {}) {
 
 export function useSavePortfolio() {
   const queryClient = useQueryClient()
-  const { isAuthenticated } = useAuth()
+  const { canEdit } = useAuth()
 
   return useMutation({
     mutationFn: async (portfolio: PortfolioData) => {
-      if (!isAuthenticated) {
-        throw new Error('Sign in to save portfolio changes.')
+      if (!canEdit) {
+        throw new Error('Admin access is required to save portfolio changes.')
       }
       return savePortfolio(portfolio)
     },
@@ -60,12 +60,12 @@ export interface SaveBuildingMapViewInput {
 /** Persist (or clear) one building's saved map camera without touching the staged-edit flow. */
 export function useSaveBuildingMapView() {
   const queryClient = useQueryClient()
-  const { isAuthenticated } = useAuth()
+  const { canEdit } = useAuth()
 
   return useMutation({
     mutationFn: async ({ buildingId, view }: SaveBuildingMapViewInput) => {
-      if (!isAuthenticated) {
-        throw new Error('Sign in to save map position.')
+      if (!canEdit) {
+        throw new Error('Admin access is required to save map position.')
       }
       await saveBuildingMapView(buildingId, view)
       return { buildingId, view }
@@ -97,12 +97,12 @@ export function useSaveBuildingMapView() {
 
 export function useSavePendingPortfolio() {
   const queryClient = useQueryClient()
-  const { isAuthenticated } = useAuth()
+  const { canEdit } = useAuth()
 
   return useMutation({
     mutationFn: async ({ baseline, pending }: SavePendingPortfolioInput) => {
-      if (!isAuthenticated) {
-        throw new Error('Sign in to save portfolio changes.')
+      if (!canEdit) {
+        throw new Error('Admin access is required to save portfolio changes.')
       }
       return savePortfolioChanges(baseline, pending)
     },

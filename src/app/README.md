@@ -14,9 +14,9 @@ Root layout and providers for the React app.
 
 Excel import updates local state and the React Query cache (`portfolio` key).
 
-## GitHub Pages / SPA routing
+## SPA routing
 
-For client-side routing on GitHub Pages, the build copies `index.html` to `404.html` (see `.github/workflows/deploy.yml`). `public/404.html` includes a redirect script for direct URL hits during local preview of that pattern.
+Cloudflare Pages serves `dist/` at the site root. Keep `public/_headers` for cache/security headers. A `public/404.html` may still exist from the old GitHub Pages setup; it is not required for Cloudflare hosting.
 
 ## Entry
 

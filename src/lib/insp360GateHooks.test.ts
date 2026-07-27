@@ -8,6 +8,7 @@ import {
   insp360LinkGateConfirmMessage,
   insp360ProjectDisplayName,
   insp360SameProjectFile,
+  isOpenTourPermanentCloudLink,
   resolveInsp360TourLabel,
   resolveInsp360ViewerProjectUrl,
   shouldPromptLinkGate,
@@ -28,13 +29,17 @@ describe('insp360GateHooks', () => {
     })
   })
 
-  it('prefers a hosted local hook label over a remote inspection_url', () => {
+  it('prefers a permanent cloud inspection_url over a leftover local hook', () => {
     writeInsp360GateHook('electrical:2', 'Local Electrical.insp360', { hosted: true })
     const tour = resolveInsp360TourLabel(
       'electrical:2',
       'https://cdn.example.com/tours/remote.insp360',
     )
-    expect(tour).toEqual({ connected: true, label: 'Local Electrical' })
+    expect(tour).toEqual({
+      connected: true,
+      label: 'Cloudflare: remote',
+      kind: 'cloud',
+    })
   })
 
   it('ignores legacy name-only hooks that have no hosted project bytes', () => {
@@ -42,6 +47,7 @@ describe('insp360GateHooks', () => {
     expect(resolveInsp360TourLabel('electrical:2', null)).toEqual({
       connected: false,
       label: 'Not connected yet',
+      kind: 'none',
     })
   })
 
@@ -50,19 +56,59 @@ describe('insp360GateHooks', () => {
       'sprinkler:3',
       'insp360/projects/sprinkler-a.insp360',
     )
-    expect(tour).toEqual({ connected: true, label: 'sprinkler-a' })
+    expect(tour).toEqual({
+      connected: true,
+      label: 'Cloudflare: sprinkler-a',
+      kind: 'cloud',
+    })
   })
 
   it('reports not connected when neither hook nor URL exists', () => {
     expect(resolveInsp360TourLabel('suite:9', null)).toEqual({
       connected: false,
       label: 'Not connected yet',
+      kind: 'none',
     })
   })
 
   it('strips local prefix and file extension from display names', () => {
     expect(insp360ProjectDisplayName(`${INSP360_LOCAL_PREFIX}Room A.insp360`)).toBe('Room A')
     expect(insp360ProjectDisplayName('https://cdn.example.com/path/Tour%20B.zip')).toBe('Tour B')
+  })
+
+  it('detects when the open tour is the permanent Cloudflare link', () => {
+    const permanent =
+      'https://cdn.example.com/60%20Birmingham%20Electrical%20Room.insp360'
+    expect(
+      isOpenTourPermanentCloudLink({
+        permanentUrl: permanent,
+        openCloudKey: '60 Birmingham Electrical Room.insp360',
+      }),
+    ).toBe(true)
+    expect(
+      isOpenTourPermanentCloudLink({
+        permanentUrl: permanent,
+        openCloudUrl: permanent,
+      }),
+    ).toBe(true)
+    expect(
+      isOpenTourPermanentCloudLink({
+        permanentUrl: permanent,
+        openProjectName: '60 Birmingham Electrical Room.insp360',
+      }),
+    ).toBe(true)
+    expect(
+      isOpenTourPermanentCloudLink({
+        permanentUrl: permanent,
+        openProjectName: 'Different Local Tour.insp360',
+      }),
+    ).toBe(false)
+    expect(
+      isOpenTourPermanentCloudLink({
+        permanentUrl: permanent,
+        openCloudKey: 'other-building/other-tour.insp360',
+      }),
+    ).toBe(false)
   })
 
   it('compares project file identity ignoring path and extension', () => {
@@ -90,19 +136,21 @@ describe('insp360GateHooks', () => {
   })
 
   it('builds a clear link-on-close confirm message', () => {
-    expect(insp360LinkGateConfirmMessage('145 Carrier Drive — 145 Carrier')).toBe(
-      'Link “145 Carrier Drive — 145 Carrier” to this gateway so it opens automatically next time?',
+    expect(insp360LinkGateConfirmMessage('145 Carrier Drive — 145 Carrier')).toContain(
+      'opens automatically next time',
+    )
+    expect(insp360LinkGateConfirmMessage('145 Carrier Drive — 145 Carrier')).toContain(
+      'does not upload to Cloudflare',
     )
     expect(
       insp360LinkGateConfirmMessage('145 Carrier Drive — 145 Carrier', {
         fileName: 'Test-blur 145 Carrier QR-360°.insp360',
       }),
-    ).toBe(
-      'Link “145 Carrier Drive — 145 Carrier” to this gateway so it opens automatically next time?\n\nTour file: Test-blur 145 Carrier QR-360°',
-    )
-    expect(insp360LinkGateConfirmMessage(null)).toBe(
-      'Link “this tour” to this gateway so it opens automatically next time?',
-    )
+    ).toContain('Tour file: Test-blur 145 Carrier QR-360°')
+    expect(
+      insp360LinkGateConfirmMessage('Cloud tour', { cloud: true }),
+    ).toContain('Cloudflare tour URL')
+    expect(insp360LinkGateConfirmMessage(null)).toContain('Link “this tour”')
   })
 
   it('builds a clear change-tour confirm message', () => {
@@ -126,6 +174,22 @@ describe('insp360GateHooks', () => {
     ).toBe(false)
     expect(
       shouldPromptLinkGate({ gateKey: null, projectOpen: true, alreadyLinked: false }),
+    ).toBe(false)
+    expect(
+      shouldPromptLinkGate({
+        gateKey: 'electrical:1',
+        projectOpen: true,
+        alreadyLinked: false,
+        hasOnlineTour: true,
+      }),
+    ).toBe(false)
+    expect(
+      shouldPromptLinkGate({
+        gateKey: 'electrical:1',
+        projectOpen: true,
+        alreadyLinked: false,
+        gateAlreadyAssigned: true,
+      }),
     ).toBe(false)
   })
 

@@ -3,19 +3,31 @@
 ## To run the project
 
 - In the top bar of cursor, select view -> terminal
-- Type and enter "npm run dev", the project will then be running locally on your machine at "http://localhost:5173/"
+- Type and enter "npm run dev", the project will then be running locally on your machine at "http://localhost:5174/"
 - Enter that url in the browser to access your site
 - **Refreshing the browser does not start or stop the server.** They are separate: the server runs in the terminal; refresh only reloads the page in the browser.
-- **Keep the dev terminal open** the whole time you work. If you close the terminal tab, close Cursor, or shut the laptop, the server stops and `http://localhost:5173/` will not load until you start it again.
+- **Keep the dev terminal open** the whole time you work. If you close the terminal tab, close Cursor, or shut the laptop, the server stops and `http://localhost:5174/` will not load until you start it again.
 - If the page is blank or won't load:
   - Check the terminal — you should see `VITE ... ready`. If the terminal is gone or shows a prompt with no server, run `npm run dev` again (see [To restart the dev server](#to-restart-the-dev-server)).
   - Run `npm install` if you just pulled new code
   - Copy `.env.example` to `.env.local` and add your keys (Supabase + Google Maps)
 - Changes to the code will automatically be reflected onto the site, no need to restart the website, you can simply refresh the page
 
+## Login and roles
+
+- The cloud site uses **Cloudflare Access** as its only login. There is no second app password,
+  passkey, or authenticator prompt.
+- **Admin** can edit, import, publish, delete, and manage roles. **Viewer** can browse and export
+  downloads but cannot change shared data.
+- Admins assign roles in **Settings → Account → Manage users**. The Cloudflare Access email
+  allowlist separately controls who can enter the site.
+- Localhost has no Access wall. Set `LOCAL_DEV_EMAIL` and the server-only
+  `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. The first local login seeds that email as Admin;
+  after that, Manage users controls Admin vs Viewer (localhost no longer overwrites the role).
+
 ## To restart the dev server
 
-Use this when `http://localhost:5173/` is blank, stuck, or the terminal shows errors after pulling new code.
+Use this when `http://localhost:5174/` is blank, stuck, or the terminal shows errors after pulling new code.
 
 **Option A — restart script (recommended on Windows):**
 
@@ -24,7 +36,7 @@ cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 npm run dev:restart
 ```
 
-This stops whatever is using port 5173, then starts the dev server again.
+This stops whatever is using port 5174, then starts the dev server again.
 
 **Option B — manual restart:**
 
@@ -74,7 +86,9 @@ git commit -m "fix: short description of what changed"
 git push origin main
 ```
 
-Pushing to **main** triggers GitHub Actions, which builds and publishes the site to GitHub Pages.
+Pushing to **main** saves version history on GitHub and runs CI checks. It does **not** update the live Cloudflare site.
+
+To update the live site, say: **"push a new build to Cloudflare quadreal"**.
 
 **Push rejected?** Remote has commits you do not have:
 
@@ -93,7 +107,7 @@ git push origin main
 
 Or tell the agent: **"Everything is good now, push the code"** (it will pull, merge, and push when needed).
 
-Or use **`npm run push-live`** — runs tests, commits, and pushes.
+Or use **`npm run push-live`** — runs tests, commits, and pushes to GitHub only.
 
 ### Map / portfolio data changes
 
@@ -129,13 +143,21 @@ npm run upload-rtu-documents-r2 -- --from-folder "C:/path/to/docs" --skip-existi
 
 Use this when local dev looks good and you want **online to match** your code.
 
-**Important:** The live site is built from **GitHub `main`**, not your laptop. Uncommitted local code will not appear online.
+**Important:** The live site is **Cloudflare Pages**. GitHub is for version history. Uncommitted local code will not appear online until you ship with the Cloudflare skill.
 
-### A. Code / UI changes
+### A. Code / UI changes (preferred)
+
+Tell the agent: **"push a new build to Cloudflare quadreal"**
+
+That flow: version bump → changelog if needed → sync 360 viewer → tests → **commit + push to GitHub** → deploy Cloudflare → mirror the Cloudflare working folder.
+
+Manual equivalent:
 
 ```powershell
 cd C:\Users\Robert\Projects\QR-East_Industrial_Database
 git pull origin main
+npm run version:bump:if-needed
+npm run sync:qr360-viewer
 npm run lint
 npm run typecheck
 npm run test
@@ -143,9 +165,10 @@ git status
 git add .
 git commit -m "feat: short description of what changed"
 git push origin main
+npm run deploy
 ```
 
-Or use **`npm run push-live`**.
+GitHub-only (no live update): **`npm run push-live`**.
 
 ### B. Map data changes
 
@@ -159,17 +182,19 @@ npm run upload-rtu-documents-r2 -- --from-folder "C:/path/to/RTU-Documents" --al
 
 Ensure document metadata rows exist in Supabase (via the app while signed in).
 
-### D. After any deploy
+### D. After any Cloudflare deploy
 
-1. Watch Actions: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
-2. When green, open https://quadreal-r.github.io/QR-East_Industrial_Database/
-3. Hard-refresh (Ctrl+Shift+R)
+1. Open https://qr-east-industrial-database.pages.dev/
+2. Hard-refresh (Ctrl+Shift+R)
+3. Confirm the topbar version matches what you shipped
 
 ### Shortcut for the agent
 
-Say: **"Everything is good now, push the code"** — the agent should pull, test, commit, and push to `main`.
+Say: **"push a new build to Cloudflare quadreal"** — commit, push GitHub, and deploy live.
 
-Cursor also loads `.cursor/rules/push-new-build.mdc` when you ask to deploy or push a build.
+Say: **"Everything is good now, push the code"** — same as a full Cloudflare ship when you want online updated.
+
+Cursor also loads `.cursor/rules/push-new-build.mdc` and `.cursor/skills/push-cloudflare-build/SKILL.md` when you ask to deploy.
 
 ## Tips
 - For complex requests: When you do "/programmer do this feature" press the plus button on the left side of the chat box and select "plan" and then on the far right of the chat box where it says "auto", click that, uncheck auto, then change that to "Opus" and then send your request. It will build out a plan for your feature, the plan should open when its done and you will see a button that says "Build plan" and the agent select next to it "Auto" (leave it on auto) then press build plan. This will generally give you better results for what you want to do 

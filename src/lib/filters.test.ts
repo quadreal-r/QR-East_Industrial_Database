@@ -6,6 +6,7 @@ import {
   applyFilters,
   applyPrimaryFilters,
   collectFilterOptions,
+  isCapexStatusSearch,
   isTenantCountSearch,
   matchesBuildingMetadata,
   matchesSearch,
@@ -54,6 +55,26 @@ describe('matchesSearch', () => {
     expect(matchesSearch(hit!, 'national energy', polygonIndex)).toBe(true)
   })
 
+  it('matches RTU serial and model fields', () => {
+    const withGear = {
+      ...buildings[0]!,
+      rtus: [
+        {
+          name: 'RTU-X',
+          description: '',
+          lat: 43.66,
+          lng: -79.65,
+          serial: 'FILTER-SER-42',
+          model: 'Lennox LDT048',
+          make: 'Lennox',
+        },
+      ],
+    }
+    expect(matchesSearch(withGear, 'FILTER-SER-42', polygonIndex)).toBe(true)
+    expect(matchesSearch(withGear, 'LDT048', polygonIndex)).toBe(true)
+    expect(matchesSearch(withGear, 'lennox', polygonIndex)).toBe(true)
+  })
+
   it('matches the tenant-count badge text like "33 Tenants"', () => {
     const withTenants = buildings
       .map((b) => ({ b, n: polygonsForBuilding(polygonIndex, b.address).length }))
@@ -88,6 +109,46 @@ describe('isTenantCountSearch', () => {
     expect(isTenantCountSearch('13 Tenants')).toBe(true)
     expect(isTenantCountSearch('Baxter')).toBe(false)
     expect(isTenantCountSearch('6975 Creditview')).toBe(false)
+  })
+})
+
+describe('Capex status search', () => {
+  it('matches buildings by Capex pot status only', () => {
+    expect(isCapexStatusSearch('Approved')).toBe(true)
+    const address = buildings[0]!.address
+    const statuses = { [`${address}::2026`]: 'Approved' }
+    expect(matchesSearch(buildings[0]!, 'Approved', polygonIndex, undefined, statuses)).toBe(
+      true,
+    )
+    expect(matchesSearch(buildings[0]!, 'Submitted', polygonIndex, undefined, statuses)).toBe(
+      false,
+    )
+    const scoped = applyPrimaryFilters(
+      buildings,
+      { ...DEFAULT_FILTER_STATE, search: 'Approved' },
+      polygonIndex,
+      undefined,
+      statuses,
+    )
+    expect(scoped.some((b) => b.address === address)).toBe(true)
+  })
+
+  it('narrows Capex status search by year (Approved, 2027)', () => {
+    expect(isCapexStatusSearch('Approved, 2027')).toBe(true)
+    const address = buildings[0]!.address
+    const statuses = {
+      [`${address}::2026`]: 'Approved',
+      [`${address}::2027`]: 'Submitted',
+    }
+    expect(
+      matchesSearch(buildings[0]!, 'Approved, 2026', polygonIndex, undefined, statuses),
+    ).toBe(true)
+    expect(
+      matchesSearch(buildings[0]!, 'Approved, 2027', polygonIndex, undefined, statuses),
+    ).toBe(false)
+    expect(
+      matchesSearch(buildings[0]!, 'Submitted, 2027', polygonIndex, undefined, statuses),
+    ).toBe(true)
   })
 })
 

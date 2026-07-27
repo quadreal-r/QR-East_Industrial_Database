@@ -156,11 +156,12 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "https://quadreal-r.github.io/QR-East_Industrial_Database/"
+site_url = "https://qr-east-industrial-database.pages.dev/"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
   "http://127.0.0.1:5173",
   "http://localhost:5173",
+  "https://qr-east-industrial-database.pages.dev/",
   "https://quadreal-r.github.io/QR-East_Industrial_Database/",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
@@ -188,13 +189,16 @@ password_requirements = ""
 
 # Configure passkey sign-ins.
 # [auth.passkey]
-# enabled = false
+# enabled = true
 
-# Configure WebAuthn relying party settings (required when passkey is enabled).
+# WebAuthn relying party — still registered on GitHub Pages host (github.io is a public
+# suffix, so rp_id must be the full project host). Passkeys will not work on localhost
+# or pages.dev until RP ID is migrated and passkeys re-enrolled.
 # [auth.webauthn]
-# rp_display_name = "Supabase"
-# rp_id = "localhost"
-# rp_origins = ["http://127.0.0.1:3000"]
+# rp_display_name = "QR East Industrial Database"
+# rp_id = "quadreal-r.github.io"
+# rp_origins = ["https://quadreal-r.github.io"]
+
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.

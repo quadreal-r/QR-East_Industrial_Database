@@ -10,6 +10,7 @@ import {
   loadHostGateProject,
   prepareViewerGateProject,
   saveHostGateProject,
+  staleHostTourResolution,
   unlinkInsp360GateTour,
   writeViewerGateProject,
 } from '@/lib/insp360GateProjectStore'
@@ -58,5 +59,34 @@ describe('insp360GateProjectStore', () => {
     await unlinkInsp360GateTour(gateKey)
 
     expect(getInsp360GateHook(gateKey)).toBeNull()
+  })
+
+  it('prefers viewer when host still has a previous default tour name', () => {
+    expect(
+      staleHostTourResolution({
+        expected: 'New Default.insp360',
+        hostName: 'Old Default.insp360',
+        viewerName: 'New Default.insp360',
+        viewerByteLength: 1200,
+      }),
+    ).toBe('prefer-viewer')
+
+    expect(
+      staleHostTourResolution({
+        expected: 'New Default.insp360',
+        hostName: 'Old Default.insp360',
+        viewerName: 'Old Default.insp360',
+        viewerByteLength: 800,
+      }),
+    ).toBe('clear-stale')
+
+    expect(
+      staleHostTourResolution({
+        expected: 'Same Tour.insp360',
+        hostName: 'Same Tour.insp360',
+        viewerName: '',
+        viewerByteLength: 0,
+      }),
+    ).toBe('keep-host')
   })
 })

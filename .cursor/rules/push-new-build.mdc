@@ -1,5 +1,5 @@
 ---
-description: Push local code to GitHub and deploy a new build to GitHub Pages
+description: Push local code to GitHub and deploy a new build to Cloudflare Pages
 alwaysApply: false
 ---
 
@@ -9,29 +9,36 @@ When the user asks to push, deploy, publish, or go live:
 
 ## Remember
 
-- **Live site builds from GitHub `main` source code**, not uncommitted local files.
+- **Live site** is **Cloudflare Pages** (quadreal): https://qr-east-industrial-database.pages.dev/
+- **GitHub** is for **version tracking** only. Pushing to `main` runs CI — it does **not** host the app.
+- Prefer **`push-cloudflare-build`** (phrase: **push a new build to Cloudflare quadreal**) — that skill commits, pushes to GitHub, then deploys Cloudflare.
 - **Map data** lives in Supabase — edits while signed in take effect immediately (no JSON sync step).
 - **Never commit** `.env.local` or files containing secrets.
+- **Version policy:** local app changes already bump the version while coding (`npm run version:bump:if-needed`). Before commit, run `version:bump:if-needed` once more. Update `CHANGELOG.md` when the version differs from the last commit.
 
-## Standard push
+## Going live (preferred)
 
-1. `git pull origin main`
-2. `npm run lint && npm run typecheck && npm run test`
-3. `git status` — review changes; stage only intended files
-4. `git commit -m "…"` with a clear message
-5. `git push origin main` → triggers `.github/workflows/deploy.yml` (test + build + GitHub Pages)
+Follow `.cursor/skills/push-cloudflare-build/SKILL.md` Path A (quadreal):
 
-Or use:
+1. Summarize chat work for changelog
+2. `npm run version:bump:if-needed`
+3. Changelog if version moved
+4. `npm run sync:qr360-viewer`
+5. typecheck / lint / test
+6. Commit + push to `main`
+7. `npm run deploy` (Cloudflare Pages)
+8. Mirror to `QR-East_Industrial_Database-Cloudflare` so that folder stays aligned
 
-```powershell
-npm run push-live
-```
+## GitHub-only (history, no live deploy)
 
-## After push to main
+Use `@release-and-push` or `npm run push-live` when they only want commits on GitHub without updating Cloudflare.
 
-- Watch: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
-- Live: https://quadreal-r.github.io/QR-East_Industrial_Database/
-- Hard-refresh when deploy finishes (~5–10 min)
+## After a Cloudflare ship
+
+- Live: https://qr-east-industrial-database.pages.dev/
+- Version label from `BUILD_VERSION_LABEL`
+- Hard-refresh when deploy finishes
+- CI on the GitHub push: https://github.com/quadreal-r/QR-East_Industrial_Database/actions
 
 ## R2 media (when picture/document binaries changed)
 
@@ -42,8 +49,11 @@ npm run upload-rtu-documents-r2 -- --from-folder "C:/path/to/docs" --skip-existi
 
 Picture/document **metadata** is in Supabase — update via the app while signed in, or run `npm run migrate-json-to-supabase` for bulk legacy import.
 
-## User shortcut phrase
+## User shortcut phrases
 
-If they say **"Everything is good now, push the code"**: pull, test, commit, push to `main`, report Actions URL.
+| Phrase | Do this |
+|--------|---------|
+| **"push a new build to Cloudflare quadreal"** | Full `push-cloudflare-build` Path A |
+| **"Everything is good now, push the code"** | Prefer full Cloudflare ship (commit + push + deploy), not GitHub-only |
 
 Full human checklist: [HELP.md](../../HELP.md#push-a-new-build-full-checklist)

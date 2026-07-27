@@ -33,10 +33,11 @@ Remote history already includes `20260621172809_initial_schema`. Pending local m
 | File | Purpose |
 |------|---------|
 | `20260622120000_seed_legacy_data.sql` | Portfolio seed (buildings, RTUs, etc.) |
-| `20260703024457_auth_admins.sql` | Admin user list + `is_app_admin()` for Settings user management |
+| `20260703024457_auth_admins.sql` | Legacy admin list; migrated into `app_roles` |
 | `20260703000000_schedule_pricing_media.sql` | Schedule columns, pricing, picture/document metadata |
 | `20260703042952_building_map_view.sql` | Per-building saved map camera (center, zoom, heading, tilt) |
 | `20260704171200_building_map_imagery_mode.sql` | Saved map imagery provider (google, esri) per building |
+| `20260717210049_access_app_roles.sql` | Access-only auth: `app_roles` table (`admin`/`viewer`), `is_app_admin`, `is_app_editor`, `get_my_app_role`; tightens write RLS on portfolio tables to editors only |
 
 ```powershell
 # Preview what would run
@@ -66,39 +67,27 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Use this for schedule, pri
 ## RLS
 
 - **Anonymous:** `SELECT` on all tables
-- **Authenticated:** full read/write
+- **Viewer:** read-only
+- **Admin:** read/write through `is_app_editor()`
 
-Create editor accounts in Supabase Auth (email/password), or use **Settings → Manage users** after you are listed as an admin.
-
-## Auth redirect URLs (password reset)
-
-Password-reset emails redirect to the app. In the [Supabase dashboard](https://supabase.com/dashboard/project/wyiymdtlncperqpwriuk/auth/url-configuration) set:
-
-| Setting | Value |
-|---------|--------|
-| **Site URL** | `https://quadreal-r.github.io/QR-East_Industrial_Database/` |
-| **Redirect URLs** | `http://127.0.0.1:5173`, `http://localhost:5173`, `https://quadreal-r.github.io/QR-East_Industrial_Database/` |
-
-Local dev runs on port **5173** (not 3000). If reset links point at the wrong host, the page will be blank.
-
-The app shows **Set new password** when you open a valid recovery link. Sign in → **Forgot password?** sends a new email.
+Cloudflare Access is the only cloud login. The app silently creates a Supabase session so RLS
+still applies. Unknown Access emails default to Viewer.
 
 ## Admin user management
 
-1. Apply migration `20260703024457_auth_admins.sql` (`npm run db:push`).
-2. Promote your account (SQL editor or `psql`):
+1. Apply `20260717210049_access_app_roles.sql`.
+2. Bootstrap an Admin if needed:
 
    ```sql
-   INSERT INTO auth_admins (email) VALUES ('you@example.com');
+   INSERT INTO app_roles (email, role) VALUES ('you@example.com', 'admin');
    ```
 
-3. Deploy the Edge Function (uses the project service role; never expose that key in the browser):
+Admins use **Settings → Account → Manage users** to assign Admin or Viewer by email.
+Cloudflare's Access allowlist separately controls who may enter the cloud site.
 
-   ```powershell
-   npx supabase functions deploy admin-users --project-ref wyiymdtlncperqpwriuk
-   ```
-
-Signed-in admins see **Settings → Manage users** to add (name, email, password) or delete editor accounts.
+Admins can also open **Settings → Account → Activity log** to fetch / download / email a
+digest of sign-ins, time in app, 360° tour opens, and map edits. Events are stored in
+`activity_events` (migration `20260723180000_activity_events.sql`).
 
 ## RTU picture delete (Cloudflare R2)
 
@@ -117,6 +106,31 @@ Deleting a picture from the map invokes the `delete-rtu-picture` Edge Function (
    ```powershell
    npx supabase functions deploy delete-rtu-picture --project-ref wyiymdtlncperqpwriuk
    ```
+
+## QR-360° tour publish (insp360 R2)
+
+**Publish to Cloudflare & link** in the tour top bar asks this Edge Function for a short-lived R2 **PUT** URL, then the browser uploads the `.insp360` directly (large files never go through Supabase).
+
+Uses the **krutki11** Cloudflare account (`insp360` bucket) — separate secrets from RTU pictures on **quadreal**. The map app is hosted on quadreal but is given access to krutki11 tours for the integrated QR-360° viewer. See [docs/CLOUDFLARE_ACCOUNTS.md](../docs/CLOUDFLARE_ACCOUNTS.md).
+
+1. Set Edge Function secrets:
+
+   ```powershell
+   npx supabase secrets set INSP360_R2_ACCOUNT_ID=... INSP360_R2_ACCESS_KEY_ID=... INSP360_R2_SECRET_ACCESS_KEY=... INSP360_R2_BUCKET_NAME=insp360 INSP360_R2_PUBLIC_URL=https://pub-0d0f264ce842432887754b840b270786.r2.dev/ --project-ref wyiymdtlncperqpwriuk
+   ```
+
+   Optional: `INSP360_R2_KEY_PREFIX` (same idea as local `INSP360_R2_KEY_PREFIX`).
+
+2. Deploy upload + list:
+
+   ```powershell
+   npx supabase functions deploy upload-insp360-cloud --project-ref wyiymdtlncperqpwriuk
+   npx supabase functions deploy list-insp360-cloud --project-ref wyiymdtlncperqpwriuk
+   ```
+
+3. Update the insp360 bucket **CORS** policy to allow `PUT` / `GET` from your app origins (see `docs/INSP360_R2.md`).
+
+Signed-in users can publish and list gate-scoped cloud tours (Dashboard → Cloud in the embedded viewer). Paste-URL / CLI upload still work as fallbacks.
 
 ## RTU picture reconcile (R2 → manifest + Supabase)
 

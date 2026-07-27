@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   bindMapPopupWheelScroll,
+  bindMapPopupInteractionGuard,
   closeAllMapPopups,
   isInsideMapInfoWindow,
   MAP_CLOSE_POPUPS_EVENT,
@@ -50,6 +51,38 @@ describe('bindMapPopupWheelScroll', () => {
     const stopSpy = vi.spyOn(wheel, 'stopPropagation')
     shell.dispatchEvent(wheel)
     expect(stopSpy).toHaveBeenCalled()
+    document.body.removeChild(shell)
+  })
+})
+
+describe('bindMapPopupInteractionGuard', () => {
+  it('stops mousedown from bubbling so the map does not start a pan', () => {
+    const shell = document.createElement('div')
+    const button = document.createElement('button')
+    button.type = 'button'
+    shell.appendChild(button)
+    document.body.appendChild(shell)
+    bindMapPopupInteractionGuard(shell, null)
+
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    const stopSpy = vi.spyOn(down, 'stopPropagation')
+    button.dispatchEvent(down)
+    expect(stopSpy).toHaveBeenCalled()
+    document.body.removeChild(shell)
+  })
+
+  it('still delivers click to a popup button before stopping bubble', () => {
+    const shell = document.createElement('div')
+    const button = document.createElement('button')
+    button.type = 'button'
+    shell.appendChild(button)
+    document.body.appendChild(shell)
+    bindMapPopupInteractionGuard(shell, null)
+
+    const clicked = vi.fn()
+    button.addEventListener('click', clicked)
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    expect(clicked).toHaveBeenCalledTimes(1)
     document.body.removeChild(shell)
   })
 })

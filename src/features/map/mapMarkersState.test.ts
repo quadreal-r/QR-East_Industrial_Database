@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Replace google.maps-backed helpers with test doubles so the module under
 // test can run under jsdom. Positions are stored on a private field of the
@@ -23,14 +23,67 @@ vi.mock('@/lib/markerStyles', () => ({
   getDetailMarkerIcon: () => ({}),
   getMarkerIcon: () => ({}),
 }))
+const applySavedMapView = vi.fn()
+const fitBoundsPreserveRotation = vi.fn()
+
 vi.mock('@/lib/mapRotation', () => ({
-  fitBoundsPreserveRotation: () => {},
+  fitBoundsPreserveRotation: (...args: unknown[]) => fitBoundsPreserveRotation(...args),
+  applySavedMapView: (...args: unknown[]) => applySavedMapView(...args),
 }))
 
-import { applyPendingMarkerPositions, isSphereDetailLayer } from '@/features/map/mapMarkersState'
-import type { DetailMarkerEntry } from '@/features/map/mapMarkersState'
+import {
+  applyAllBuildingsOverviewCamera,
+  applyPendingMarkerPositions,
+  isSphereDetailLayer,
+} from '@/features/map/mapMarkersState'
+import type { BuildingMarkerEntry, DetailMarkerEntry } from '@/features/map/mapMarkersState'
 import { mergePortfolioSuiteEntrances } from '@/lib/suiteEntrances'
 import type { Building, PortfolioData, SuiteEntrance } from '@/types/domain'
+
+describe('applyAllBuildingsOverviewCamera', () => {
+  beforeEach(() => {
+    applySavedMapView.mockClear()
+    fitBoundsPreserveRotation.mockClear()
+  })
+
+  it('restores the saved All Buildings camera when one exists', () => {
+    const map = {} as google.maps.Map
+    const saved = {
+      lat: 43.5,
+      lng: -79.6,
+      zoom: 11,
+      heading: 20,
+      tilt: 0,
+      imageryMode: null,
+    }
+    expect(applyAllBuildingsOverviewCamera(map, [], saved)).toBe('saved')
+    expect(applySavedMapView).toHaveBeenCalledWith(map, saved)
+    expect(fitBoundsPreserveRotation).not.toHaveBeenCalled()
+  })
+
+  it('fits building markers when no saved overview exists', () => {
+    class FakeBounds {
+      empty = true
+      extend() {
+        this.empty = false
+      }
+      isEmpty() {
+        return this.empty
+      }
+    }
+    ;(globalThis as { google?: unknown }).google = {
+      maps: { LatLngBounds: FakeBounds },
+    }
+    const map = {} as google.maps.Map
+    const entries = [
+      { building: { lat: 43.1, lng: -79.1 } },
+      { building: { lat: 43.2, lng: -79.2 } },
+    ] as BuildingMarkerEntry[]
+    expect(applyAllBuildingsOverviewCamera(map, entries, null)).toBe('fit')
+    expect(applySavedMapView).not.toHaveBeenCalled()
+    expect(fitBoundsPreserveRotation).toHaveBeenCalled()
+  })
+})
 
 describe('isSphereDetailLayer', () => {
   it('marks suite, electrical, and sprinkler as sphere layers', () => {

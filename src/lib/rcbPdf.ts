@@ -9,6 +9,7 @@ import {
   formatPercent,
   isRtuFlaggedForReview,
   rcbExportFilenameBase,
+  type BuildRcbPresentationOptions,
   type RcbPresentation,
 } from '@/lib/rcbPresentation'
 
@@ -57,9 +58,46 @@ function addSectionTitle(doc: jsPDF, y: number, title: string, subtitle?: string
   return y
 }
 
+function drawStatCards(
+  doc: jsPDF,
+  y: number,
+  cardW: number,
+  cardH: number,
+  cards: Array<{ label: string; value: string; note: string }>,
+  fill: [number, number, number],
+  valueFontSize = 12,
+): number {
+  cards.forEach((card, index) => {
+    const x = PAGE_MARGIN + index * (cardW + 4)
+    doc.setDrawColor(210, 210, 210)
+    doc.setFillColor(...fill)
+    doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(90, 90, 90)
+    doc.text(card.label, x + 4, y + 7)
+    doc.setFont('helvetica', 'bold')
+    let size = valueFontSize
+    doc.setFontSize(size)
+    while (size > 8 && doc.getTextWidth(card.value) > cardW - 8) {
+      size -= 1
+      doc.setFontSize(size)
+    }
+    doc.setTextColor(20, 20, 20)
+    doc.text(card.value, x + 4, y + 17)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(110, 110, 110)
+    const noteLines = doc.splitTextToSize(card.note, cardW - 8)
+    doc.text(noteLines, x + 4, y + 23)
+  })
+  doc.setTextColor(0, 0, 0)
+  return y + cardH + 8
+}
+
 function addDashboardPage(doc: jsPDF, presentation: RcbPresentation): void {
   const pageWidth = doc.internal.pageSize.getWidth()
-  const { summary: s, totals: T } = presentation
+  const { summary: s, totals: T, budgetAnalytics: a } = presentation
   let y = PAGE_MARGIN
 
   doc.setFont('helvetica', 'bold')
@@ -82,88 +120,107 @@ function addDashboardPage(doc: jsPDF, presentation: RcbPresentation): void {
 
   const cardW = (pageWidth - PAGE_MARGIN * 2 - 8) / 3
   const cardH = 28
-  const cards = [
-    { label: 'TOTAL PLANNED COST', value: formatMoney(s.totalCost), note: 'Scheduled replacement (CAD)' },
-    { label: 'UNITS TO REPLACE', value: String(T.units), note: `across ${T.bldgCount} buildings` },
-    { label: 'AVERAGE COST / UNIT', value: formatMoney(s.avgUnitCost), note: 'installed, all-in' },
-  ]
+  y = drawStatCards(
+    doc,
+    y,
+    cardW,
+    cardH,
+    [
+      { label: 'TOTAL PLANNED COST', value: formatMoney(s.totalCost), note: 'Scheduled replacement (CAD)' },
+      { label: 'UNITS TO REPLACE', value: String(T.units), note: `across ${T.bldgCount} buildings` },
+      {
+        label: 'AVG COST / UNIT',
+        value: T.units > 0 ? formatMoney(s.avgUnitCost || Math.round(T.cost / T.units)) : '—',
+        note: 'installed, all-in',
+      },
+    ],
+    [248, 250, 252],
+    14,
+  )
 
-  cards.forEach((card, index) => {
-    const x = PAGE_MARGIN + index * (cardW + 4)
-    doc.setDrawColor(210, 210, 210)
-    doc.setFillColor(248, 250, 252)
-    doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
-    doc.setTextColor(90, 90, 90)
-    doc.text(card.label, x + 4, y + 7)
-    doc.setFontSize(14)
-    doc.setTextColor(20, 20, 20)
-    doc.text(card.value, x + 4, y + 17)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(110, 110, 110)
-    doc.text(card.note, x + 4, y + 24)
+  const hasBudget = a.totalBudget > 0
+  const varianceNote = !hasBudget
+    ? 'No budget entered yet'
+    : a.variance > 0
+      ? 'Budget covers estimate (surplus)'
+      : a.variance < 0
+        ? 'Estimate exceeds budget'
+        : 'Budget matches estimate'
+  y = drawStatCards(
+    doc,
+    y,
+    cardW,
+    cardH,
+    [
+      {
+        label: 'TOTAL BUDGET',
+        value: hasBudget ? formatMoney(a.totalBudget) : '—',
+        note: hasBudget
+          ? `${a.buildingsWithBudget} buildings · ${a.unitsWithBudget} RTUs`
+          : 'Enter Capex / RTU budgets',
+      },
+      {
+        label: 'VARIANCE (BUDGET − EST.)',
+        value: hasBudget ? formatMoney(a.variance) : '—',
+        note: varianceNote,
+      },
+      {
+        label: 'AVG UNIT AGE',
+        value: s.avgAge != null ? `${s.avgAge} yrs` : '—',
+        note: `service limit is ${presentation.threshold} yrs`,
+      },
+    ],
+    [255, 255, 255],
+  )
+
+  y = addSectionTitle(doc, y, 'Budget vs Estimated Cost')
+  autoTable(doc, {
+    startY: y,
+    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+    head: [['Total Budget', 'Estimated Cost', 'Variance (Budget − Est.)', 'Budget Coverage']],
+    body: [
+      [
+        hasBudget ? formatMoney(a.totalBudget) : '—',
+        formatMoney(a.totalCost),
+        hasBudget ? formatMoney(a.variance) : '—',
+        hasBudget && a.coverage != null ? formatPercent(a.coverage) : '—',
+      ],
+      [
+        `Buildings with budget: ${a.buildingsWithBudget}`,
+        `Over budget: ${a.buildingsOverBudget}`,
+        `At/under budget: ${a.buildingsUnderOrEqual}`,
+        `RTUs with budget: ${a.unitsWithBudget}`,
+      ],
+    ],
+    styles: { fontSize: 8, cellPadding: 2.5 },
+    headStyles: { fillColor: HEADER_COLOR, textColor: 255 },
   })
-  y += cardH + 8
-  doc.setTextColor(0, 0, 0)
-
-  const dueCards = [
-    {
-      label: `DUE NOW (${presentation.defaultYear})`,
-      value: formatMoney(s.dueNowCost),
-      note: `${s.dueNowUnits} units at/over age limit`,
-    },
-    {
-      label: 'POTENTIAL SAVINGS',
-      value: s.flaggedSavings > 0 ? formatMoney(s.flaggedSavings) : '—',
-      note:
-        s.flaggedCount > 0
-          ? `${s.flaggedCount} units flagged redundant / disconnected`
-          : 'No flagged units',
-    },
-    {
-      label: 'AVG UNIT AGE',
-      value: s.avgAge != null ? `${s.avgAge} yrs` : '—',
-      note: `service limit is ${presentation.threshold} yrs`,
-    },
-  ]
-
-  dueCards.forEach((card, index) => {
-    const x = PAGE_MARGIN + index * (cardW + 4)
-    doc.setDrawColor(210, 210, 210)
-    doc.setFillColor(255, 255, 255)
-    doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
-    doc.setTextColor(90, 90, 90)
-    doc.text(card.label, x + 4, y + 7)
-    doc.setFontSize(12)
-    doc.setTextColor(20, 20, 20)
-    doc.text(card.value, x + 4, y + 17)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(110, 110, 110)
-    const noteLines = doc.splitTextToSize(card.note, cardW - 8)
-    doc.text(noteLines, x + 4, y + 23)
-  })
-  y += cardH + 10
+  y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y
+  y += 10
 
   y = addSectionTitle(doc, y, 'Where the Money Goes — By Portfolio')
 
   autoTable(doc, {
     startY: y,
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
-    head: [['Portfolio', 'Manager', 'Units', 'Cost (CAD)', 'Share']],
+    head: [['Portfolio', 'Manager', 'Units', 'Cost', 'Budget', 'Variance']],
     body: [
       ...presentation.portfolios.map((row) => [
         row.park,
         row.manager,
         String(row.units),
         formatMoney(row.cost),
-        formatPercent(row.share),
+        row.budget > 0 ? formatMoney(row.budget) : '—',
+        row.budget > 0 ? formatMoney(row.variance) : '—',
       ]),
-      ['TOTAL', '', String(T.units), formatMoney(T.cost), T.cost ? formatPercent(1) : '—'],
+      [
+        'TOTAL',
+        '',
+        String(T.units),
+        formatMoney(T.cost),
+        hasBudget ? formatMoney(a.totalBudget) : '—',
+        hasBudget ? formatMoney(a.variance) : '—',
+      ],
     ],
     styles: { fontSize: 8, cellPadding: 2.5 },
     headStyles: { fillColor: HEADER_COLOR, textColor: 255 },
@@ -185,72 +242,55 @@ function addByBuildingSection(doc: jsPDF, presentation: RcbPresentation): void {
   autoTable(doc, {
     startY: y,
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
-    head: [['Building', 'Portfolio', 'Manager', 'Units', 'Cost (CAD)', 'Share']],
+    head: [
+      [
+        'Building',
+        'Portfolio',
+        'Cluster',
+        'Manager',
+        'Units',
+        'Cost',
+        'Budget Total',
+        'Budget Years',
+        'Removed',
+      ],
+    ],
     body: [
       ...presentation.buildings.map((row) => [
         row.address,
         row.park,
+        row.cluster || '—',
         row.manager,
         String(row.units),
         formatMoney(row.cost),
-        formatPercent(row.share),
+        row.budget > 0 ? formatMoney(row.budget) : '—',
+        row.budgetYears || '—',
+        row.removedBudgetYears.join(' · ') || '—',
       ]),
-      ['TOTAL', '', '', String(presentation.totals.units), formatMoney(presentation.totals.cost), ''],
-    ],
-    styles: { fontSize: 7.5, cellPadding: 2 },
-    headStyles: { fillColor: HEADER_COLOR, textColor: 255 },
-    columnStyles: {
-      0: { cellWidth: 42 },
-      4: { halign: 'right' },
-      5: { halign: 'right' },
-    },
-  })
-}
-
-function addCostOfWaitingSection(doc: jsPDF, presentation: RcbPresentation): void {
-  doc.addPage()
-  addPageHeader(doc, 'The Cost of Waiting', presentation)
-  let y = PAGE_MARGIN + 22
-  y = addSectionTitle(
-    doc,
-    y,
-    'The Cost of Waiting',
-    'If we delayed and replaced ALL units in a single future year, prices climb with inflation.',
-  )
-
-  autoTable(doc, {
-    startY: y,
-    margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
-    head: [
       [
-        'If replaced in…',
-        'Total Cost (CAD)',
-        `Extra vs. ${presentation.waiting.baseYear}`,
-        '% More Expensive',
+        'TOTAL',
+        '',
+        '',
+        '',
+        String(presentation.totals.units),
+        formatMoney(presentation.totals.cost),
+        presentation.totalsBudget > 0 ? formatMoney(presentation.totalsBudget) : '—',
+        '',
+        '',
       ],
     ],
-    body: presentation.waiting.rows.map((row) => [
-      String(row.year),
-      formatMoney(row.total),
-      formatMoney(row.extra),
-      formatPercent(row.pctMore),
-    ]),
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { fontSize: 7, cellPadding: 1.8 },
     headStyles: { fillColor: HEADER_COLOR, textColor: 255 },
     columnStyles: {
-      1: { halign: 'right' },
-      2: { halign: 'right' },
-      3: { halign: 'right' },
+      0: { cellWidth: 30 },
+      2: { cellWidth: 22 },
+      5: { halign: 'right' },
+      6: { halign: 'right' },
+      7: { cellWidth: 22 },
+      8: { cellWidth: 18 },
+      9: { halign: 'right' },
     },
   })
-
-  if (presentation.waiting.phasedNote) {
-    const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 20
-    doc.setFont('helvetica', 'italic')
-    doc.setFontSize(8.5)
-    const lines = doc.splitTextToSize(presentation.waiting.phasedNote, doc.internal.pageSize.getWidth() - PAGE_MARGIN * 2)
-    doc.text(lines, PAGE_MARGIN, finalY + 10)
-  }
 }
 
 function addByUnitSizeSection(doc: jsPDF, presentation: RcbPresentation): void {
@@ -267,7 +307,7 @@ function addByUnitSizeSection(doc: jsPDF, presentation: RcbPresentation): void {
   autoTable(doc, {
     startY: y,
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
-    head: [['Unit Size', 'Avg Cost / Unit (CAD)', 'Quantity', 'Total Cost (CAD)']],
+    head: [['Unit Size', 'Avg Cost / Unit', 'Quantity', 'Total Cost']],
     body: [
       ...presentation.unitSizes.map((row) => [
         row.label,
@@ -275,7 +315,14 @@ function addByUnitSizeSection(doc: jsPDF, presentation: RcbPresentation): void {
         String(row.qty),
         formatMoney(row.total),
       ]),
-      ['TOTAL', '', String(presentation.totals.units), formatMoney(presentation.totals.cost)],
+      [
+        'TOTAL',
+        presentation.totals.units
+          ? formatMoney(presentation.summary.avgUnitCost)
+          : '—',
+        String(presentation.totals.units),
+        formatMoney(presentation.totals.cost),
+      ],
     ],
     styles: { fontSize: 9, cellPadding: 3 },
     headStyles: { fillColor: HEADER_COLOR, textColor: 255 },
@@ -296,7 +343,7 @@ function addPricingSection(doc: jsPDF, presentation: RcbPresentation): void {
   autoTable(doc, {
     startY: y,
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
-    head: [['Unit Size', ...presentation.pricing.years.map((year) => `${year} (CAD)`)]],
+    head: [['Unit Size', ...presentation.pricing.years.map((year) => year)]],
     body: presentation.pricing.rows.map((row) => [
       row.label,
       ...presentation.pricing.years.map((year) => formatMoney(row.costsByYear[year] ?? 0)),
@@ -314,6 +361,21 @@ function addAllUnitsSection(doc: jsPDF, presentation: RcbPresentation): void {
   addPageHeader(doc, 'All Units — Full Detail', presentation)
   const y = PAGE_MARGIN + 22
 
+  const tableFontSize = 6
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(tableFontSize)
+  const modelPad = 3
+  let modelWidth = doc.getTextWidth('Model') + modelPad
+  for (const item of presentation.units) {
+    const text = item.model?.trim() || ''
+    if (!text) continue
+    modelWidth = Math.max(modelWidth, doc.getTextWidth(text) + modelPad)
+  }
+  // Cap so long models wrap instead of crushing other columns
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const maxModelWidth = Math.min(48, pageWidth * 0.18)
+  modelWidth = Math.min(Math.max(modelWidth, 12), maxModelWidth)
+
   autoTable(doc, {
     startY: y,
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
@@ -326,10 +388,11 @@ function addAllUnitsSection(doc: jsPDF, presentation: RcbPresentation): void {
         'Make',
         'Model',
         'Installed',
-        'Age',
+        'Age on Repl. Year',
         'Tons',
-        'Replace Yr',
-        'Cost (CAD)',
+        'Eligible Year',
+        'Estimated Cost',
+        'RTU $ Allocation',
       ],
     ],
     body: presentation.units.map((item) => [
@@ -344,14 +407,16 @@ function addAllUnitsSection(doc: jsPDF, presentation: RcbPresentation): void {
       item.tons != null ? String(item.tons) : '',
       item.replacementYear,
       formatMoney(item.cost),
+      item.budget != null && item.budget > 0 ? formatMoney(item.budget) : '—',
     ]),
-    styles: { fontSize: 6.5, cellPadding: 1.8, overflow: 'linebreak' },
+    styles: { fontSize: tableFontSize, cellPadding: 1.5, overflow: 'linebreak' },
     headStyles: { fillColor: HEADER_COLOR, textColor: 255 },
     columnStyles: {
-      0: { cellWidth: 34 },
-      3: { cellWidth: 28 },
-      5: { cellWidth: 30 },
+      0: { cellWidth: 28 },
+      3: { cellWidth: 22 },
+      5: { cellWidth: modelWidth, overflow: 'linebreak' },
       10: { halign: 'right' },
+      11: { halign: 'right' },
     },
     didParseCell(data) {
       if (data.section !== 'body') return
@@ -383,22 +448,41 @@ export function exportRcbPdf(
   scopeLabel: string,
   options: {
     replacementYearByRtu?: Record<string, string>
+    replacementNotesByRtu?: BuildRcbPresentationOptions['replacementNotesByRtu']
     pricingTable?: RcbPricingTable
+    includeScheduledUnit?: BuildRcbPresentationOptions['includeScheduledUnit']
+    rtuBudgets?: BuildRcbPresentationOptions['rtuBudgets']
+    buildingYearBudgets?: BuildRcbPresentationOptions['buildingYearBudgets']
+    buildingYearNotes?: BuildRcbPresentationOptions['buildingYearNotes']
+    excludedBudgets?: BuildRcbPresentationOptions['excludedBudgets']
+    shareAddressesFor?: BuildRcbPresentationOptions['shareAddressesFor']
+    budgetDedupeKeyFor?: BuildRcbPresentationOptions['budgetDedupeKeyFor']
+    filenameScope?: string
+    filenameYear?: string
   } = {},
 ): void {
   const presentation = buildRcbPresentation(result, scopeLabel, {
     replacementYearByRtu: options.replacementYearByRtu,
+    replacementNotesByRtu: options.replacementNotesByRtu,
     pricingTable: options.pricingTable ?? DEFAULT_RCB_PRICING,
+    includeScheduledUnit: options.includeScheduledUnit,
+    rtuBudgets: options.rtuBudgets,
+    buildingYearBudgets: options.buildingYearBudgets,
+    buildingYearNotes: options.buildingYearNotes,
+    excludedBudgets: options.excludedBudgets,
+    shareAddressesFor: options.shareAddressesFor,
+    budgetDedupeKeyFor: options.budgetDedupeKeyFor,
   })
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
   addDashboardPage(doc, presentation)
   addByBuildingSection(doc, presentation)
-  addCostOfWaitingSection(doc, presentation)
   addByUnitSizeSection(doc, presentation)
   addPricingSection(doc, presentation)
   addAllUnitsSection(doc, presentation)
   addPageNumbers(doc)
 
-  doc.save(`${rcbExportFilenameBase(scopeLabel, presentation.defaultYear, presentation.today)}.pdf`)
+  const scopeForName = options.filenameScope ?? scopeLabel
+  const yearForName = options.filenameYear ?? presentation.defaultYear
+  doc.save(`${rcbExportFilenameBase(scopeForName, yearForName)}.pdf`)
 }

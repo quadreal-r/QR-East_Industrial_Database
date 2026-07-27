@@ -16,7 +16,8 @@ import { INSPECTION360_MARKER_PX, INSPECTION360_MARKER_PX_SELECTED, LAYER_COLORS
 import { getColor } from '@/lib/colors'
 import { getDetailMarkerIcon, getMarkerIcon } from '@/lib/markerStyles'
 import { registerRtuDropTarget, rtuDropTargetKey } from '@/features/map/rtuDropTargetHighlight'
-import { fitBoundsPreserveRotation } from '@/lib/mapRotation'
+import { applySavedMapView, fitBoundsPreserveRotation } from '@/lib/mapRotation'
+import type { SavedMapView } from '@/lib/buildingMapView'
 import type { buildPolygonBuildingIndex } from '@/lib/polygonBuildings'
 import type { Building, LayerKey, Rtu, SuiteEntrance, Utility } from '@/types/domain'
 
@@ -105,6 +106,23 @@ export function fitMapToBuildingMarkers(
   if (!bounds.isEmpty()) {
     fitBoundsPreserveRotation(map, bounds, MAP_BUILDING_FIT_PADDING)
   }
+}
+
+/**
+ * Camera used by the green All Buildings button (and app startup):
+ * restore the saved overview when present, otherwise fit every building pin.
+ */
+export function applyAllBuildingsOverviewCamera(
+  map: google.maps.Map,
+  entries: BuildingMarkerEntry[],
+  saved: SavedMapView | null,
+): 'saved' | 'fit' {
+  if (saved) {
+    applySavedMapView(map, saved)
+    return 'saved'
+  }
+  fitMapToBuildingMarkers(map, entries)
+  return 'fit'
 }
 
 export function buildingLabelText(address: string): string {

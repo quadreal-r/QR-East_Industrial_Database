@@ -1,41 +1,10 @@
 import { supabase } from '@/lib/supabaseClient'
+import type { AppRole } from '@/app/authContext'
 
-export interface AppUser {
-  id: string
+export interface AppUserRole {
   email: string
-  name: string
+  role: AppRole
   createdAt: string
-}
-
-type AdminUsersResponse =
-  | { users: AppUser[] }
-  | { user: AppUser }
-  | { ok: true }
-  | { error: string }
-
-async function invokeAdminUsers(body: Record<string, unknown>): Promise<AdminUsersResponse> {
-  const { data: sessionData } = await supabase.auth.getSession()
-  if (!sessionData.session?.access_token) {
-    throw new Error('Sign in required')
-  }
-
-  const { data, error } = await supabase.functions.invoke<AdminUsersResponse>('admin-users', {
-    body,
-  })
-
-  if (error) {
-    throw new Error(error.message || 'User admin request failed')
-  }
-
-  if (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string') {
-    throw new Error(data.error)
-  }
-
-  if (!data) {
-    throw new Error('Empty response from user admin service')
-  }
-
-  return data
 }
 
 export async function fetchIsAppAdmin(): Promise<boolean> {
@@ -44,31 +13,38 @@ export async function fetchIsAppAdmin(): Promise<boolean> {
   return Boolean(data)
 }
 
-export async function listAppUsers(): Promise<AppUser[]> {
-  const data = await invokeAdminUsers({ action: 'list' })
-  if (!('users' in data) || !Array.isArray(data.users)) {
-    throw new Error('Unexpected response when listing users')
-  }
-  return data.users
+export async function listAppUserRoles(): Promise<AppUserRole[]> {
+  const { data, error } = await supabase
+    .from('app_roles')
+    .select('email, role, created_at')
+    .order('email')
+  if (error) throw error
+  return (data ?? []).map((entry) => ({
+    email: entry.email,
+    role: entry.role === 'admin' ? 'admin' : 'viewer',
+    createdAt: entry.created_at,
+  }))
 }
 
-export async function createAppUser(input: {
-  name: string
+export async function saveAppUserRole(input: {
   email: string
-  password: string
-}): Promise<AppUser> {
-  const data = await invokeAdminUsers({
-    action: 'create',
-    name: input.name.trim(),
-    email: input.email.trim(),
-    password: input.password,
-  })
-  if (!('user' in data) || !data.user) {
-    throw new Error('Unexpected response when creating user')
+  role: AppRole
+}): Promise<AppUserRole> {
+  const email = input.email.trim().toLowerCase()
+  const { data, error } = await supabase
+    .from('app_roles')
+    .upsert({ email, role: input.role }, { onConflict: 'email' })
+    .select('email, role, created_at')
+    .single()
+  if (error) throw error
+  return {
+    email: data.email,
+    role: data.role === 'admin' ? 'admin' : 'viewer',
+    createdAt: data.created_at,
   }
-  return data.user
 }
 
-export async function deleteAppUser(userId: string): Promise<void> {
-  await invokeAdminUsers({ action: 'delete', userId })
+export async function deleteAppUserRole(email: string): Promise<void> {
+  const { error } = await supabase.from('app_roles').delete().eq('email', email)
+  if (error) throw error
 }

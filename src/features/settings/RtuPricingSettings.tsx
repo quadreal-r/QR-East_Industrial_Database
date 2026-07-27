@@ -6,7 +6,7 @@ import {
   RTU_PRICING_COMPONENT_FIELDS,
   RTU_PRICING_MONEY_FIELDS,
 } from '@/lib/rtuPricingSheet'
-import { showToastError, showToastSuccess } from '@/lib/toast'
+import { showToastSuccess } from '@/lib/toast'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import styles from './RtuPricingSettings.module.css'
 
@@ -124,34 +124,16 @@ function MultInput({ value, onChange }: MultInputProps) {
 }
 
 export function RtuPricingSettings({ open, onClose }: RtuPricingSettingsProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [importBusy, setImportBusy] = useState(false)
-
   const rows = useRtuPricingStore((s) => s.rows)
   const version = useRtuPricingStore((s) => s.version)
   const sourceFile = useRtuPricingStore((s) => s.sourceFile)
-  const importWorkbook = useRtuPricingStore((s) => s.importWorkbook)
   const resetToDefaults = useRtuPricingStore((s) => s.resetToDefaults)
   const updateRowField = useRtuPricingStore((s) => s.updateRowField)
-
-  const handleImport = async (file: File) => {
-    setImportBusy(true)
-    try {
-      const { rowCount } = await importWorkbook(file)
-      showToastSuccess(`Imported ${rowCount} tonnage rows from workbook`)
-    } catch (error) {
-      showToastError(error instanceof Error ? error.message : 'Import failed')
-    } finally {
-      setImportBusy(false)
-      if (inputRef.current) inputRef.current.value = ''
-    }
-  }
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      preventClose={importBusy}
       title="RTU pricing (columns D–L)"
       width="min(1540px, calc(100vw - 32px))"
       align="center"
@@ -160,31 +142,13 @@ export function RtuPricingSettings({ open, onClose }: RtuPricingSettingsProps) {
         <p className={styles.intro}>
           Matches the Capital workbook <strong>RTU Pricing</strong> sheet: component costs in columns
           D–L roll up to all-in installed pricing (std 2025, hybrid 2026+ with 5% annual escalation).
+          Import Excel from the bottom cost bar (<strong>Import</strong> between Excel and PDF).
         </p>
 
         <div className={styles.toolbar}>
           <button
             type="button"
             className="btn-action"
-            disabled={importBusy}
-            onClick={() => inputRef.current?.click()}
-          >
-            {importBusy ? 'Importing…' : 'Import workbook (.xlsx)'}
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className={styles.hiddenFile}
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void handleImport(file)
-            }}
-          />
-          <button
-            type="button"
-            className="btn-action"
-            disabled={importBusy}
             onClick={() => {
               resetToDefaults()
               showToastSuccess('RTU pricing reset to defaults')

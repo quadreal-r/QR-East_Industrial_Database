@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.69] - 2026-07-26
+
+### Added
+
+- Cloudflare Access sign-in for the live site, with Admin/Viewer app roles managed from Settings
+- Cloud-hosted 360° tours: publish an `.insp360` to Cloudflare R2 so any user can open it without a local copy
+- Persistent tour cache (Cache API with OPFS fallback), cover previews, and download speed/progress while a cloud tour loads
+- Building CAPEX budgets by year, including notes, CAPEX status, job/project type, and shared business-unit splits
+- Per-RTU replacement budgets that feed the cost estimator and RCB building detail
+- Activity log in Settings covering sign-ins, tour opens, imports/exports, and budget/schedule saves, with an emailed digest
+- RCB Excel export plus re-import of an edited RCB report
+- Excel importers for CAPEX HVAC budgets, CAPEX RTU notes, and equipment replacement years
+- Search by RTU name/number and by CAPEX status
+- Localhost sign-in shim so the dev server can preview Admin and Viewer roles without Access
+
+### Changed
+
+- Sync the embedded QR-360° viewer to v1.2.81
+- Move hosting to Cloudflare Pages with Wrangler config, cache headers, a session endpoint, and a GitHub CI check workflow
+- Split Cloudflare work across the krutki11 (tour storage) and quadreal (map app) accounts, documented in `docs/CLOUDFLARE_ACCOUNTS.md`
+- Refresh Settings, cost banner, sidebar, and map info window presentation for the new budget fields
+
+### Removed
+
+- In-app Login, MFA challenge, and password reset modals, now handled by Cloudflare Access
+
 ## [1.13.0] - 2026-07-14
 
 ### Added

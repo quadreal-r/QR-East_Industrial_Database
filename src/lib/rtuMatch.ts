@@ -83,7 +83,8 @@ export function findBuildingBySheetAddress(
 
 /**
  * Normalize RTU label for matching (workbook “RTU 02 DX …” ↔ portfolio “RTU- 02”).
- * Keeps only the RTU number and optional letter suffix (e.g. 12B).
+ * Also accepts short forms (RT01, RTU-6). Pads unit numbers to 2 digits.
+ * Keeps optional letter suffix (e.g. 12B).
  */
 export function normalizeRtuName(name: string): string {
   const text = String(name)
@@ -91,11 +92,15 @@ export function normalizeRtuName(name: string): string {
     .toLowerCase()
     .replace(/\s+/g, ' ')
 
-  const match = text.match(/^rtu\s*[-–]?\s*(\d+[a-z]?)/i)
-  const unitId = match?.[1]
-  if (unitId) return `rtu ${unitId.toLowerCase()}`
+  // RTU 02 / RTU-02 / RT01 / RT-6 / RTU-1 Roof Top Unit / RTU 12B …
+  const match = text.match(/^rtu?\s*[-–]?\s*(\d+)([a-z]?)\b/i)
+  const rawDigits = match?.[1]
+  if (!rawDigits) return text
 
-  return text
+  const digits = rawDigits.replace(/^0+(?=\d)/, '')
+  const padded = digits.padStart(2, '0')
+  const letter = (match?.[2] ?? '').toLowerCase()
+  return `rtu ${padded}${letter}`
 }
 
 export function findRtuInBuilding(building: Building, rtuLabel: string) {

@@ -10,11 +10,10 @@ import { RtuPictureViewer } from '@/features/rtu-pictures/RtuPictureViewer'
 import { Inspection360Viewer } from '@/features/inspection360/Inspection360Viewer'
 import { SettingsModal } from '@/features/settings/SettingsModal'
 import { Sidebar } from '@/features/sidebar/Sidebar'
-import { LoginModal } from '@/features/auth/LoginModal'
-import { ResetPasswordModal } from '@/features/auth/ResetPasswordModal'
-import { MfaChallengeModal } from '@/features/auth/MfaChallengeModal'
+import { useActivityTelemetry } from '@/hooks/useActivityTelemetry'
 import { useAuth } from '@/hooks/useAuth'
 import { useFilteredBuildings } from '@/hooks/useFilteredBuildings'
+import { recordActivityEvent } from '@/data/activityApi'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useRtuPictureViewerHistory } from '@/hooks/useRtuPictureViewerHistory'
 import {
@@ -28,11 +27,17 @@ import { mergeBuildingMapViewsFromBaseline } from '@/lib/buildingMapView'
 import { clearRtuPictureManifestCache } from '@/lib/rtuPictures'
 import { showToastError, showToastSuccess } from '@/lib/toast'
 import { errorMessage } from '@/lib/errorMessage'
+import { clearGateTourLinkInPortfolio, setGateTourUrlInPortfolio } from '@/lib/insp360GateTours'
+import { unlinkInsp360GateTour } from '@/lib/insp360GateProjectStore'
+import { resolveInsp360ViewerProjectUrl } from '@/lib/insp360GateHooks'
+import { closeAllMapPopups } from '@/lib/mapPopups'
 import { confirm } from '@/stores/confirmStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { usePortfolioMapViewStore } from '@/stores/portfolioMapViewStore'
 import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
+import { useBuildingYearBudgetStore } from '@/stores/buildingYearBudgetStore'
+import { useRtuBudgetStore } from '@/stores/rtuBudgetStore'
 import { usePortfolioStore } from '@/stores/portfolioStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -57,14 +62,13 @@ export function AppShell() {
   const saveDismissTimerRef = useRef<number | null>(null)
   const { data, isLoading, isError } = usePortfolioData()
   const savePendingPortfolioMutation = useSavePendingPortfolio()
-  const { isAuthenticated, needsPasswordRecovery } = useAuth()
-  const [loginOpen, setLoginOpen] = useState(false)
+  const { canEdit } = useAuth()
+  useActivityTelemetry()
 
   const persistPortfolioChange = useCallback(
     async (baselineSnapshot: PortfolioData, next: PortfolioData) => {
-      if (!isAuthenticated) {
-        setLoginOpen(true)
-        throw new Error('Sign in to save portfolio changes.')
+      if (!canEdit) {
+        throw new Error('Admin access is required to save portfolio changes.')
       }
       const saved = await savePendingPortfolioMutation.mutateAsync({
         baseline: baselineSnapshot,
@@ -74,16 +78,27 @@ export function AppShell() {
       queryClient.setQueryData(PORTFOLIO_QUERY_KEY, saved)
       usePortfolioStore.getState().setPortfolio(saved, { markSaved: true })
       clearRtuPictureManifestCache()
+      void recordActivityEvent({
+        eventType: 'portfolio_save',
+        resourceKey: 'portfolio',
+        meta: {
+          buildings: saved.buildings.length,
+          utilities: saved.utilities.length,
+          polygons: saved.polygons.length,
+        },
+      })
       showToastSuccess('✓ Saved to Supabase')
       return saved
     },
-    [isAuthenticated, queryClient, savePendingPortfolioMutation],
+    [canEdit, queryClient, savePendingPortfolioMutation],
   )
 
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const loadPortfolioMapView = usePortfolioMapViewStore((s) => s.load)
   const loadRtuPricing = useRtuPricingStore((s) => s.load)
   const loadRtuSchedule = useRtuScheduleStore((s) => s.load)
+  const loadRtuBudgets = useRtuBudgetStore((s) => s.load)
+  const loadBuildingYearBudgets = useBuildingYearBudgetStore((s) => s.load)
   const settingsOpen = useUiStore((s) => s.settingsOpen)
   const closeSettings = useUiStore((s) => s.closeSettings)
   const polygonDrawOpen = useUiStore((s) => s.isModalOpen('polygonDraw'))
@@ -95,8 +110,11 @@ export function AppShell() {
   const closeAddMarker = useUiStore((s) => s.closeModal)
   const rtuPictureViewer = useUiStore((s) => s.rtuPictureViewer)
   const inspection360Viewer = useUiStore((s) => s.inspection360Viewer)
+  const inspection360ViewerMinimized = useUiStore((s) => s.inspection360ViewerMinimized)
   const closeRtuPictureViewer = useUiStore((s) => s.closeRtuPictureViewer)
   const closeInspection360Viewer = useUiStore((s) => s.closeInspection360Viewer)
+  const resumeInspection360Viewer = useUiStore((s) => s.resumeInspection360Viewer)
+  const updateInspection360Viewer = useUiStore((s) => s.updateInspection360Viewer)
   const setRtuPictureViewerIndex = useUiStore((s) => s.setRtuPictureViewerIndex)
   const updateRtuPictureViewerPictures = useUiStore((s) => s.updateRtuPictureViewerPictures)
 
@@ -105,11 +123,20 @@ export function AppShell() {
     void loadPortfolioMapView()
     void loadRtuPricing()
     void loadRtuSchedule()
-  }, [loadSettings, loadPortfolioMapView, loadRtuPricing, loadRtuSchedule])
+    void loadRtuBudgets()
+    void loadBuildingYearBudgets()
+  }, [
+    loadSettings,
+    loadPortfolioMapView,
+    loadRtuPricing,
+    loadRtuSchedule,
+    loadRtuBudgets,
+    loadBuildingYearBudgets,
+  ])
 
-  // Signed-out users must not stay in edit/add/draw modes.
+  // Viewers must not stay in edit/add/draw modes.
   useEffect(() => {
-    if (isAuthenticated) return
+    if (canEdit) return
     useSelectionStore.getState().setDragMode(false)
     const ui = useUiStore.getState()
     ui.clearAddMarkerPlacement()
@@ -117,7 +144,7 @@ export function AppShell() {
     closeAddMarker('addMarker')
     closeAddMarker('addInspection360')
     closePolygonDraw('polygonDraw')
-  }, [isAuthenticated, closeAddMarker, closePolygonDraw])
+  }, [canEdit, closeAddMarker, closePolygonDraw])
 
   useEffect(() => {
     return () => {
@@ -203,6 +230,27 @@ export function AppShell() {
     showToastSuccess('Pending changes discarded')
   }, [finishSaveFlow, portfolioOverride])
 
+  /** Immediate Supabase persist from Settings editors (skip the pending save bar). */
+  const handlePersistPortfolio = useCallback(
+    async (next: PortfolioData) => {
+      if (saveInFlightRef.current) {
+        throw new Error('A save is already in progress.')
+      }
+      const pending = mergeBuildingMapViewsFromBaseline(normalizePortfolioData(next), baseline)
+      clearSaveDismissTimer()
+      saveInFlightRef.current = true
+      suppressStagingRef.current = true
+      try {
+        await persistPortfolioChange(baseline, pending)
+        finishSaveFlow()
+      } catch (error) {
+        finishSaveFlow()
+        throw error
+      }
+    },
+    [baseline, clearSaveDismissTimer, finishSaveFlow, persistPortfolioChange],
+  )
+
   const barSummary = editSummary ?? displaySummary
   const showEditBar = saveState !== 'idle' || portfolioOverride != null
 
@@ -278,6 +326,7 @@ export function AppShell() {
         portfolio={portfolio}
         onImport={stagePortfolioChange}
         onPortfolioPatch={stagePortfolioChange}
+        onPersistPortfolio={handlePersistPortfolio}
         onOpenPolygonDraw={() => {
           closeSettings()
           openPolygonDraw('polygonDraw')
@@ -290,8 +339,6 @@ export function AppShell() {
           closeSettings()
           openAddMarker('addInspection360')
         }}
-        isAuthenticated={isAuthenticated}
-        onSignIn={() => setLoginOpen(true)}
       />
       {rtuPictureViewer ? (
         <RtuPictureViewer
@@ -307,7 +354,9 @@ export function AppShell() {
       ) : null}
       {inspection360Viewer ? (
         <Inspection360Viewer
+          key={inspection360Viewer.gateKey || 'insp360'}
           open
+          minimized={inspection360ViewerMinimized}
           title={inspection360Viewer.title}
           buildingAddress={inspection360Viewer.buildingAddress}
           suiteName={inspection360Viewer.suiteName}
@@ -315,11 +364,52 @@ export function AppShell() {
           scene={inspection360Viewer.scene}
           gateKey={inspection360Viewer.gateKey}
           onClose={closeInspection360Viewer}
+          onClearTourLink={async (gateKey) => {
+            await unlinkInsp360GateTour(gateKey)
+            const next = clearGateTourLinkInPortfolio(portfolio, gateKey)
+            if (next) await handlePersistPortfolio(next)
+            // Keep map + open/minimized viewer in sync without requiring a hard refresh.
+            updateInspection360Viewer({ projectUrl: null })
+            closeAllMapPopups()
+            void recordActivityEvent({
+              eventType: 'tour_unlink',
+              resourceKey: gateKey,
+            })
+            showToastSuccess('✓ Tour link removed — gate shows Not connected yet.')
+          }}
+          onLinkOnlineTour={async (gateKey, tourUrl) => {
+            await unlinkInsp360GateTour(gateKey)
+            const next = setGateTourUrlInPortfolio(portfolio, gateKey, tourUrl)
+            if (next) await handlePersistPortfolio(next)
+            closeAllMapPopups()
+            // Always sync store URL so Resume / next Enter see the cloud link immediately
+            // (no hard refresh). Callers that pass reloadViewer:false keep their open iframe.
+            updateInspection360Viewer({
+              projectUrl: resolveInsp360ViewerProjectUrl(tourUrl),
+            })
+            void recordActivityEvent({
+              eventType: 'tour_link',
+              resourceKey: gateKey,
+              meta: { tourUrl },
+            })
+          }}
         />
       ) : null}
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-      <ResetPasswordModal open={needsPasswordRecovery} onClose={() => {}} />
-      <MfaChallengeModal />
+      {inspection360Viewer && inspection360ViewerMinimized ? (
+        <button
+          type="button"
+          className={styles.resumeTourBtn}
+          onClick={resumeInspection360Viewer}
+          title="Return to the loaded 360° tour without reloading"
+        >
+          <span className={styles.resumeTourLabel}>Return to 360° tour</span>
+          <span className={styles.resumeTourDetail}>
+            {[inspection360Viewer.buildingAddress, inspection360Viewer.suiteName]
+              .filter(Boolean)
+              .join(' — ') || inspection360Viewer.title}
+          </span>
+        </button>
+      ) : null}
       <ConfirmDialog />
     </div>
   )

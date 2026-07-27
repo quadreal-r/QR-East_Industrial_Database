@@ -30,6 +30,35 @@ describe('collectSearchHits', () => {
     expect(hits.some((h) => h.kind === 'rtu')).toBe(true)
   })
 
+  it('finds RTU hits by serial number', () => {
+    const withSerial = [
+      {
+        ...buildings[0]!,
+        address: 'Serial Search Building',
+        bu: 'SER-BU',
+        cluster: 'Serial Cluster Unique XYZ',
+        manager: 'Serial Manager Unique XYZ',
+        rtus: [
+          {
+            name: 'RTU-A',
+            description: '',
+            lat: 43.71,
+            lng: -79.71,
+            serial: 'UNIQUE-SER-7788',
+          },
+        ],
+      },
+    ]
+    const hits = collectSearchHits(withSerial, [], 'UNIQUE-SER-7788')
+    expect(hits).toEqual([
+      expect.objectContaining({
+        kind: 'rtu',
+        detailName: 'RTU-A',
+        buildingAddress: 'Serial Search Building',
+      }),
+    ])
+  })
+
   it('finds building hits for address search', () => {
     const hits = collectSearchHits(buildings, polygons, '6975 Creditview')
     expect(hits.length).toBeGreaterThan(0)

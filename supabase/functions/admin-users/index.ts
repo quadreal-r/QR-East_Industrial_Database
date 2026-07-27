@@ -52,9 +52,10 @@ Deno.serve(async (req) => {
 
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
   const { data: adminRow, error: adminError } = await supabaseAdmin
-    .from('auth_admins')
-    .select('email')
+    .from('app_roles')
+    .select('email, role')
     .ilike('email', user.email)
+    .eq('role', 'admin')
     .maybeSingle()
 
   if (adminError) {

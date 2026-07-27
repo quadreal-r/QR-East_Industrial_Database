@@ -10,7 +10,7 @@ Requires a `QueryClientProvider` in the app root.
 
 ## `useAuth`
 
-Tracks Supabase auth session state (`session`, `user`, `isLoading`, `isAuthenticated`) and exposes `signIn` / `signOut`. When Supabase is not configured, returns unauthenticated state without network calls.
+Reads the silent Supabase session bootstrapped from `/api/session` (Cloudflare Access identity in the cloud, `LOCAL_DEV_EMAIL` / local Admin·Viewer buttons on localhost). Exposes `session`, `user`, `isLoading`, `isAuthenticated`, `role` (`'admin' | 'viewer' | null`), `canEdit`, `error`, `isLocalDev`, `signInAsLocal`, and `signOut` (clears the app session, then on `*.pages.dev` clears Cloudflare Access cookies and returns you to the Access login wall). Edit UI should gate on `canEdit`, not `isAuthenticated`.
 
 ## `useFilteredBuildings`
 

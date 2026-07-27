@@ -1,6 +1,10 @@
+import {
+  buildingMatchesCapexStatusSearch,
+  parseCapexStatusSearchQuery,
+} from '@/lib/capexStatusSearch'
 import { MAP_DETAIL_ZOOM } from '@/lib/constants'
 import { isTenantCountSearch } from '@/lib/filters'
-import { isLegacySuiteMarkerName } from '@/lib/legacySuiteMarkers'
+import { rtuMatchesSearch } from '@/lib/rtuSearch'
 import {
   buildingForPolygon,
   buildPolygonBuildingIndex,
@@ -26,6 +30,17 @@ export interface SearchHit {
   polygonName?: string
   polygonDescription?: string
   address?: string
+}
+
+/** Ask map search rings for this building to pulse (attention). */
+export const MAP_PULSE_SEARCH_HIGHLIGHTS_EVENT = 'map:pulseSearchHighlights'
+
+export function pulseSearchHitCirclesForBuilding(address: string): void {
+  const trimmed = String(address || '').trim()
+  if (!trimmed) return
+  window.dispatchEvent(
+    new CustomEvent(MAP_PULSE_SEARCH_HIGHLIGHTS_EVENT, { detail: { address: trimmed } }),
+  )
 }
 
 function normalizeSearch(search: string): string {
@@ -83,11 +98,38 @@ export function collectSearchHits(
   polygons: Polygon[],
   search: string,
   suiteEntrances: SuiteEntrance[] = [],
+  capexStatuses: Record<string, string> = {},
 ): SearchHit[] {
   const q = normalizeSearch(search)
   if (!q) return []
   // Tenant-count queries are summarized as plain text under search — not map hits.
   if (isTenantCountSearch(q)) return []
+
+  const statusQuery = parseCapexStatusSearchQuery(search)
+  if (statusQuery) {
+    const hits: SearchHit[] = []
+    for (const building of buildings) {
+      if (
+        !buildingMatchesCapexStatusSearch(
+          building.address,
+          statusQuery.label,
+          capexStatuses,
+          statusQuery.year,
+        )
+      ) {
+        continue
+      }
+      hits.push({
+        kind: 'building',
+        label: building.address,
+        lat: building.lat,
+        lng: building.lng,
+        address: building.address,
+        buildingAddress: building.address,
+      })
+    }
+    return hits
+  }
 
   const polygonIndex = buildPolygonBuildingIndex(buildings, polygons)
   const anyBuildingMeta = buildings.some((b) => buildingMetadataMatches(b, q))
@@ -96,21 +138,16 @@ export function collectSearchHits(
   if (!anyBuildingMeta) {
     for (const building of buildings) {
       for (const rtu of building.rtus ?? []) {
-        if (isLegacySuiteMarkerName(rtu.name)) continue
-        if (
-          rtu.name.toLowerCase().includes(q) ||
-          (rtu.description ?? '').toLowerCase().includes(q)
-        ) {
-          hits.push({
-            kind: 'rtu',
-            label: `${building.address} · ${rtu.name}`,
-            lat: rtu.lat,
-            lng: rtu.lng,
-            layerKey: 'rtu',
-            detailName: rtu.name,
-            buildingAddress: building.address,
-          })
-        }
+        if (!rtuMatchesSearch(rtu, q)) continue
+        hits.push({
+          kind: 'rtu',
+          label: `${building.address} · ${rtu.name}`,
+          lat: rtu.lat,
+          lng: rtu.lng,
+          layerKey: 'rtu',
+          detailName: rtu.name,
+          buildingAddress: building.address,
+        })
       }
     }
 
@@ -163,6 +200,7 @@ export function collectSearchHits(
 /** Pan/zoom to a building and select it without opening the info popup. */
 export function requestBuildingMapFocus(address: string): void {
   window.dispatchEvent(new CustomEvent('map:openBuilding', { detail: { address } }))
+  pulseSearchHitCirclesForBuilding(address)
 }
 
 export function openSearchHit(hit: SearchHit): void {
@@ -172,6 +210,7 @@ export function openSearchHit(hit: SearchHit): void {
     )
 
     if (hit.kind === 'rtu' && hit.layerKey && hit.detailName) {
+      if (hit.buildingAddress) pulseSearchHitCirclesForBuilding(hit.buildingAddress)
       window.dispatchEvent(
         new CustomEvent('map:openDetail', {
           detail: {

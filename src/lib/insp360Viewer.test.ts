@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildInspection360GateKey,
   buildInspection360ViewerPageUrl,
@@ -6,6 +6,10 @@ import {
 } from '@/lib/insp360Viewer'
 
 describe('insp360Viewer', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it('resolves absolute project URLs unchanged', () => {
     expect(resolveInspection360ProjectUrl('https://cdn.example.com/tours/suite-7.insp360')).toBe(
       'https://cdn.example.com/tours/suite-7.insp360',
@@ -41,10 +45,32 @@ describe('insp360Viewer', () => {
     expect(url).not.toContain('project=')
   })
 
-  it('resolves app-relative tour paths under the public base', () => {
+  it('passes gate cloudPrefix and cdnBase for embed Cloud / Double Tour', () => {
+    vi.stubEnv('VITE_INSP360_BASE_URL', 'https://pub-0d0f264ce842432887754b840b270786.r2.dev/')
+    const url = buildInspection360ViewerPageUrl({
+      title: 'Suite 7',
+      gateKey: 'suite:12',
+      cloudPrefix: '145-carrier-drive',
+    })
+    expect(url).toContain('cloudPrefix=145-carrier-drive')
+    expect(url).toContain('cdnBase=https%3A%2F%2Fpub-0d0f264ce842432887754b840b270786.r2.dev')
+  })
+
+  it('resolves app-relative tour paths under the public base when no CDN is set', () => {
+    vi.stubEnv('VITE_INSP360_BASE_URL', '')
     const url = resolveInspection360ProjectUrl('insp360/projects/suite-7.insp360')
     expect(url).toMatch(/\/insp360\/projects\/suite-7\.insp360$/)
     expect(url.startsWith('http')).toBe(true)
+  })
+
+  it('resolves relative tour paths against VITE_INSP360_BASE_URL when set', () => {
+    vi.stubEnv('VITE_INSP360_BASE_URL', 'https://pub-0d0f264ce842432887754b840b270786.r2.dev')
+    expect(resolveInspection360ProjectUrl('building-a/suite-7.insp360')).toBe(
+      'https://pub-0d0f264ce842432887754b840b270786.r2.dev/building-a/suite-7.insp360',
+    )
+    expect(resolveInspection360ProjectUrl('https://other.example/tour.insp360')).toBe(
+      'https://other.example/tour.insp360',
+    )
   })
 
   it('builds stable gate keys from saved ids', () => {
