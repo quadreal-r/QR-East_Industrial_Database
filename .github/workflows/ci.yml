@@ -16,6 +16,10 @@ jobs:
   check:
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    env:
+      # Public placeholders only — unit tests need import.meta.env present; no real project access.
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: test-anon-key
     steps:
       - uses: actions/checkout@v5
 

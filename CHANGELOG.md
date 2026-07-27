@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.74] - 2026-07-27
+
+### Fixed
+
+- GitHub Actions CI tests failing without local Supabase `.env.local` credentials
+
 ## [1.14.73] - 2026-07-27
 
 ### Added
