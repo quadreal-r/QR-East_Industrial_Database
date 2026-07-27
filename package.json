@@ -1,7 +1,7 @@
 {
   "name": "qr-east-industrial-database",
   "private": true,
-  "version": "1.14.75",
+  "version": "1.14.76",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -51,7 +51,7 @@
     "restore-point": "node scripts/restore-point.mjs",
     "sync:qr360-viewer": "node scripts/sync-qr360-viewer.mjs",
     "upload:insp360": "node scripts/upload-insp360-r2.mjs",
-    "build:pages": "tsc -b && vite build --base /",
+    "build:pages": "node scripts/assert-production-supabase-env.mjs && tsc -b && vite build --base / && node scripts/assert-production-supabase-env.mjs --scan-dist",
     "deploy": "npm run build:pages && npx wrangler pages deploy dist --project-name=qr-east-industrial-database",
     "deploy:preview": "npm run build:pages && npx wrangler pages deploy dist --project-name=qr-east-industrial-database --branch=preview"
   },

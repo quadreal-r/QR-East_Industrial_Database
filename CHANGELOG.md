@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.76] - 2026-07-27
+
+### Fixed
+
+- Live site failing to load portfolio after deploy when CI Supabase stubs were still in the shell
+- Block production builds that would ship placeholder Supabase credentials
+
 ## [1.14.75] - 2026-07-27
 
 ### Changed
