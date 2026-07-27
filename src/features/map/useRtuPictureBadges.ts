@@ -19,6 +19,7 @@ import { syncDetailMarkerAppearance } from '@/features/map/mapMarkersState'
 import type { ActiveDetailInfo, DetailMarkerEntry } from '@/features/map/mapMarkersState'
 import type { PortfolioData, Rtu } from '@/types/domain'
 import { useLayerStore } from '@/stores/layerStore'
+import { patchDetailMarkerPictureCount } from '@/lib/appMapMarker'
 
 export function useRtuPictureBadges(
   map: google.maps.Map | null,
@@ -112,7 +113,9 @@ export function useRtuPictureBadges(
         const updated = { ...dm, pictureCount: count }
 
         // Avoid rebuilding the anchor marker while its InfoWindow is open — Maps can crash.
+        // Still patch the badge text in place so deletes do not leave a stale count.
         if (activeMarker && dm.marker === activeMarker) {
+          patchDetailMarkerPictureCount(dm.marker, count)
           return updated
         }
 

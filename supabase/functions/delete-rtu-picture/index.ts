@@ -219,10 +219,45 @@ Deno.serve(async (req) => {
     return json({ error: deleteError.message }, 500)
   }
 
+  // Audit devices read photo slots from rtu_audit_state, not rtu_pictures. Clearing only
+  // the map table left the Android/web audit app believing the shot was still published.
+  let auditCleared = 0
+  const { data: auditRows, error: auditSelectError } = await supabaseAdmin
+    .from('rtu_audit_state')
+    .select('building_slug,rtu_key,photo_files')
+    .eq('rtu_key', rtuName)
+
+  if (!auditSelectError && Array.isArray(auditRows)) {
+    for (const row of auditRows) {
+      const files = Array.isArray(row.photo_files) ? [...row.photo_files] : []
+      let changed = false
+      for (let i = 0; i < files.length; i++) {
+        if (files[i] === fileName) {
+          files[i] = null
+          changed = true
+        }
+      }
+      if (!changed) continue
+      const named = files.filter((entry) => typeof entry === 'string' && entry.length > 0)
+      const { error: auditUpdateError } = await supabaseAdmin
+        .from('rtu_audit_state')
+        .update({
+          photo_files: files,
+          photos_done: named.length >= 3,
+          updated_at: new Date().toISOString(),
+          updated_by: 'map-picture-delete',
+        })
+        .eq('building_slug', row.building_slug)
+        .eq('rtu_key', row.rtu_key)
+      if (!auditUpdateError) auditCleared += 1
+    }
+  }
+
   return json({
     ok: true,
     r2Deleted,
     supabaseDeleted: (count ?? 0) > 0,
     manifestUpdated,
+    auditCleared,
   })
 })

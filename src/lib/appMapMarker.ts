@@ -265,6 +265,28 @@ export function setDetailMarkerContent(
   marker.gmpClickable = true
 }
 
+/** Update only the numeric badge so an open InfoWindow does not force a full marker rebuild. */
+export function patchDetailMarkerPictureCount(marker: AppMapMarker, count: number): void {
+  const root = marker.content
+  if (!(root instanceof HTMLElement)) return
+  let badge = root.querySelector('.rtu-pic-badge') as HTMLElement | null
+  if (count <= 0) {
+    badge?.remove()
+    return
+  }
+  if (!badge) {
+    badge = document.createElement('span')
+    badge.className = 'rtu-pic-badge'
+    badge.style.position = 'absolute'
+    badge.style.left = '50%'
+    badge.style.top = '50%'
+    badge.style.transform = 'translate(-50%, -50%)'
+    badge.style.pointerEvents = 'none'
+    root.appendChild(badge)
+  }
+  badge.textContent = count > 99 ? '99+' : String(count)
+}
+
 export interface Inspection360MarkerContentOptions {
   fillColor: string
   strokeColor: string
