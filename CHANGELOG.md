@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.75] - 2026-07-27
+
+### Changed
+
+- Sync the embedded Map360 viewer to v1.2.82
+
 ## [1.14.74] - 2026-07-27
 
 ### Fixed
