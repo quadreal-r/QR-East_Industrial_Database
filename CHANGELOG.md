@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.73] - 2026-07-27
+
+### Added
+
+- Three-stage RTU Replacement Cost Center panel: minimized, half (map still visible), and full (covers the map, sidebar stays)
+
+### Fixed
+
+- RTU picture Download when viewing Cloudflare photos (CORS / canvas export)
+
 ## [1.14.71] - 2026-07-27
 
 ### Fixed

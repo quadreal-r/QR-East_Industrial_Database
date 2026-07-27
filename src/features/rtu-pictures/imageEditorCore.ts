@@ -118,8 +118,75 @@ export function downloadBlob(blob: Blob, name: string): void {
   window.setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-export function savePdf(img: EditorImage, quality: number): void {
-  const jpeg = atob(flattenImage(img, true).toDataURL('image/jpeg', quality).split(',')[1]!)
+/** Guess image MIME from a filename extension. */
+export function guessImageMime(fileName?: string | null): string {
+  const ext = fileName?.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase()
+  if (ext === 'png') return 'image/png'
+  if (ext === 'webp') return 'image/webp'
+  if (ext === 'gif') return 'image/gif'
+  return 'image/jpeg'
+}
+
+/**
+ * Export a canvas to a Blob. Returns null when the canvas is tainted
+ * (cross-origin image without CORS) or encoding fails.
+ */
+export function exportCanvasBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality?: number,
+): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => resolve(blob), mimeType, quality)
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+/**
+ * Download bytes from a URL (works when CORS allows fetch). Falls back to
+ * opening the URL in a new tab when the browser blocks cross-origin downloads.
+ */
+export async function downloadUrlAsFile(url: string, fileName: string): Promise<'blob' | 'opened'> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    downloadBlob(await res.blob(), fileName)
+    return 'blob'
+  } catch {
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    return 'opened'
+  }
+}
+
+/** Build a download filename with the chosen extension. */
+export function downloadFileNameForFormat(
+  fileName: string,
+  format: 'png' | 'jpg' | 'pdf',
+): string {
+  const base = fileName.replace(/\.\w+$/, '') || 'rtu-picture'
+  if (format === 'png') return `${base}.png`
+  if (format === 'jpg') return `${base}.jpg`
+  return `${base}.pdf`
+}
+
+export function savePdf(img: EditorImage, quality: number, fileName = 'edited.pdf'): void {
+  let dataUrl: string
+  try {
+    dataUrl = flattenImage(img, true).toDataURL('image/jpeg', quality)
+  } catch {
+    throw new Error('Could not export PDF from this picture')
+  }
+  const jpeg = atob(dataUrl.split(',')[1]!)
   const iw = img.width
   const ih = img.height
   const land = iw > ih
@@ -157,7 +224,7 @@ export function savePdf(img: EditorImage, quality: number): void {
 
   const bytes = new Uint8Array(pdf.length)
   for (let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 0xff
-  downloadBlob(new Blob([bytes], { type: 'application/pdf' }), 'edited.pdf')
+  downloadBlob(new Blob([bytes], { type: 'application/pdf' }), fileName)
 }
 
 export function humanFileSize(bytes: number): string {
@@ -279,6 +346,55 @@ function loadImageElement(url: string, crossOrigin: boolean): Promise<HTMLImageE
     img.onerror = () => reject(new Error('Failed to load image'))
     img.src = url
   })
+}
+
+export interface LoadedEditableImage {
+  img: HTMLImageElement
+  /** Object URL to revoke when replacing/unloading this image. */
+  objectUrl: string | null
+  byteLength?: number
+  exif: ExifData | null
+}
+
+/**
+ * Load an image for canvas editing/download.
+ * Prefers fetch → blob URL so Cloudflare R2 pictures stay exportable even when
+ * `<img crossOrigin>` alone would leave a tainted canvas.
+ */
+export async function loadEditableImageFromUrl(
+  url: string,
+  fileName?: string,
+): Promise<LoadedEditableImage> {
+  if (url.startsWith('blob:')) {
+    const img = await loadImageElement(url, false)
+    return { img, objectUrl: null, exif: null }
+  }
+
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const buf = await res.arrayBuffer()
+    let exif: ExifData | null = null
+    try {
+      exif = parseExif(buf)
+    } catch {
+      /* ignore */
+    }
+    const mime = res.headers.get('content-type') || guessImageMime(fileName)
+    const objectUrl = URL.createObjectURL(new Blob([buf], { type: mime }))
+    try {
+      const img = await loadImageElement(objectUrl, false)
+      return { img, objectUrl, byteLength: buf.byteLength, exif }
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl)
+      throw error
+    }
+  } catch {
+    /* CORS or network — display-only load may taint the canvas. */
+  }
+
+  const img = await loadImageFromUrl(url)
+  return { img, objectUrl: null, exif: null }
 }
 
 /** Load for canvas display. Tries CORS first (for editing), then plain load (R2 without CORS headers). */

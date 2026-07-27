@@ -192,6 +192,18 @@ export function RtuPictureViewer({
     rtuName,
   ])
 
+  const handleDownload = useCallback(async () => {
+    if (!current) return
+    try {
+      const result = await save(current.fileName)
+      if (result === 'opened') {
+        showToastSuccess('Opened original picture — use Save As if the download did not start')
+      }
+    } catch (error) {
+      showToastError(error instanceof Error ? error.message : 'Failed to download picture')
+    }
+  }, [current, save])
+
   useEffect(() => {
     if (!open || !current) {
       resetSession()
@@ -324,7 +336,7 @@ export function RtuPictureViewer({
             />
           </label>
         ) : null}
-        <button type="button" className={styles.toolBtn} onClick={() => save(current.fileName)}>
+        <button type="button" className={styles.toolBtn} onClick={() => void handleDownload()}>
           Download
         </button>
         <button type="button" className={styles.toolBtn} onClick={printImage}>

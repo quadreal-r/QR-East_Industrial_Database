@@ -10,6 +10,16 @@
   overflow: hidden;
 }
 
+/* Full cost center: collapse the map so the panel fills the main column (sidebar stays). */
+.mainColumn:has([data-rcb-stage='full']) :global(.map-panel) {
+  flex: 0 0 0;
+  min-height: 0;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .appWithBanner {
   padding-top: 40px;
 }

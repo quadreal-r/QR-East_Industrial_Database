@@ -49,6 +49,7 @@ import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
 import type { Building, CostBasis } from '@/types/domain'
 import { RcbBuildingDetail } from './RcbBuildingDetail'
+import { nextCostPanelStage, type CostPanelStage } from './costPanelStage'
 import styles from './CostBanner.module.css'
 
 export interface CostBannerProps {
@@ -90,7 +91,7 @@ export function CostBanner({ buildings }: CostBannerProps) {
   const [threshold, setThreshold] = useState(RCB_DEFAULT_THRESHOLD)
   const [basis, setBasis] = useState<CostBasis>(RCB_DEFAULT_BASIS)
   const [year, setYear] = useState(RCB_DEFAULT_YEAR)
-  const [detailOpen, setDetailOpen] = useState(false)
+  const [panelStage, setPanelStage] = useState<CostPanelStage>('minimized')
   const [selectedBuildingAddress, setSelectedBuildingAddress] = useState<string | null>(null)
   const [buildingYearFilter, setBuildingYearFilter] = useState('')
   const [budgetedOnly, setBudgetedOnly] = useState(false)
@@ -249,7 +250,10 @@ export function CostBanner({ buildings }: CostBannerProps) {
 
   const rtuNameSearchActive = Boolean(rtuNameSearchItems && !selectedBuildingAddress)
 
-  const detailExpanded = detailOpen || rtuNameSearchActive
+  /** Search forces at least half-open; otherwise use the user's stage. */
+  const effectiveStage: CostPanelStage =
+    panelStage === 'minimized' && rtuNameSearchActive ? 'half' : panelStage
+  const detailExpanded = effectiveStage !== 'minimized'
 
   const handleSetRtuReplacementYear = (address: string, rtu: string, replacementYear: string) => {
     setRtuReplacementYear(address, rtu, replacementYear, pricingYear)
@@ -659,7 +663,7 @@ export function CostBanner({ buildings }: CostBannerProps) {
   const openBuildingDetail = (address: string) => {
     setBuildingYearFilter(isNoneYearFilter ? RCB_REPL_YEAR_NONE : displayYear)
     setSelectedBuildingAddress(address)
-    setDetailOpen(true)
+    setPanelStage((stage) => (stage === 'minimized' ? 'half' : stage))
   }
 
   const closeBuildingDetail = () => {
@@ -667,13 +671,14 @@ export function CostBanner({ buildings }: CostBannerProps) {
     setBuildingYearFilter('')
   }
 
-  const toggleDetail = () => {
-    setDetailOpen((open) => {
-      if (open) {
+  const cyclePanelStage = () => {
+    setPanelStage((stage) => {
+      const next = nextCostPanelStage(stage)
+      if (next === 'minimized') {
         setSelectedBuildingAddress(null)
         setBuildingYearFilter('')
       }
-      return !open
+      return next
     })
   }
 
@@ -874,8 +879,11 @@ export function CostBanner({ buildings }: CostBannerProps) {
   return (
     <div
       id="rcb-banner"
-      className={`${styles.banner}${detailExpanded ? ` ${styles.bannerOpen}` : ''}${
-        selectedBuilding ? ` ${styles.bannerBuildingDetail}` : ''
+      data-rcb-stage={effectiveStage}
+      className={`${styles.banner}${
+        effectiveStage === 'half' ? ` ${styles.bannerHalf}` : ''
+      }${effectiveStage === 'full' ? ` ${styles.bannerFull}` : ''}${
+        detailExpanded ? ` ${styles.bannerOpen}` : ''
       }`}
     >
       <div id="rcb-bar" className={styles.bar}>
@@ -1060,10 +1068,26 @@ export function CostBanner({ buildings }: CostBannerProps) {
           <button
             type="button"
             className={styles.rcbBtn}
-            onClick={toggleDetail}
-            title="Show / hide line-item breakdown"
+            onClick={cyclePanelStage}
+            title={
+              effectiveStage === 'minimized'
+                ? 'Show cost tables (half height — map stays visible)'
+                : effectiveStage === 'half'
+                  ? 'Expand cost center to full height (covers the map)'
+                  : 'Minimize cost center'
+            }
+            aria-label={
+              effectiveStage === 'minimized'
+                ? 'Expand cost center to half height'
+                : effectiveStage === 'half'
+                  ? 'Expand cost center to full height'
+                  : 'Minimize cost center'
+            }
           >
             Detail
+            <span className={styles.rcbStageHint}>
+              {effectiveStage === 'minimized' ? '½' : effectiveStage === 'half' ? 'Full' : 'Min'}
+            </span>
             <svg className={styles.rcbChev} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="6 9 12 15 18 9" />
             </svg>

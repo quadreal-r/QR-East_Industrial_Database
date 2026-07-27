@@ -7,18 +7,20 @@ import {
   type ScreenRect,
   type TextSettings,
   downloadBlob,
+  downloadFileNameForFormat,
+  downloadUrlAsFile,
+  exportCanvasBlob,
   flattenImage,
   fontString,
   formatExifDate,
   formatFileFooterLabel,
   humanFileSize,
   insideRect,
-  loadImageFromUrl,
+  loadEditableImageFromUrl,
   makeRotated,
   MAX_ZOOM,
   MIN_ZOOM,
   normRect,
-  parseExif,
   savePdf,
   toWorld,
 } from './imageEditorCore'
@@ -55,7 +57,7 @@ export interface UseImageEditorResult {
   cropToSelection: () => void
   undo: () => void
   resetToOriginal: () => void
-  save: (fileName?: string) => void
+  save: (fileName?: string) => Promise<'downloaded' | 'opened'>
   printImage: () => void
   rotateLeft: () => void
   rotateRight: () => void
@@ -104,6 +106,8 @@ export function useImageEditor(): UseImageEditorResult {
   const panLastRef = useRef<{ x: number; y: number } | null>(null)
   const dragTextRef = useRef<{ dx: number; dy: number } | null>(null)
   const animRef = useRef<number | null>(null)
+  const sourceUrlRef = useRef<string | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
 
   const [mode, setModeState] = useState<EditorMode>('select')
   const [loading, setLoading] = useState(false)
@@ -427,7 +431,16 @@ export function useImageEditor(): UseImageEditorResult {
     applyFit()
   }, [applyFit, clearRotationPreview])
 
+  const revokeObjectUrl = useCallback(() => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+  }, [])
+
   const resetSession = useCallback(() => {
+    revokeObjectUrl()
+    sourceUrlRef.current = null
     imgRef.current = null
     originalRef.current = null
     historyRef.current = []
@@ -450,7 +463,7 @@ export function useImageEditor(): UseImageEditorResult {
     setEditCount(0)
     updateUi()
     draw()
-  }, [draw, updateUi])
+  }, [draw, revokeObjectUrl, updateUi])
 
   const applyExif = useCallback(async (ex: ExifData | null, byteLength?: number) => {
     setTaken(ex?.dateTaken ? formatExifDate(ex.dateTaken) : ex ? 'unknown' : 'no EXIF')
@@ -485,34 +498,20 @@ export function useImageEditor(): UseImageEditorResult {
       setLoading(true)
       setLoadError(false)
       try {
-        let ex: ExifData | null = null
-        let byteLength: number | undefined
-        try {
-          const res = await fetch(url)
-          if (res.ok) {
-            const buf = await res.arrayBuffer()
-            byteLength = buf.byteLength
-            try {
-              ex = parseExif(buf)
-            } catch {
-              /* ignore */
-            }
-          }
-        } catch {
-          /* blob/cors may fail for local images */
-        }
-
-        const img = await loadImageFromUrl(url)
-        imgRef.current = img
-        originalRef.current = img
+        revokeObjectUrl()
+        sourceUrlRef.current = url
+        const loaded = await loadEditableImageFromUrl(url, fileName)
+        objectUrlRef.current = loaded.objectUrl
+        imgRef.current = loaded.img
+        originalRef.current = loaded.img
         historyRef.current = []
         clearRotationPreview()
         pendingTextRef.current = null
         editingRef.current = false
         setModeState('select')
         setSourceFileName(fileName ?? null)
-        await applyExif(ex, byteLength)
-        if (byteLength == null) setFileSize(formatFileFooterLabel(undefined, fileName))
+        await applyExif(loaded.exif, loaded.byteLength)
+        if (loaded.byteLength == null) setFileSize(formatFileFooterLabel(undefined, fileName))
         applyFit()
       } catch {
         setLoadError(true)
@@ -522,49 +521,59 @@ export function useImageEditor(): UseImageEditorResult {
         setLoading(false)
       }
     },
-    [applyExif, applyFit, clearRotationPreview],
+    [applyExif, applyFit, clearRotationPreview, revokeObjectUrl],
   )
 
   const getEditedDataUrl = useCallback((): string | null => {
     const img = currentImage()
     if (!img) return null
-    return flattenImage(img, false).toDataURL('image/jpeg', 0.92)
+    try {
+      return flattenImage(img, false).toDataURL('image/jpeg', 0.92)
+    } catch {
+      return null
+    }
   }, [])
 
   const getEditedBlob = useCallback(
     (mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg', jpegQuality = 0.92): Promise<Blob | null> => {
       const img = currentImage()
       if (!img) return Promise.resolve(null)
-      return new Promise((resolve) => {
-        flattenImage(img, mimeType === 'image/jpeg').toBlob(
-          (blob) => resolve(blob),
-          mimeType,
-          jpegQuality,
-        )
-      })
+      return exportCanvasBlob(flattenImage(img, mimeType === 'image/jpeg'), mimeType, jpegQuality)
     },
     [],
   )
 
   const save = useCallback(
-    (fileName = 'edited.png') => {
+    async (fileName = 'edited.png'): Promise<'downloaded' | 'opened'> => {
       const img = imgRef.current
-      if (!img) return
-      if (saveFormat === 'png') {
-        flattenImage(img, false).toBlob((blob) => {
-          if (blob) downloadBlob(blob, fileName.replace(/\.\w+$/, '.png'))
-        }, 'image/png')
-      } else if (saveFormat === 'jpg') {
-        flattenImage(img, true).toBlob(
-          (blob) => {
-            if (blob) downloadBlob(blob, fileName.replace(/\.\w+$/, '.jpg'))
-          },
-          'image/jpeg',
-          quality,
-        )
-      } else {
-        savePdf(img, quality)
+      const outName = downloadFileNameForFormat(fileName, saveFormat)
+
+      if (img) {
+        try {
+          if (saveFormat === 'pdf') {
+            savePdf(img, quality, outName)
+            return 'downloaded'
+          }
+          const mime = saveFormat === 'png' ? 'image/png' : 'image/jpeg'
+          const blob = await exportCanvasBlob(
+            flattenImage(img, saveFormat === 'jpg'),
+            mime,
+            saveFormat === 'jpg' ? quality : undefined,
+          )
+          if (blob) {
+            downloadBlob(blob, outName)
+            return 'downloaded'
+          }
+        } catch {
+          /* tainted canvas or encode failure — fall through */
+        }
       }
+
+      const sourceUrl = sourceUrlRef.current
+      if (!sourceUrl) throw new Error('No image to download')
+      // Keep the original filename when we cannot re-encode (CORS).
+      const fallback = await downloadUrlAsFile(sourceUrl, fileName)
+      return fallback === 'blob' ? 'downloaded' : 'opened'
     },
     [quality, saveFormat],
   )
@@ -572,7 +581,18 @@ export function useImageEditor(): UseImageEditorResult {
   const printImage = useCallback(() => {
     const img = imgRef.current
     if (!img) return
-    const dataUrl = flattenImage(img, false).toDataURL('image/png')
+    let dataUrl: string | null = null
+    try {
+      dataUrl = flattenImage(img, false).toDataURL('image/png')
+    } catch {
+      /* tainted canvas */
+    }
+    if (!dataUrl) {
+      if (sourceUrlRef.current) {
+        window.open(sourceUrlRef.current, '_blank', 'noopener,noreferrer')
+      }
+      return
+    }
     const win = window.open('', '_blank')
     if (!win) return
     win.document.write(

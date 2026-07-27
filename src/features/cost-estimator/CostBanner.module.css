@@ -4,7 +4,7 @@
   background: var(--surface2, #143d78);
   /* Tall enough for the full KPI row (incl. Est. Cost + Budget) when closed. */
   max-height: 58px;
-  transition: max-height 0.2s ease, flex-basis 0.2s ease;
+  transition: max-height 0.2s ease, flex-basis 0.2s ease, flex-grow 0.2s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -12,22 +12,21 @@
   min-height: 0;
 }
 
+/* Stage 2: half — tables visible, map still usable above. */
 .banner.open,
-.bannerOpen {
-  /* Share of the main column so the map shrinks and the bottom stays on-screen. */
+.bannerOpen,
+.bannerHalf {
   flex: 0 0 48%;
   max-height: 48%;
   height: 48%;
 }
 
-.bannerBuildingDetail {
-  max-height: 48%;
-}
-
-.bannerBuildingDetail.bannerOpen {
-  flex: 0 0 62%;
-  max-height: 62%;
-  height: 62%;
+/* Stage 3: full — covers the map column; left sidebar stays visible. */
+.bannerFull {
+  flex: 1 1 auto;
+  max-height: none;
+  height: auto;
+  min-height: 0;
 }
 
 .bar {
@@ -299,7 +298,9 @@
   padding: 0 16px;
 }
 
-.bannerOpen .detail {
+.bannerOpen .detail,
+.bannerHalf .detail,
+.bannerFull .detail {
   display: flex;
   flex-direction: column;
 }
@@ -564,8 +565,21 @@
   transition: transform 0.2s;
 }
 
-.bannerOpen .rcbChev {
+.bannerHalf .rcbChev {
   transform: rotate(180deg);
+}
+
+.bannerFull .rcbChev {
+  transform: rotate(180deg) scaleY(1.15);
+}
+
+.rcbStageHint {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-left: 2px;
 }
 
 .rcbEmpty {
