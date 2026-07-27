@@ -49,7 +49,7 @@ import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
 import type { Building, CostBasis } from '@/types/domain'
 import { RcbBuildingDetail } from './RcbBuildingDetail'
-import { nextCostPanelStage, type CostPanelStage } from './costPanelStage'
+import type { CostPanelStage } from './costPanelStage'
 import styles from './CostBanner.module.css'
 
 export interface CostBannerProps {
@@ -671,15 +671,12 @@ export function CostBanner({ buildings }: CostBannerProps) {
     setBuildingYearFilter('')
   }
 
-  const cyclePanelStage = () => {
-    setPanelStage((stage) => {
-      const next = nextCostPanelStage(stage)
-      if (next === 'minimized') {
-        setSelectedBuildingAddress(null)
-        setBuildingYearFilter('')
-      }
-      return next
-    })
+  const setCostPanelStage = (next: CostPanelStage) => {
+    setPanelStage(next)
+    if (next === 'minimized') {
+      setSelectedBuildingAddress(null)
+      setBuildingYearFilter('')
+    }
   }
 
   const handleBasisChange = (next: CostBasis) => {
@@ -1065,33 +1062,42 @@ export function CostBanner({ buildings }: CostBannerProps) {
           >
             PDF
           </button>
-          <button
-            type="button"
-            className={styles.rcbBtn}
-            onClick={cyclePanelStage}
-            title={
-              effectiveStage === 'minimized'
-                ? 'Show cost tables (half height — map stays visible)'
-                : effectiveStage === 'half'
-                  ? 'Expand cost center to full height (covers the map)'
-                  : 'Minimize cost center'
-            }
-            aria-label={
-              effectiveStage === 'minimized'
-                ? 'Expand cost center to half height'
-                : effectiveStage === 'half'
-                  ? 'Expand cost center to full height'
-                  : 'Minimize cost center'
-            }
+          <div
+            className={styles.stageSpheres}
+            role="group"
+            aria-label="Cost center panel size"
           >
-            Detail
-            <span className={styles.rcbStageHint}>
-              {effectiveStage === 'minimized' ? '½' : effectiveStage === 'half' ? 'Full' : 'Min'}
-            </span>
-            <svg className={styles.rcbChev} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
+            <button
+              type="button"
+              className={`${styles.stageSphere} ${styles.stageSphereMin}${
+                effectiveStage === 'minimized' ? ` ${styles.stageSphereActive}` : ''
+              }`}
+              onClick={() => setCostPanelStage('minimized')}
+              title="Minimize"
+              aria-label="Minimize cost center"
+              aria-pressed={effectiveStage === 'minimized'}
+            />
+            <button
+              type="button"
+              className={`${styles.stageSphere} ${styles.stageSphereHalf}${
+                effectiveStage === 'half' ? ` ${styles.stageSphereActive}` : ''
+              }`}
+              onClick={() => setCostPanelStage('half')}
+              title="Half screen"
+              aria-label="Half-screen cost center"
+              aria-pressed={effectiveStage === 'half'}
+            />
+            <button
+              type="button"
+              className={`${styles.stageSphere} ${styles.stageSphereFull}${
+                effectiveStage === 'full' ? ` ${styles.stageSphereActive}` : ''
+              }`}
+              onClick={() => setCostPanelStage('full')}
+              title="Full screen"
+              aria-label="Full-screen cost center"
+              aria-pressed={effectiveStage === 'full'}
+            />
+          </div>
         </div>
       </div>
 

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.78] - 2026-07-27
+
+### Changed
+
+- Cost Center size control: yellow / green / red spheres for minimize, half, and full (no text)
+
 ## [1.14.76] - 2026-07-27
 
 ### Fixed
