@@ -4,7 +4,7 @@
  *   public/insp360/viewer.html
  *
  * Versioned copies + sync from Inspections source:
- *   qr360-viewer/QR-360°_viewer_vX.Y.Z.html
+ *   qr360-viewer/QR-360-Inspections_vX.Y.Z.html
  *   npm run sync:qr360-viewer
  */
 

@@ -36,7 +36,26 @@ export function hasRtuDescriptorInName(rtuName) {
 
 export function buildingStreetNumber(address) {
   const match = address.match(/\d+/)
-  return match?.[0] ?? 'unknown'
+  if (!match) return 'unknown'
+  const wing = buildingAddressWingLetter(address)
+  return wing ? `${match[0]}${wing}` : match[0]
+}
+
+/** East/West wing letter: "6150 Kennedy Rd-East (A)" → E. */
+export function buildingAddressWingLetter(address) {
+  if (/\bEast\b/i.test(address)) return 'E'
+  if (/\bWest\b/i.test(address)) return 'W'
+  return null
+}
+
+/** Split site codes like "6150E" into digits + optional wing. */
+export function parseBuildingSiteCode(siteCode) {
+  const match = siteCode.match(/^(\d+)([A-Za-z]?)$/i)
+  if (!match) return { digits: siteCode, wing: null }
+  return {
+    digits: match[1],
+    wing: match[2] ? match[2].toUpperCase() : null,
+  }
 }
 
 export function sanitizeRtuFileToken(rtuName) {
@@ -93,12 +112,12 @@ export function isUnlabeledBulkUnitCore(core) {
   return core == null
 }
 
-/** Audit / bulk folder names: 1590-RTU-04-2.jpg, 1495-RTU-06-2024-2.jpg */
+/** Audit / bulk folder names: 1590-RTU-04-2.jpg, 6150E-RTU-01-1.jpg */
 export function parseBulkRtuPictureFileName(fileName) {
   const base = fileName.replace(/^.*[/\\]/, '').replace(IMAGE_FILE_RE, '')
   if (!base) return null
 
-  const buildingMatch = base.match(/^(\d+)[-_\s]+(.+)$/)
+  const buildingMatch = base.match(/^(\d+[A-Za-z]?)[-_\s]+(.+)$/)
   if (!buildingMatch) return null
 
   let rest = buildingMatch[2].trim()
@@ -149,7 +168,7 @@ export function parseBulkRtuPictureFileName(fileName) {
   const unitCore = normalizeRtuUnitCore(rtuToken)
   if (unitCore == null) {
     return {
-      buildingNum: buildingMatch[1],
+      buildingNum: buildingMatch[1].toUpperCase(),
       rtuToken,
       unitId: extractRtuUnitId(rtuToken),
       unitCore: null,
@@ -160,7 +179,7 @@ export function parseBulkRtuPictureFileName(fileName) {
   }
 
   return {
-    buildingNum: buildingMatch[1],
+    buildingNum: buildingMatch[1].toUpperCase(),
     rtuToken,
     unitId: extractRtuUnitId(rtuToken),
     unitCore,
@@ -170,13 +189,13 @@ export function parseBulkRtuPictureFileName(fileName) {
   }
 }
 
-/** App / deploy stored names: 1590_RTU-04_(2).jpg */
+/** App / deploy stored names: 1590_RTU-04_(2).jpg or 6150E_RTU-01_(1).jpg */
 export function parseStoredRtuPictureFileName(fileName) {
   const base = fileName.replace(/^.*[/\\]/, '')
-  const match = base.match(/^(\d+)_([^_]+)_\((\d+)\)(\.[^.]+)$/i)
+  const match = base.match(/^(\d+[A-Za-z]?)_([^_]+)_\((\d+)\)(\.[^.]+)$/i)
   if (!match) return null
   return {
-    buildingNum: match[1],
+    buildingNum: match[1].toUpperCase(),
     rtuFileToken: match[2],
     pictureIndex: Number(match[3]),
   }
@@ -201,7 +220,29 @@ export function buildRtuCatalog(buildings) {
 }
 
 function findCandidatesByCore(catalog, buildingNum, unitCore) {
-  return catalog.filter((entry) => entry.streetNumber === buildingNum && entry.unitCore === unitCore)
+  const exact = catalog.filter(
+    (entry) => entry.streetNumber === buildingNum && entry.unitCore === unitCore,
+  )
+  if (exact.length) return exact
+
+  const file = parseBuildingSiteCode(buildingNum)
+
+  if (file.wing) {
+    return catalog.filter(
+      (entry) => entry.streetNumber === file.digits && entry.unitCore === unitCore,
+    )
+  }
+
+  const siteCodes = new Set(
+    catalog
+      .filter((entry) => parseBuildingSiteCode(entry.streetNumber).digits === file.digits)
+      .map((entry) => entry.streetNumber),
+  )
+  if (siteCodes.size !== 1) return []
+  const onlySite = [...siteCodes][0]
+  return catalog.filter(
+    (entry) => entry.streetNumber === onlySite && entry.unitCore === unitCore,
+  )
 }
 
 function normalizeUnitIdForMatch(unitId) {
@@ -254,18 +295,23 @@ export function matchFileToRtu(catalog, fileName) {
   const stored = parseStoredRtuPictureFileName(fileName)
   if (stored) {
     const storedCore = normalizeRtuUnitCore(stored.rtuFileToken)
-    const candidates = catalog.filter(
-      (entry) =>
-        entry.streetNumber === stored.buildingNum &&
-        (storedCore
-          ? entry.unitCore === storedCore
-          : entry.fileToken.toUpperCase() === stored.rtuFileToken.toUpperCase()),
-    )
-    if (candidates.length === 1) {
-      return { entry: candidates[0], pictureIndex: stored.pictureIndex }
+    const storedCandidates = storedCore
+      ? findCandidatesByCore(catalog, stored.buildingNum, storedCore)
+      : catalog.filter((entry) => {
+          const sameSite =
+            entry.streetNumber === stored.buildingNum ||
+            parseBuildingSiteCode(entry.streetNumber).digits ===
+              parseBuildingSiteCode(stored.buildingNum).digits
+          return (
+            sameSite &&
+            entry.fileToken.toUpperCase() === stored.rtuFileToken.toUpperCase()
+          )
+        })
+    if (storedCandidates.length === 1) {
+      return { entry: storedCandidates[0], pictureIndex: stored.pictureIndex }
     }
-    if (candidates.length > 1) {
-      return { error: `Ambiguous stored name (${candidates.length} RTUs)` }
+    if (storedCandidates.length > 1) {
+      return { error: `Ambiguous stored name (${storedCandidates.length} RTUs)` }
     }
   }
 
@@ -276,18 +322,14 @@ export function matchFileToRtu(catalog, fileName) {
     return { error: 'Unlabeled bulk unit (RTU-0) requires manual review' }
   }
 
-  const buildingExists = catalog.some((entry) => entry.streetNumber === bulk.buildingNum)
-  if (!buildingExists) {
+  const candidates = findCandidatesByCore(catalog, bulk.buildingNum, bulk.unitCore)
+  if (!candidates.length) {
     return { error: 'No RTU match in portfolio' }
   }
 
-  const candidates = findCandidatesByCore(catalog, bulk.buildingNum, bulk.unitCore)
   const entry = resolveRtuCandidates(candidates, bulk)
   if (entry) {
     return { entry, pictureIndex: bulk.pictureIndex }
-  }
-  if (!candidates.length) {
-    return { error: 'No RTU match in portfolio' }
   }
   return { error: `Ambiguous bulk name (${candidates.length} RTUs)` }
 }

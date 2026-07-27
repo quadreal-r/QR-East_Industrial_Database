@@ -32,7 +32,7 @@ function parseBulkRtuPictureFileName(fileName) {
   const base = fileName.replace(/^.*[/\\]/, '').replace(IMAGE_FILE_RE, '')
   if (!base) return null
 
-  const buildingMatch = base.match(/^(\d+)[-_\s]+(.+)$/)
+  const buildingMatch = base.match(/^(\d+[A-Za-z]?)[-_\s]+(.+)$/)
   if (!buildingMatch) return null
 
   let rest = buildingMatch[2].trim()
@@ -78,7 +78,7 @@ function parseBulkRtuPictureFileName(fileName) {
   }
 
   return {
-    buildingNum: buildingMatch[1],
+    buildingNum: buildingMatch[1].toUpperCase(),
     rtuToken,
     unitId: extractRtuUnitId(rtuToken),
     pictureIndex,
@@ -88,7 +88,10 @@ function parseBulkRtuPictureFileName(fileName) {
 
 function buildingStreetNumber(address) {
   const match = address.match(/\d+/)
-  return match?.[0] ?? 'unknown'
+  if (!match) return 'unknown'
+  if (/\bEast\b/i.test(address)) return `${match[0]}E`
+  if (/\bWest\b/i.test(address)) return `${match[0]}W`
+  return match[0]
 }
 
 function unitIdsMatch(fileUnitId, markerUnitId) {

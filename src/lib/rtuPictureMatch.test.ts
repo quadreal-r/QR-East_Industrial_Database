@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildingStreetNumber,
   extractRtuUnitId,
   findRtuCandidates,
   matchFileToRtu,
@@ -45,6 +46,18 @@ describe('normalizeRtuUnitCore (review criteria)', () => {
   })
 })
 
+describe('buildingStreetNumber site wings', () => {
+  it('keeps plain street numbers', () => {
+    expect(buildingStreetNumber('1590 South Gateway Rd.')).toBe('1590')
+    expect(buildingStreetNumber('6150 Kennedy Road')).toBe('6150')
+  })
+
+  it('appends E/W for Kennedy East/West addresses', () => {
+    expect(buildingStreetNumber('6150 Kennedy Rd-East (A)')).toBe('6150E')
+    expect(buildingStreetNumber('6150 Kennedy Rd-West (B)')).toBe('6150W')
+  })
+})
+
 describe('parseBulkRtuPictureFileName', () => {
   it('parses year-in-unit filenames', () => {
     const parsed = parseBulkRtuPictureFileName('1495-RTU-06-2024-2.jpg')
@@ -53,6 +66,19 @@ describe('parseBulkRtuPictureFileName', () => {
       unitCore: '6',
       pictureIndex: 2,
       requiresReview: false,
+    })
+  })
+
+  it('parses East/West site codes in filenames', () => {
+    expect(parseBulkRtuPictureFileName('6150E-RTU-01-1.jpg')).toMatchObject({
+      buildingNum: '6150E',
+      unitCore: '1',
+      pictureIndex: 1,
+    })
+    expect(parseBulkRtuPictureFileName('6150W-RTU-10 (2).jpg')).toMatchObject({
+      buildingNum: '6150W',
+      unitCore: '10',
+      pictureIndex: 2,
     })
   })
 })
@@ -102,6 +128,71 @@ describe('2320 Bristol Circle RTU-04 filename variants', () => {
     const candidates = findRtuCandidates(catalog, parsed)
     expect(candidates.some((c) => c.rtu.name === 'RTU-04')).toBe(false)
     expect(candidates.some((c) => c.rtu.name === 'RTU-04B')).toBe(true)
+  })
+})
+
+describe('6150 Kennedy East/West picture matching', () => {
+  const east: Building = {
+    park: 'Test',
+    address: '6150 Kennedy Rd-East (A)',
+    bu: '1',
+    lat: 43.6,
+    lng: -79.6,
+    sqft: '1',
+    cluster: '',
+    manager: '',
+    rtus: [{ name: 'RTU- 01', description: '', lat: 43.6, lng: -79.6 }],
+  }
+  const west: Building = {
+    park: 'Test',
+    address: '6150 Kennedy Rd-West (B)',
+    bu: '2',
+    lat: 43.61,
+    lng: -79.61,
+    sqft: '1',
+    cluster: '',
+    manager: '',
+    rtus: [{ name: 'RTU- 10', description: '', lat: 43.61, lng: -79.61 }],
+  }
+  const splitCatalog = buildRtuCatalog([east, west])
+  const legacyCatalog = buildRtuCatalog([
+    {
+      ...east,
+      address: '6150 Kennedy Road',
+      rtus: [
+        { name: 'RTU- 01', description: '', lat: 43.6, lng: -79.6 },
+        { name: 'RTU- 10', description: '', lat: 43.61, lng: -79.61 },
+      ],
+    },
+  ])
+
+  it('matches 6150E / 6150W filenames to East / West buildings', () => {
+    const eastHit = matchFileToRtu(splitCatalog, '6150E-RTU-01-1.jpg')
+    expect(eastHit.error).toBeUndefined()
+    expect(eastHit.entry?.building.address).toBe('6150 Kennedy Rd-East (A)')
+    expect(eastHit.entry?.rtu.name).toBe('RTU- 01')
+
+    const westHit = matchFileToRtu(splitCatalog, '6150W-RTU-10-1.jpg')
+    expect(westHit.error).toBeUndefined()
+    expect(westHit.entry?.building.address).toBe('6150 Kennedy Rd-West (B)')
+    expect(westHit.entry?.rtu.name).toBe('RTU- 10')
+  })
+
+  it('does not cross-match East filename onto West', () => {
+    const result = matchFileToRtu(splitCatalog, '6150E-RTU-10-1.jpg')
+    expect(result.error).toBeDefined()
+  })
+
+  it('matches winged filenames to legacy bare 6150 portfolio address', () => {
+    const result = matchFileToRtu(legacyCatalog, '6150E-RTU-01-1.jpg')
+    expect(result.error).toBeUndefined()
+    expect(result.entry?.building.address).toBe('6150 Kennedy Road')
+    expect(result.entry?.rtu.name).toBe('RTU- 01')
+  })
+
+  it('does not guess bare 6150 when both East and West exist', () => {
+    const result = matchFileToRtu(splitCatalog, '6150-RTU-01-1.jpg')
+    expect(result.error).toBeDefined()
   })
 })
 

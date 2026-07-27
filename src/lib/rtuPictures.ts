@@ -1,6 +1,10 @@
 /** RTU picture storage: Cloudflare R2 (production) or same-origin static files, plus IndexedDB uploads. */
 
-import { parseBulkRtuPictureFileName, normalizeRtuUnitCore } from '@/lib/rtuPictureMatch'
+import {
+  buildingStreetNumber,
+  parseBulkRtuPictureFileName,
+  normalizeRtuUnitCore,
+} from '@/lib/rtuPictureMatch'
 import {
   buildCloudRtuPictureFileName,
   manifestEntryToCloudFileName,
@@ -12,6 +16,8 @@ import { deleteRtuPictureFromCloud } from '@/data/rtuPictureDeleteApi'
 import { isRtuManifestPictureHidden, loadHiddenRtuPictures, exportHiddenRtuPicturesForDeploy, clearHiddenRtuPictureCache } from '@/lib/hiddenRtuPictures'
 import { rtuPictureFileUrl } from '@/lib/rtuPictureUrls'
 import { isRtuPictureReachableOnCdnWithRetry } from '@/lib/rtuPictureReachability'
+
+export { buildingStreetNumber }
 
 export interface RtuPicture {
   fileName: string
@@ -79,12 +85,6 @@ export function resolveManifestRtuKey(
   }
 
   return exact
-}
-
-/** First street number from a building address, e.g. "1590 South Gateway Rd." -> "1590". */
-export function buildingStreetNumber(address: string): string {
-  const match = address.match(/\d+/)
-  return match?.[0] ?? 'unknown'
 }
 
 /** RTU label for filenames, e.g. "RTU- 04" -> "RTU-04". */

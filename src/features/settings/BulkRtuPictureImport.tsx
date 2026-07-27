@@ -120,9 +120,10 @@ export function BulkRtuPictureImport({ portfolio, onBusyChange }: BulkRtuPicture
           tooltip={
             <>
               Select a folder of RTU photos. Filenames like 2320-RTU-04-1.jpg, 2320-RTU-04 (2).jpg,
-              2320-RTU-04 Hybrid.jpg, or 2320-RTU-04-1(2015).jpg match by building street number
-              and RTU unit id only (GPS is ignored). RTU-04 does not match RTU-04B. Files or folders
-              with &quot;old&quot; in the name are skipped.
+              2320-RTU-04 Hybrid.jpg, 6150E-RTU-01-1.jpg (East), or 6150W-RTU-10-1.jpg (West) match by
+              building street number (plus East/West letter when needed) and RTU unit id only (GPS is
+              ignored). RTU-04 does not match RTU-04B. Files or folders with &quot;old&quot; in the name
+              are skipped.
             </>
           }
           onClick={() => inputRef.current?.click()}

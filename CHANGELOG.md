@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.71] - 2026-07-27
+
+### Fixed
+
+- Match RTU picture filenames like `6150E-RTU-…` / `6150W-RTU-…` to Kennedy East (A) and West (B)
+
+### Changed
+
+- Accept `QR-360-Inspections_v*.html` naming when syncing the embedded Map360 viewer
+
 ## [1.14.69] - 2026-07-26
 
 ### Added

@@ -1,5 +1,4 @@
-import { buildingStreetNumber } from '@/lib/rtuPictures'
-import { parseBulkRtuPictureFileName } from '@/lib/rtuPictureMatch'
+import { buildingStreetNumber, parseBulkRtuPictureFileName } from '@/lib/rtuPictureMatch'
 
 /** Keep RTU name as shown in the app; only strip unsafe filename characters. */
 export function formatRtuNameForPictureFile(rtuName: string): string {
@@ -56,10 +55,10 @@ export function buildBulkRtuPictureFileName(
   return `${buildingNum}-${rtuLabel} (${pictureIndex}).${safeExt}`
 }
 
-/** True for new-naming R2 files like `100-RTU-01 (1) (Audit-2024).jpg` (not legacy `100_RTU-01_(1).jpg`). */
+/** True for new-naming R2 files like `100-RTU-01…` / `6150E-RTU-01…` (not legacy `100_RTU-01_(1).jpg`). */
 function isCanonicalR2ManifestFileName(fileName: string): boolean {
   const base = fileName.replace(/^.*[/\\]/, '')
-  return /^\d+-RTU/i.test(base)
+  return /^\d+[A-Za-z]?-RTU/i.test(base)
 }
 
 /** Map legacy spaced manifest names to the cloud filename used on R2. */

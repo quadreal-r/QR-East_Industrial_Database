@@ -15,6 +15,8 @@ import {
 describe('rtuPictures naming', () => {
   it('extracts building street number', () => {
     expect(buildingStreetNumber('1590 South Gateway Rd.')).toBe('1590')
+    expect(buildingStreetNumber('6150 Kennedy Rd-East (A)')).toBe('6150E')
+    expect(buildingStreetNumber('6150 Kennedy Rd-West (B)')).toBe('6150W')
   })
 
   it('sanitizes RTU name for filenames', () => {

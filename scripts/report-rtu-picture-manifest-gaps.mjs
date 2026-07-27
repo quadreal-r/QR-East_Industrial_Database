@@ -665,7 +665,10 @@ function buildExcelWorkbook(report, manifestBuild) {
 
 function buildingStreetNumber(address) {
   const match = address.match(/\d+/)
-  return match?.[0] ?? ''
+  if (!match) return ''
+  if (/\bEast\b/i.test(address)) return `${match[0]}E`
+  if (/\bWest\b/i.test(address)) return `${match[0]}W`
+  return match[0]
 }
 
 function renderMarkdownSummary(report) {

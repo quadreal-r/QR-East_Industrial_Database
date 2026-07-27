@@ -4,12 +4,10 @@ import {
   normalizeRtuUnitCore,
   parseBulkRtuPictureFileName,
   resolveRtuCandidates,
+  buildingStreetNumber,
   type ParsedBulkRtuFileName,
 } from '@/lib/rtuPictureMatch'
-import {
-  buildingStreetNumber,
-  importRtuPictureAtIndex,
-} from '@/lib/rtuPictures'
+import { importRtuPictureAtIndex } from '@/lib/rtuPictures'
 import type { Building, Rtu } from '@/types/domain'
 
 export type { ParsedBulkRtuFileName }

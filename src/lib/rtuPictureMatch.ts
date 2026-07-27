@@ -94,11 +94,46 @@ export function isUnlabeledBulkUnitCore(core: string | null): boolean {
   return core == null
 }
 
+/**
+ * East/West wing letter from addresses like "6150 Kennedy Rd-East (A)" → E.
+ * Used so picture filenames can be `6150E-RTU-…` / `6150W-RTU-…`.
+ */
+export function buildingAddressWingLetter(address: string): 'E' | 'W' | null {
+  if (/\bEast\b/i.test(address)) return 'E'
+  if (/\bWest\b/i.test(address)) return 'W'
+  return null
+}
+
+/**
+ * Site code for picture filenames: street digits plus optional wing letter.
+ * "1590 South Gateway Rd." → "1590"; "6150 Kennedy Rd-East (A)" → "6150E".
+ */
+export function buildingStreetNumber(address: string): string {
+  const match = address.match(/\d+/)
+  if (!match) return 'unknown'
+  const wing = buildingAddressWingLetter(address)
+  return wing ? `${match[0]}${wing}` : match[0]!
+}
+
+/** Split site codes like "6150E" into digits + optional wing. */
+export function parseBuildingSiteCode(siteCode: string): {
+  digits: string
+  wing: string | null
+} {
+  const match = siteCode.match(/^(\d+)([A-Za-z]?)$/i)
+  if (!match) return { digits: siteCode, wing: null }
+  return {
+    digits: match[1]!,
+    wing: match[2] ? match[2]!.toUpperCase() : null,
+  }
+}
+
 export function parseBulkRtuPictureFileName(fileName: string): ParsedBulkRtuFileName | null {
   const base = fileName.replace(/^.*[/\\]/, '').replace(IMAGE_FILE_RE, '')
   if (!base) return null
 
-  const buildingMatch = base.match(/^(\d+)[-_\s]+(.+)$/)
+  // Optional wing letter after street # (6150E-RTU-01…, 6150W-RTU-01…).
+  const buildingMatch = base.match(/^(\d+[A-Za-z]?)[-_\s]+(.+)$/)
   if (!buildingMatch) return null
 
   let rest = buildingMatch[2]!.trim()
@@ -149,7 +184,7 @@ export function parseBulkRtuPictureFileName(fileName: string): ParsedBulkRtuFile
   const unitCore = normalizeRtuUnitCore(rtuToken)
 
   return {
-    buildingNum: buildingMatch[1]!,
+    buildingNum: buildingMatch[1]!.toUpperCase(),
     rtuToken,
     unitId: extractRtuUnitId(rtuToken),
     unitCore,
@@ -164,7 +199,7 @@ export function buildRtuCatalog(
 ): RtuCatalogEntry[] {
   const entries: RtuCatalogEntry[] = []
   for (const building of buildings) {
-    const streetNumber = building.address.match(/\d+/)?.[0] ?? 'unknown'
+    const streetNumber = buildingStreetNumber(building.address)
     for (const rtu of building.rtus ?? []) {
       entries.push({
         building,
@@ -178,17 +213,42 @@ export function buildRtuCatalog(
   return entries
 }
 
+/**
+ * Resolve catalog rows for a parsed filename site code.
+ * Exact match preferred; also bridges bare `6150` ↔ winged `6150E` during rename.
+ */
 export function findRtuCandidates(
   catalog: RtuCatalogEntry[],
   parsed: ParsedBulkRtuFileName,
 ): RtuCatalogEntry[] {
   if (parsed.requiresReview || parsed.unitCore == null) return []
 
-  const buildingExists = catalog.some((entry) => entry.streetNumber === parsed.buildingNum)
-  if (!buildingExists) return []
+  const exact = catalog.filter(
+    (entry) =>
+      entry.streetNumber === parsed.buildingNum && entry.unitCore === parsed.unitCore,
+  )
+  if (exact.length) return exact
 
+  const file = parseBuildingSiteCode(parsed.buildingNum)
+
+  // File has wing (6150E); portfolio still bare (6150).
+  if (file.wing) {
+    return catalog.filter(
+      (entry) =>
+        entry.streetNumber === file.digits && entry.unitCore === parsed.unitCore,
+    )
+  }
+
+  // File bare (6150); portfolio has wing(s). Only match when a single site exists.
+  const siteCodes = new Set(
+    catalog
+      .filter((entry) => parseBuildingSiteCode(entry.streetNumber).digits === file.digits)
+      .map((entry) => entry.streetNumber),
+  )
+  if (siteCodes.size !== 1) return []
+  const onlySite = [...siteCodes][0]!
   return catalog.filter(
-    (entry) => entry.streetNumber === parsed.buildingNum && entry.unitCore === parsed.unitCore,
+    (entry) => entry.streetNumber === onlySite && entry.unitCore === parsed.unitCore,
   )
 }
 

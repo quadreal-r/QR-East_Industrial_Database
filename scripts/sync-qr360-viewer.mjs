@@ -3,10 +3,10 @@
  *
  * Source of truth (standalone QR360 product):
  *   C:\Users\Robert\Projects\QR-360-Inspections\QR-360-Inspections
- *   (latest QR-360°_viewer_v*.html)
+ *   (latest QR-360-Inspections_v*.html; legacy QR-360°_viewer_v* still accepted)
  *
  * Writes:
- *   1) qr360-viewer/QR-360°_viewer_vX.Y.Z.html — versioned map archive (Map360 badge)
+ *   1) qr360-viewer/QR-360-Inspections_vX.Y.Z.html — versioned map archive (Map360 badge)
  *   2) public/insp360/viewer.html               — stable iframe URL (Map360 badge)
  *   3) qr360-viewer/CURRENT.json                — pointer metadata
  *
@@ -30,7 +30,8 @@ const LIVE_DIR = path.join(BME_ROOT, 'public', 'insp360')
 const LIVE_FILE = path.join(LIVE_DIR, 'viewer.html')
 const CURRENT_JSON = path.join(VERSIONED_DIR, 'CURRENT.json')
 
-const NAME_RE = /^(?:QR-360°_viewer_v|insp_360_viewer-v|insp_360_viewer-?)(\d+\.\d+\.\d+)\.html$/i
+const NAME_RE =
+  /^(?:QR-360-Inspections_v|QR-360°_viewer_v|insp_360_viewer-v|insp_360_viewer-?)(\d+\.\d+\.\d+)\.html$/i
 
 function fail(msg) {
   console.error(`[sync-qr360-viewer] ${msg}`)
@@ -71,7 +72,7 @@ function findLatestSource() {
   if (!files.length) {
     fail(
       `No viewer HTML found in:\n  ${SOURCE_DIR}\n` +
-        `Expected names like QR-360°_viewer_v1.1.3.html`,
+        `Expected names like QR-360-Inspections_v1.2.82.html`,
     )
   }
   files.sort((a, b) => {
@@ -137,7 +138,7 @@ function stampViewerEdition(filePath, version, product) {
 }
 
 const latest = findLatestSource()
-const versionedName = `QR-360°_viewer_v${latest.version}.html`
+const versionedName = `QR-360-Inspections_v${latest.version}.html`
 const versionedPath = path.join(VERSIONED_DIR, versionedName)
 
 ensureDir(VERSIONED_DIR)

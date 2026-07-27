@@ -27,7 +27,7 @@ export function buildCloudRtuPictureFileName(buildingAddress, rtuName, pictureIn
 
 function isCanonicalR2ManifestFileName(fileName) {
   const base = fileName.replace(/^.*[/\\]/, '')
-  return /^\d+-RTU/i.test(base)
+  return /^\d+[A-Za-z]?-RTU/i.test(base)
 }
 
 export function manifestEntryToCloudFileName(fileName, buildingAddress, rtuName) {

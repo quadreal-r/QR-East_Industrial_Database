@@ -32,6 +32,15 @@ describe('buildCloudRtuPictureFileName', () => {
     )
   })
 
+  it('uses East/West site codes for Kennedy filenames', () => {
+    expect(
+      buildCloudRtuPictureFileName('6150 Kennedy Rd-East (A)', 'RTU- 01', 1, 'jpg'),
+    ).toBe('6150E-RTU-01-1.jpg')
+    expect(
+      buildCloudRtuPictureFileName('6150 Kennedy Rd-West (B)', 'RTU- 10', 2, 'jpg'),
+    ).toBe('6150W-RTU-10-2.jpg')
+  })
+
   it('keeps new-naming bulk manifest names as the CDN filename', () => {
     expect(
       manifestEntryToCloudFileName(
