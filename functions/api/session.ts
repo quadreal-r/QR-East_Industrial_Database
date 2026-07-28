@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { verifySession } from '../lib/bmeAuth'
 
 interface Env {
   SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  SESSION_SECRET?: string
 }
 
 interface PagesContext {
@@ -134,6 +136,15 @@ async function resolveAccessEmail(request: Request): Promise<string> {
   return headerEmail as string
 }
 
+/** Prefer QuadReal OTP cookie; fall back to Cloudflare Access JWT while Access is still on. */
+async function resolveIdentityEmail(request: Request, env: Env): Promise<string> {
+  if (env.SESSION_SECRET) {
+    const session = await verifySession(request, env)
+    if (session.ok) return session.email
+  }
+  return resolveAccessEmail(request)
+}
+
 /** Supabase/PostgREST often throws plain objects, not Error instances. */
 function thrownMessage(error: unknown): string {
   if (typeof error === 'string' && error.trim() && error.trim() !== '[object Object]') {
@@ -170,12 +181,17 @@ async function handleGet(context: PagesContext): Promise<Response> {
   }
 
   try {
-    const email = await resolveAccessEmail(context.request)
+    const email = await resolveIdentityEmail(context.request, context.env)
     return json(await mintSession(email, context.env))
   } catch (error) {
     const message = thrownMessage(error)
-    console.error('Could not create Access-backed session', message)
-    const status = /identity required|missing email|mismatch/i.test(message) ? 401 : 500
+    console.error('Could not create application session', message)
+    const status =
+      /identity required|missing email|mismatch|Sign in required|Session expired|Invalid session/i.test(
+        message,
+      )
+        ? 401
+        : 500
     return json(
       {
         error: 'Could not create application session',

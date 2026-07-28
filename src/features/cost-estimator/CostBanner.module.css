@@ -728,6 +728,7 @@
   align-items: flex-end;
   gap: 2px;
   min-width: 100px;
+  max-width: 240px;
 }
 
 .capexRemainingOk,
@@ -799,6 +800,80 @@ input.budgetInput:focus {
   font-weight: 700;
   color: #fde68a;
   border-color: #fbbf24;
+}
+
+.capexRelatedYearList {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  max-width: 220px;
+}
+
+.capexRelatedYearItem {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.capexRelatedYearBtn {
+  appearance: none;
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  background: rgba(25, 74, 141, 0.85);
+  color: #fde68a;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  padding: 1px 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.capexRelatedYearBtn:hover {
+  border-color: #fbbf24;
+  background: rgba(40, 90, 160, 0.95);
+}
+
+.capexRelatedYearAmount {
+  font-family: 'DM Mono', monospace;
+  font-weight: 700;
+  color: #fde68a;
+  text-align: right;
+}
+
+.capexRelatedYearStatus,
+.capexRelatedYearStatusMuted {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.capexRelatedYearStatusMuted {
+  color: var(--text-muted, #90b8e0);
+  background: transparent;
+  padding-left: 0;
+}
+
+.capexRelatedYearHint {
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted, #90b8e0);
+  text-align: right;
+  max-width: 220px;
 }
 
 .capexSourceStrip {

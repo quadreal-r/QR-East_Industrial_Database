@@ -2,8 +2,9 @@ import {
   buildingMatchesCapexStatusSearch,
   parseCapexStatusSearchQuery,
 } from '@/lib/capexStatusSearch'
+import { buildingAddressMatchesSearch } from '@/lib/buildingAddressAliases'
 import { MAP_DETAIL_ZOOM } from '@/lib/constants'
-import { isTenantCountSearch } from '@/lib/filters'
+import { buildingBuMatchesSearch, isTenantCountSearch } from '@/lib/filters'
 import { rtuMatchesSearch } from '@/lib/rtuSearch'
 import {
   buildingForPolygon,
@@ -49,8 +50,8 @@ function normalizeSearch(search: string): string {
 
 function buildingMetadataMatches(building: Building, q: string): boolean {
   return (
-    building.address.toLowerCase().includes(q) ||
-    Boolean(building.bu?.toLowerCase().includes(q)) ||
+    buildingAddressMatchesSearch(building.address, q) ||
+    buildingBuMatchesSearch(building.bu, q) ||
     Boolean(building.cluster?.toLowerCase().includes(q)) ||
     Boolean(building.manager?.toLowerCase().includes(q))
   )

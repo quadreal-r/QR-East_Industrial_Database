@@ -183,7 +183,7 @@ export function CostBanner({ buildings }: CostBannerProps) {
 
   const yearLabel = isNoneYearFilter ? 'None' : displayYear || 'All'
 
-  /** Age is measured as of the selected Repl. Year (calendar year when All / None). */
+  /** Age eligibility uses calendar year when a Repl. Year is selected; otherwise today. */
   const ageAsOfYear = displayYear ? Number(displayYear) : undefined
 
   const result = useMemo(() => {
@@ -1135,7 +1135,7 @@ export function CostBanner({ buildings }: CostBannerProps) {
                       </th>
                       <th
                         className={`num ${styles.ageHeaderTh}`}
-                        title="Age on selected Repl. Year (install → Repl. Year)"
+                        title="Age on this RTU's Repl. Year (replacement year − install year)"
                       >
                         <span className={styles.ageHeaderLabel}>Age on Repl. Year</span>
                       </th>

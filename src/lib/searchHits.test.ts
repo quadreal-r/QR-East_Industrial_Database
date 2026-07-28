@@ -65,4 +65,19 @@ describe('collectSearchHits', () => {
     expect(hits[0]!.kind).toBe('building')
     expect(hits[0]!.address).toContain('6975 Creditview')
   })
+
+  it('finds building by BU # with or without BU prefix', () => {
+    const byDigits = collectSearchHits(buildings, polygons, '50454')
+    expect(byDigits.some((h) => h.kind === 'building' && /50 Leek/i.test(h.address ?? ''))).toBe(
+      true,
+    )
+    const byPrefixed = collectSearchHits(buildings, polygons, 'BU50454')
+    expect(
+      byPrefixed.some((h) => h.kind === 'building' && /50 Leek/i.test(h.address ?? '')),
+    ).toBe(true)
+    const bySpaced = collectSearchHits(buildings, polygons, 'BU #50454')
+    expect(bySpaced.some((h) => h.kind === 'building' && /50 Leek/i.test(h.address ?? ''))).toBe(
+      true,
+    )
+  })
 })

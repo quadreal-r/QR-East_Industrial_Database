@@ -21,6 +21,21 @@ export function getRtuAge(rtu: Rtu, year: number = currentYear()): number | null
   return installYear != null ? year - installYear : null
 }
 
+/**
+ * Age as of a calendar year (e.g. Age Today = current year − install;
+ * Age on Repl. Year = replacement year − install).
+ */
+export function ageAtCalendarYear(
+  installYear: number | null | undefined,
+  asOfYear: number | string | null | undefined,
+): number | null {
+  if (installYear == null) return null
+  const y =
+    typeof asOfYear === 'number' ? asOfYear : Number(String(asOfYear ?? '').trim())
+  if (!Number.isFinite(y)) return null
+  return y - installYear
+}
+
 /** Oldest RTU age on a building; 0 when none have a known year. */
 export function oldestRtuAge(building: Building, year: number = currentYear()): number {
   let oldest = 0

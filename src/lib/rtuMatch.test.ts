@@ -47,6 +47,14 @@ describe('findBuildingBySheetAddress', () => {
     const building = findBuildingBySheetAddress(index, '4161 Sladeview Cres')
     expect(building?.address).toBe('4161 Sladeview Crescent')
   })
+
+  it('finds 7540 Jane Street from Capex known-as label', () => {
+    const building = findBuildingBySheetAddress(
+      index,
+      '7540 Jane Street (Interchange - Mobile Climate Control)',
+    )
+    expect(building?.address).toBe('7540 Jane Street')
+  })
 })
 
 describe('normalizeRtuName', () => {

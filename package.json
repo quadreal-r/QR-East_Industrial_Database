@@ -1,7 +1,7 @@
 {
   "name": "qr-east-industrial-database",
   "private": true,
-  "version": "1.14.78",
+  "version": "1.14.95",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "import-portfolio-excel": "vite-node scripts/import-portfolio-excel-to-supabase.ts",
     "import-capex-hvac-budgets": "vite-node scripts/import-capex-hvac-budgets-to-supabase.ts",
     "import-capex-rtu-notes": "vite-node scripts/import-capex-rtu-notes-to-supabase.ts",
+    "import-sylvia-capex": "vite-node scripts/import-sylvia-capex-working-sheet.ts",
     "import-equipment-replacement-years": "vite-node scripts/import-equipment-replacement-years.ts",
     "report-equipment-replacement-years": "vite-node scripts/report-equipment-replacement-years.ts",
     "supabase:link": "supabase link --project-ref wyiymdtlncperqpwriuk",
@@ -50,6 +51,7 @@
     "push-live": "node scripts/push-live.mjs",
     "restore-point": "node scripts/restore-point.mjs",
     "sync:qr360-viewer": "node scripts/sync-qr360-viewer.mjs",
+    "setup:access-branding": "node scripts/setup-access-branding.mjs",
     "upload:insp360": "node scripts/upload-insp360-r2.mjs",
     "build:pages": "node scripts/assert-production-supabase-env.mjs && tsc -b && vite build --base / && node scripts/assert-production-supabase-env.mjs --scan-dist",
     "deploy": "npm run build:pages && npx wrangler pages deploy dist --project-name=qr-east-industrial-database",

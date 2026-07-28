@@ -4,7 +4,7 @@ import {
   type LegacyBuildingJson,
   type Rtu,
 } from '@/types/domain'
-import { getRtuAge, getRtuYear, oldestRtuAge, parseRtuMeta, rcbGetTons } from '@/lib/rtu'
+import { getRtuAge, getRtuYear, oldestRtuAge, parseRtuMeta, rcbGetTons, ageAtCalendarYear } from '@/lib/rtu'
 
 const sampleBuildings = (legacyBuildings as LegacyBuildingJson[])
   .slice(0, 3)
@@ -34,6 +34,15 @@ describe('getRtuAge', () => {
     const rtu = sampleBuildings[0]?.rtus?.[2]
     expect(rtu).toBeDefined()
     expect(getRtuAge(rtu!, 2026)).toBe(14)
+  })
+})
+
+describe('ageAtCalendarYear', () => {
+  it('computes Age Today and Age on Repl. Year from install year', () => {
+    // Installed 2007 → Age Today in 2026 is 19; Age on Repl. Year 2028 is 21.
+    expect(ageAtCalendarYear(2007, 2026)).toBe(19)
+    expect(ageAtCalendarYear(2007, '2028')).toBe(21)
+    expect(ageAtCalendarYear(null, 2028)).toBeNull()
   })
 })
 

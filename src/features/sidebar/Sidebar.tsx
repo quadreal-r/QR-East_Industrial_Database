@@ -212,8 +212,8 @@ export function Sidebar({ allBuildings, listBuildings, filteredBuildings, portfo
             onValueChange={setSearchInput}
             onApply={applySearch}
             onClear={clearSearch}
-            placeholder="Search address, RTU, or Capex Approved, 2027…"
-            title="Search address, tenant, RTU, or Capex building status (Approved / Submitted / Rejected). Add a year: Approved, 2027"
+            placeholder="Search address, BU #, RTU, or Capex Approved, 2027…"
+            title="Search address, BU # (e.g. BU50454), tenant, RTU, or Capex building status (Approved / Submitted / Rejected). Add a year: Approved, 2027"
           />
           {showTenantCountInfo ? (
             <div className={styles.tenantCountInfo} id="tenant-count-info">

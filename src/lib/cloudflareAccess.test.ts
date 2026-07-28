@@ -47,9 +47,9 @@ describe('cloudflareAccess', () => {
     )
   })
 
-  it('redirects Access hosts through app logout back to the app (auth wall)', async () => {
+  it('clears the OTP session then reloads the QuadReal login wall on Access hosts', async () => {
     const replace = vi.fn()
-    const fetchMock = vi.fn()
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', fetchMock)
     vi.stubGlobal('window', {
       location: {
@@ -59,13 +59,12 @@ describe('cloudflareAccess', () => {
       },
     })
     await redirectToCloudflareAccessWall()
-    const origin = 'https://qr-east-industrial-database.pages.dev'
-    const appRoot = `${origin}/`
-    // Full navigation to app logout only — team logout was showing "Failed to log out".
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(replace).toHaveBeenCalledWith(
-      `${origin}/cdn-cgi/access/logout?returnTo=${encodeURIComponent(appRoot)}`,
-    )
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+    expect(replace).toHaveBeenCalledWith('https://qr-east-industrial-database.pages.dev/')
   })
 
   it('keeps localhost Logout on the local app (no production Access logout)', async () => {

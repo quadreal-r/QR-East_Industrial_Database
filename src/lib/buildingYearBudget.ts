@@ -3,6 +3,52 @@ export function buildingYearBudgetKey(address: string, year: string | number): s
   return `${address.trim()}::${String(year).trim()}`
 }
 
+/** Unique calendar years among visible RTU replacement years (sorted ascending). */
+export function uniqueReplacementYears(
+  units: Array<{ replacementYear?: string | null }>,
+): string[] {
+  const years = new Set<string>()
+  for (const unit of units) {
+    const y = String(unit.replacementYear ?? '').trim()
+    if (/^\d{4}$/.test(y)) years.add(y)
+  }
+  return [...years].sort((a, b) => Number(a) - Number(b))
+}
+
+export type CapexPotYearResolution =
+  | { mode: 'single'; year: string }
+  | { mode: 'multi'; years: string[] }
+
+/**
+ * Capex pot year(s) for the building detail view.
+ * - Explicit Repl. Year filter (YYYY) → that year only
+ * - Otherwise follow unique Repl. Years on the visible RTU rows
+ *   (one shared year → single pot; several → list those Capex years)
+ * - No visible years → fall back to the estimate / pricing year
+ */
+export function resolveCapexPotYears(opts: {
+  replacementYearFilter: string
+  visibleUnits: Array<{ replacementYear?: string | null }>
+  fallbackYear: string
+}): CapexPotYearResolution {
+  const filter = String(opts.replacementYearFilter ?? '').trim()
+  if (/^\d{4}$/.test(filter)) {
+    return { mode: 'single', year: filter }
+  }
+  const years = uniqueReplacementYears(opts.visibleUnits)
+  if (years.length === 1) {
+    return { mode: 'single', year: years[0]! }
+  }
+  if (years.length > 1) {
+    return { mode: 'multi', years }
+  }
+  const fallback = String(opts.fallbackYear ?? '').trim()
+  if (/^\d{4}$/.test(fallback)) {
+    return { mode: 'single', year: fallback }
+  }
+  return { mode: 'single', year: '2026' }
+}
+
 export function parseBuildingYearBudgetKey(
   key: string,
 ): { address: string; year: string } | null {

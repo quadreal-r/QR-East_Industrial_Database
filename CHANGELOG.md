@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.95] - 2026-07-28
+
+### Added
+
+- Capex Pot follows the Repl. Year(s) on screen (one year → that pot; several → list related Capex amounts)
+- Global search by BU # (`BU50454`, `BU #50454`, or bare digits)
+- Known-as address aliases (e.g. 7540 Jane Street ↔ Interchange - Mobile Climate Control)
+- Sylvia Capex working-sheet import: yellow = Submitted, green = Approved, comments set RTU replacement years
+- Email OTP access wall and QuadReal login branding for Cloudflare Access
+
+### Changed
+
+- Age Today = current year − install; Age on Repl. Year = that RTU’s replacement year − install
+- Sync the embedded Map360 viewer to v1.2.85
+
+### Fixed
+
+- Capex Pot no longer sticks on estimate year 2026 when Repl. Year filter is All
+
 ## [1.14.78] - 2026-07-27
 
 ### Changed

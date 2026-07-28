@@ -1,4 +1,5 @@
 import type { Building } from '@/types/domain'
+import { aliasesForBuildingAddress } from '@/lib/buildingAddressAliases'
 
 const STREET_SUFFIXES =
   /\s+(drive|dr|road|rd|avenue|ave|way|street|st|crescent|cres|boulevard|blvd|court|crt|lane|ln|place|pl)\.?$/i
@@ -60,8 +61,11 @@ export interface BuildingAddressIndex {
 export function buildBuildingAddressIndex(buildings: Building[]): BuildingAddressIndex {
   const byKey = new Map<string, Building>()
   for (const building of buildings) {
-    for (const key of buildingAddressKeys(building.address)) {
-      if (!byKey.has(key)) byKey.set(key, building)
+    const labels = [building.address, ...aliasesForBuildingAddress(building.address)]
+    for (const label of labels) {
+      for (const key of buildingAddressKeys(label)) {
+        if (!byKey.has(key)) byKey.set(key, building)
+      }
     }
   }
   return { byKey, buildings }

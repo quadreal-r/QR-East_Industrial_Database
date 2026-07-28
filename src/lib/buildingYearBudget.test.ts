@@ -6,7 +6,9 @@ import {
   equalShareFromBuildingYearPots,
   filterBuildingYearBudgetsForView,
   remainingBuildingYearBudget,
+  resolveCapexPotYears,
   sumBuildingYearBudgets,
+  uniqueReplacementYears,
 } from '@/lib/buildingYearBudget'
 
 describe('buildingYearBudget helpers', () => {
@@ -72,5 +74,64 @@ describe('buildingYearBudget helpers', () => {
       [buildingYearBudgetKey('1850 Derry Road East', 2026)]: 10_000,
       [buildingYearBudgetKey('1850 Derry Road East', 2027)]: 20_000,
     })
+  })
+
+  it('lists unique replacement years from visible RTUs', () => {
+    expect(
+      uniqueReplacementYears([
+        { replacementYear: '2028' },
+        { replacementYear: '2028' },
+        { replacementYear: '2027' },
+        { replacementYear: '' },
+        { replacementYear: null },
+      ]),
+    ).toEqual(['2027', '2028'])
+  })
+
+  it('resolves Capex pot year from an explicit Repl. Year filter', () => {
+    expect(
+      resolveCapexPotYears({
+        replacementYearFilter: '2029',
+        visibleUnits: [{ replacementYear: '2028' }],
+        fallbackYear: '2026',
+      }),
+    ).toEqual({ mode: 'single', year: '2029' })
+  })
+
+  it('uses the shared Repl. Year when filter is All and all units match', () => {
+    expect(
+      resolveCapexPotYears({
+        replacementYearFilter: '',
+        visibleUnits: [
+          { replacementYear: '2028' },
+          { replacementYear: '2028' },
+        ],
+        fallbackYear: '2026',
+      }),
+    ).toEqual({ mode: 'single', year: '2028' })
+  })
+
+  it('lists Capex years when visible RTUs span multiple Repl. Years', () => {
+    expect(
+      resolveCapexPotYears({
+        replacementYearFilter: '',
+        visibleUnits: [
+          { replacementYear: '2028' },
+          { replacementYear: '2027' },
+          { replacementYear: '2028' },
+        ],
+        fallbackYear: '2026',
+      }),
+    ).toEqual({ mode: 'multi', years: ['2027', '2028'] })
+  })
+
+  it('falls back to the estimate year when no Repl. Years are visible', () => {
+    expect(
+      resolveCapexPotYears({
+        replacementYearFilter: '',
+        visibleUnits: [],
+        fallbackYear: '2026',
+      }),
+    ).toEqual({ mode: 'single', year: '2026' })
   })
 })

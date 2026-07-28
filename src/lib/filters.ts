@@ -2,6 +2,8 @@ import {
   buildingMatchesCapexStatusSearch,
   parseCapexStatusSearchQuery,
 } from '@/lib/capexStatusSearch'
+import { buildingAddressMatchesSearch } from '@/lib/buildingAddressAliases'
+import { normalizeCapexBu } from '@/lib/capexSharedBu'
 import { RTU_AGE_WARN } from '@/lib/constants'
 import { collectBuildingOperatorFilterOptions } from '@/lib/buildingOperators'
 import { hasPlaceholderGps, hasVacant, mlCount } from '@/lib/dataQuality'
@@ -31,6 +33,28 @@ const ADV_RTU_AGE_THRESHOLD = 20
 
 function normalizeSearch(search: string): string {
   return search.trim().toLowerCase()
+}
+
+/**
+ * Match building BU # for global search.
+ * Accepts bare codes (`50454`) and prefixed forms (`BU50454`, `BU #50454`, `bu:50454`).
+ */
+export function buildingBuMatchesSearch(
+  bu: string | null | undefined,
+  query: string,
+): boolean {
+  const buRaw = String(bu ?? '').trim()
+  if (!buRaw) return false
+  const q = String(query ?? '').trim().toLowerCase()
+  if (!q) return false
+  const buLower = buRaw.toLowerCase()
+  if (buLower.includes(q)) return true
+
+  const prefixed = q.match(/^bu\s*[#:]?\s*(\d+)$/)
+  if (!prefixed?.[1]) return false
+  const needle = normalizeCapexBu(prefixed[1])
+  const hay = normalizeCapexBu(buRaw)
+  return hay === needle || hay.includes(needle) || buLower.includes(prefixed[1])
 }
 
 /** Same wording as the building-list badge (e.g. "33 Tenants"). */
@@ -102,8 +126,8 @@ export function matchesBuildingMetadata(
       statusQuery.year,
     )
   }
-  if (building.address.toLowerCase().includes(q)) return true
-  if (building.bu?.toLowerCase().includes(q)) return true
+  if (buildingAddressMatchesSearch(building.address, q)) return true
+  if (buildingBuMatchesSearch(building.bu, q)) return true
   if (building.cluster?.toLowerCase().includes(q)) return true
   if (building.manager?.toLowerCase().includes(q)) return true
   if (building.buildingOperator?.toLowerCase().includes(q)) return true
@@ -143,8 +167,8 @@ export function matchesSearch(
     )
   }
 
-  if (building.address.toLowerCase().includes(q)) return true
-  if (building.bu?.toLowerCase().includes(q)) return true
+  if (buildingAddressMatchesSearch(building.address, q)) return true
+  if (buildingBuMatchesSearch(building.bu, q)) return true
   if (building.cluster?.toLowerCase().includes(q)) return true
   if (building.manager?.toLowerCase().includes(q)) return true
   if (building.buildingOperator?.toLowerCase().includes(q)) return true
@@ -537,8 +561,8 @@ export function isDetailOnlySearch(
 
   return !filtered.some(
     (b) =>
-      b.address.toLowerCase().includes(q) ||
-      Boolean(b.bu?.toLowerCase().includes(q)) ||
+      buildingAddressMatchesSearch(b.address, q) ||
+      buildingBuMatchesSearch(b.bu, q) ||
       Boolean(b.cluster?.toLowerCase().includes(q)) ||
       Boolean(b.manager?.toLowerCase().includes(q)),
   )

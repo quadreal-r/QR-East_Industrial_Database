@@ -45,6 +45,29 @@ describe('matchesSearch', () => {
     expect(matchesSearch(hit!, '1850', polygonIndex)).toBe(true)
   })
 
+  it('matches BU # with or without BU prefix', () => {
+    const hit = buildings.find((b) => b.bu === '50454')
+    expect(hit).toBeDefined()
+    expect(hit!.address).toMatch(/50 Leek/i)
+    expect(matchesSearch(hit!, '50454', polygonIndex)).toBe(true)
+    expect(matchesSearch(hit!, 'BU50454', polygonIndex)).toBe(true)
+    expect(matchesSearch(hit!, 'BU #50454', polygonIndex)).toBe(true)
+    expect(matchesSearch(hit!, 'bu:50454', polygonIndex)).toBe(true)
+  })
+
+  it('matches known-as alias for 7540 Jane Street', () => {
+    const hit = buildings.find((b) => b.address === '7540 Jane Street')
+    expect(hit).toBeDefined()
+    expect(matchesSearch(hit!, 'Mobile Climate Control', polygonIndex)).toBe(true)
+    expect(
+      matchesSearch(
+        hit!,
+        '7540 Jane Street (Interchange - Mobile Climate Control)',
+        polygonIndex,
+      ),
+    ).toBe(true)
+  })
+
   it('matches tenant polygon description', () => {
     const hit = buildings.find((b) =>
       polygonsForBuilding(polygonIndex, b.address).some((polygon) =>

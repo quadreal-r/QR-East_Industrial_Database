@@ -5,7 +5,7 @@ import {
   type RcbPricingTable,
   type RtuPricingUnit,
 } from '@/lib/costEstimator.pricing'
-import { getRtuAge, getRtuYear, parseRtuMeta, rcbGetTons } from '@/lib/rtu'
+import { ageAtCalendarYear, getRtuAge, getRtuYear, parseRtuMeta, rcbGetTons } from '@/lib/rtu'
 import type { Building, CostBasis } from '@/types/domain'
 
 export {
@@ -319,9 +319,10 @@ export function rcbCostForTier(
 }
 
 /**
- * Attach per-RTU replacement year assignments (planning label only).
- * Does not change cost or age — those stay from the aged-unit cost estimate.
- * Unassigned RTUs show defaultYear in the UI but are not treated as assigned for filters.
+ * Attach per-RTU replacement year assignments.
+ * Cost stays from the pricing-year estimate; Age becomes age on that RTU's Repl. Year
+ * (replacement year − install year). Unassigned RTUs show defaultYear in the UI but are
+ * not treated as assigned for filters.
  */
 export function rcbLineItemsWithReplacementYears(
   items: RcbLineItem[],
@@ -335,7 +336,12 @@ export function rcbLineItemsWithReplacementYears(
   return items.map((item) => {
     const key = rcbReplacementYearKey(item.address, item.rtu)
     const replacementYear = assignments[key] ?? defaultYear
-    return { ...item, replacementYear }
+    const ageOnRepl = ageAtCalendarYear(item.year, replacementYear)
+    return {
+      ...item,
+      replacementYear,
+      age: ageOnRepl ?? item.age,
+    }
   })
 }
 

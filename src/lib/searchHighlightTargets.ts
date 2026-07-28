@@ -1,5 +1,6 @@
 import { isCapexStatusSearch } from '@/lib/capexStatusSearch'
-import { isTenantCountSearch } from '@/lib/filters'
+import { buildingAddressMatchesSearch } from '@/lib/buildingAddressAliases'
+import { buildingBuMatchesSearch, isTenantCountSearch } from '@/lib/filters'
 import {
   buildingForPolygon,
   buildPolygonBuildingIndex,
@@ -56,15 +57,15 @@ function normalizeSearch(search: string): string {
 }
 
 function buildingMatchesQuery(building: Building, q: string): boolean {
-  if (building.address.toLowerCase().includes(q)) return true
-  if (building.bu?.toLowerCase().includes(q)) return true
+  if (buildingAddressMatchesSearch(building.address, q)) return true
+  if (buildingBuMatchesSearch(building.bu, q)) return true
   if (building.manager?.toLowerCase().includes(q)) return true
   if (building.buildingOperator?.toLowerCase().includes(q)) return true
   return false
 }
 
 function buildingAddressMatchesQuery(building: Building, q: string): boolean {
-  return building.address.toLowerCase().includes(q)
+  return buildingAddressMatchesSearch(building.address, q)
 }
 
 function collectBuildingAddressHighlightTargets(

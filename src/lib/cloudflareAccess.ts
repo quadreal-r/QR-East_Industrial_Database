@@ -104,17 +104,10 @@ export function clearBrowserAuthStorage(): void {
 }
 
 /**
- * After app sign-out, leave the program and show the Cloudflare Access wall.
+ * After app sign-out, clear the QuadReal OTP session cookie and show the login wall.
+ * Falls back to Cloudflare Access logout only when the OTP wall is not configured.
  *
- * Use a single same-origin Access logout (full navigation). That clears the
- * app `CF_Authorization` cookie and redirects to the app root, where Access
- * presents the login wall.
- *
- * Do not chain team-domain logout here — with an active SSO session that path
- * often lands on Cloudflare’s “Failed to log out” page. App logout alone is
- * enough to require Access again for this site.
- *
- * On localhost there is no Access wall — stay on the local app logged out.
+ * On localhost there is no OTP/Access wall — stay on the local app logged out.
  */
 export async function redirectToCloudflareAccessWall(): Promise<void> {
   if (typeof window === 'undefined') return
@@ -123,7 +116,18 @@ export async function redirectToCloudflareAccessWall(): Promise<void> {
     return
   }
 
-  window.location.replace(cloudflareAccessAppLogoutUrl(window.location.origin))
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+  } catch {
+    /* still leave for the wall */
+  }
+
+  // Reload app root — middleware serves the QuadReal OTP wall when logged out.
+  window.location.replace(`${window.location.origin}/`)
 }
 
 /**

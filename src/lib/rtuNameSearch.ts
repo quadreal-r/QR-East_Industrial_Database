@@ -1,5 +1,6 @@
 import { isCapexStatusSearch } from '@/lib/capexStatusSearch'
-import { isTenantCountSearch } from '@/lib/filters'
+import { buildingAddressMatchesSearch } from '@/lib/buildingAddressAliases'
+import { buildingBuMatchesSearch, isTenantCountSearch } from '@/lib/filters'
 import { rtuMatchesSearch } from '@/lib/rtuSearch'
 import type { Building, Rtu } from '@/types/domain'
 
@@ -17,8 +18,8 @@ function normalize(search: string): string {
 
 function buildingMetadataMatches(building: Building, q: string): boolean {
   return (
-    building.address.toLowerCase().includes(q) ||
-    Boolean(building.bu?.toLowerCase().includes(q)) ||
+    buildingAddressMatchesSearch(building.address, q) ||
+    buildingBuMatchesSearch(building.bu, q) ||
     Boolean(building.cluster?.toLowerCase().includes(q)) ||
     Boolean(building.manager?.toLowerCase().includes(q))
   )

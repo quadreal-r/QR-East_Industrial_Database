@@ -130,6 +130,11 @@ export default defineConfig(({ mode }) => {
     outDir: 'dist',
     sourcemap: true,
   },
+  // Only crawl the map app entry. public/insp360/viewer.html is a standalone
+  // embed (CDN import map) and must not be treated as a Vite dependency root.
+  optimizeDeps: {
+    entries: ['index.html'],
+  },
   server: {
     host: '127.0.0.1',
     // 5173 is reserved for QR Drawing Explorer on this machine.

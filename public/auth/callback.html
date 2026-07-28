@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signing in…</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #132049;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    p { opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <p id="msg">Signing you in…</p>
+  <script type="module">
+    const msg = document.getElementById('msg')
+    const hash = new URLSearchParams(location.hash.slice(1))
+    const query = new URLSearchParams(location.search)
+    const error = hash.get('error_description') || query.get('error_description') || hash.get('error') || query.get('error')
+    if (error) {
+      msg.textContent = error
+      throw new Error(error)
+    }
+
+    const access_token = hash.get('access_token')
+    if (!access_token) {
+      msg.textContent = 'Missing sign-in token. Go back and request a new email.'
+      throw new Error('missing token')
+    }
+
+    const res = await fetch('/api/auth/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ access_token }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      msg.textContent = body.error || 'Sign-in failed. Request a new email.'
+      throw new Error(body.error || 'complete failed')
+    }
+    location.replace('/')
+  </script>
+</body>
+</html>

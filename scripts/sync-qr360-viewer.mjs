@@ -98,6 +98,29 @@ function clearOldVersions(keepName) {
   }
 }
 
+const DEFAULT_THREE_CDN =
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'
+
+/**
+ * Standalone viewer uses `import … from 'three'` + an import map (CDN).
+ * Vite's dependency scanner ignores import maps, so a bare `three` import
+ * prints "Failed to run dependency scan" on `npm run dev`. Rewrite to the
+ * absolute CDN URL so local map + embed keep working without installing three.
+ */
+function rewriteBareThreeImport(html) {
+  let threeUrl = DEFAULT_THREE_CDN
+  const mapMatch = html.match(/<script\s+type=["']importmap["']>\s*(\{[\s\S]*?\})\s*<\/script>/i)
+  if (mapMatch) {
+    try {
+      const mapped = JSON.parse(mapMatch[1])?.imports?.three
+      if (typeof mapped === 'string' && /^https?:\/\//i.test(mapped)) threeUrl = mapped
+    } catch {
+      // keep DEFAULT_THREE_CDN
+    }
+  }
+  return html.replace(/\bfrom\s*(['"])three\1/g, `from ${JSON.stringify(threeUrl)}`)
+}
+
 /**
  * Stamp product + semver into a viewer HTML copy.
  * @param {'Map360'|'QR360'} product
@@ -133,6 +156,7 @@ function stampViewerEdition(filePath, version, product) {
     /(<span id="appVer"[^>]*title=")[^"]*(")/i,
     `$1${title}$2`,
   )
+  html = rewriteBareThreeImport(html)
   fs.writeFileSync(filePath, html, 'utf8')
   return label
 }

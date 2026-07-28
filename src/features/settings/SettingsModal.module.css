@@ -405,6 +405,24 @@
   min-height: 0;
 }
 
+.userListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.userListActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
 .userListSearchRow {
   display: flex;
   gap: 8px;
@@ -414,6 +432,30 @@
 .userListSearchRow .mgrInput {
   flex: 1;
   margin: 0;
+}
+
+.sortBtn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  background: rgba(125, 184, 255, 0.12);
+  color: var(--text-secondary, #c8dff8);
+  border: 1px solid rgba(125, 184, 255, 0.35);
+  white-space: nowrap;
+}
+
+.sortBtn:hover:not(:disabled) {
+  background: rgba(125, 184, 255, 0.22);
+  color: #fff;
+}
+
+.sortBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .userListMeta {

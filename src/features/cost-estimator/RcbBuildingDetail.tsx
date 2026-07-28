@@ -11,6 +11,7 @@ import {
 } from '@/lib/costEstimator'
 import {
   remainingBuildingYearBudget,
+  resolveCapexPotYears,
   sumSharedBuildingYearBudgets,
   sumSharedBuildingYearPot,
 } from '@/lib/buildingYearBudget'
@@ -133,13 +134,30 @@ export function RcbBuildingDetail({
   const setBuildingYearBudget = useBuildingYearBudgetStore((s) => s.setBuildingYearBudget)
 
   /**
-   * Capex pot year follows the building year filter when set; otherwise the default Capex year.
-   * Allocations always deduct from each RTU’s own Repl. year pot.
+   * Capex pot year follows:
+   * 1) explicit Repl. Year filter when set to a calendar year
+   * 2) otherwise the unique Repl. Year(s) on the visible RTU rows
+   *    — one shared year → that pot; several → list related Capex years
+   * 3) fallback to the estimate / pricing year when nothing is visible
    */
+  const potYearResolution = useMemo(
+    () =>
+      resolveCapexPotYears({
+        replacementYearFilter,
+        visibleUnits: viewSummary.displayed,
+        fallbackYear: defaultReplacementYear,
+      }),
+    [replacementYearFilter, viewSummary.displayed, defaultReplacementYear],
+  )
   const potEditYear =
-    replacementYearFilter && /^\d{4}$/.test(replacementYearFilter)
-      ? replacementYearFilter
-      : defaultReplacementYear
+    potYearResolution.mode === 'single'
+      ? potYearResolution.year
+      : potYearResolution.years[0] ?? defaultReplacementYear
+  const relatedPotYears = useMemo(
+    () =>
+      potYearResolution.mode === 'multi' ? potYearResolution.years : [potEditYear],
+    [potYearResolution, potEditYear],
+  )
   const yearFilterLabel =
     replacementYearFilter === RCB_REPL_YEAR_NONE
       ? 'None'
@@ -194,6 +212,41 @@ export function RcbBuildingDetail({
         }
       })
   }, [building, potOwnerAddress, shareAddresses, pots, potNotes, potStatuses, potJobTypes])
+
+  /** Capex pots tied to the Repl. Year(s) currently on screen (submitted / approved amounts). */
+  const relatedCapexPots = useMemo(() => {
+    const related = new Set(relatedPotYears)
+    const fromNotes = buildingPotNotes.filter((row) => related.has(row.year))
+    const seen = new Set(fromNotes.map((row) => row.year))
+    // Include related Repl. Years even when no pot amount is stored yet.
+    const missing = relatedPotYears
+      .filter((year) => !seen.has(year))
+      .map((year) => {
+        const localKey = `${building.address}::${year}`
+        const ownerKey = `${potOwnerAddress}::${year}`
+        return {
+          year,
+          amount: 0,
+          note: potNotes[localKey]?.trim() || potNotes[ownerKey]?.trim() || '',
+          status: potStatuses[localKey]?.trim() || potStatuses[ownerKey]?.trim() || '',
+          jobProjectType: potJobTypes[localKey]?.trim() || potJobTypes[ownerKey]?.trim() || '',
+        }
+      })
+    return [...fromNotes, ...missing].sort((a, b) => Number(a.year) - Number(b.year))
+  }, [
+    relatedPotYears,
+    buildingPotNotes,
+    building.address,
+    potOwnerAddress,
+    potNotes,
+    potStatuses,
+    potJobTypes,
+  ])
+
+  const relatedPotsTotal = useMemo(
+    () => relatedCapexPots.reduce((sum, row) => sum + (row.amount > 0 ? row.amount : 0), 0),
+    [relatedCapexPots],
+  )
 
   const yearOptions = useMemo(() => {
     const base = rcbScheduleYearOptions(
@@ -348,7 +401,7 @@ export function RcbBuildingDetail({
               : ''}
             {sharedBuLabel ? ` · ${sharedBuLabel}` : ''}
             {' · '}
-            Capex pot is by year; RTU budgets draw down that year
+            Capex pot follows Repl. Year; RTU budgets draw down that year
           </p>
         </div>
         <div className={styles.buildingDetailKpis}>
@@ -360,55 +413,113 @@ export function RcbBuildingDetail({
             <strong>{rcbMoney(viewSummary.displayedCost)}</strong>
           </span>
           <div className={styles.buildingBudgetKpi}>
-            <span className={styles.budgetKpiLabel}>Capex pot {potEditYear}</span>
-            {/* Pot total = Capex − RTU Repl. Budget Allocations for this year (updates live). */}
-            <div className={styles.capexPotEdit}>
-              <span className={styles.capexPotEditLab}>Pot total</span>
-              <strong
-                className={
-                  activeYearRemaining > 0
-                    ? styles.capexRemainingOk
-                    : activeYearRemaining < 0
-                      ? styles.capexRemainingOver
-                      : styles.capexRemainingNeutral
-                }
-                title={`${rcbMoney(activeYearPot)} Capex − ${rcbMoney(activeYearAllocated)} allocated = ${rcbMoney(activeYearRemaining)} left`}
-              >
-                {rcbMoney(activeYearRemaining)}
-              </strong>
-            </div>
-            <label className={styles.capexPotEdit}>
-              <span className={styles.capexPotEditLab}>Capex pot</span>
-              <BudgetAmountInput
-                value={activeYearPot > 0 ? activeYearPot : null}
-                onCommit={handleBuildingYearPotCommit}
-                title={`Set Capex pot for ${potEditYear}. RTU Repl. Budget Allocations deduct from Pot total.`}
-                ariaLabel={`Capex pot ${potEditYear} for ${building.address}`}
-                className={styles.buildingBudgetInput}
-              />
-            </label>
-            {activeYearAllocated > 0 ? (
-              <span
-                className={styles.budgetVarianceNeutral}
-                title={`Sum of RTU Repl. Budget Allocations for ${potEditYear}`}
-              >
-                −{rcbMoney(activeYearAllocated)} allocated
-              </span>
-            ) : null}
-            {buildingPotTotal > 0 && !replacementYearFilter ? (
-              <span
-                className={
-                  allYearsRemaining > 0
-                    ? styles.budgetVarianceOver
-                    : allYearsRemaining < 0
-                      ? styles.budgetVarianceUnder
-                      : styles.budgetVarianceNeutral
-                }
-                title={`${rcbMoney(buildingPotTotal)} all Capex pots − ${rcbMoney(allYearsAllocated)} allocated`}
-              >
-                All years {rcbMoney(allYearsRemaining)} left
-              </span>
-            ) : null}
+            {potYearResolution.mode === 'multi' ? (
+              <>
+                <span className={styles.budgetKpiLabel}>
+                  Capex pots · Repl. Years
+                </span>
+                <div className={styles.capexPotEdit}>
+                  <span className={styles.capexPotEditLab}>Related total</span>
+                  <strong
+                    className={
+                      relatedPotsTotal > 0
+                        ? styles.capexRemainingOk
+                        : styles.capexRemainingNeutral
+                    }
+                    title="Sum of Capex pots for the Repl. Years shown in the RTU table"
+                  >
+                    {rcbMoney(relatedPotsTotal)}
+                  </strong>
+                </div>
+                <ul className={styles.capexRelatedYearList} aria-label="Capex pots by Repl. Year">
+                  {relatedCapexPots.map((row) => (
+                    <li key={row.year} className={styles.capexRelatedYearItem}>
+                      <button
+                        type="button"
+                        className={styles.capexRelatedYearBtn}
+                        onClick={() => onReplacementYearFilterChange(row.year)}
+                        title={`Filter Repl. Year to ${row.year} to edit this Capex pot`}
+                      >
+                        {row.year}
+                      </button>
+                      <span className={styles.capexRelatedYearAmount}>
+                        {row.amount > 0 ? rcbMoney(row.amount) : '—'}
+                      </span>
+                      {row.status ? (
+                        <span
+                          className={`${styles.capexRelatedYearStatus} ${
+                            /rejected/i.test(row.status)
+                              ? styles.capexSourceStatusRejected
+                              : /approved/i.test(row.status)
+                                ? styles.capexSourceStatusApproved
+                                : styles.capexSourceStatusSubmitted
+                          }`}
+                        >
+                          {row.status}
+                        </span>
+                      ) : (
+                        <span className={styles.capexRelatedYearStatusMuted}>—</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <span className={styles.capexRelatedYearHint}>
+                  Click a year to edit that Capex pot
+                </span>
+              </>
+            ) : (
+              <>
+                <span className={styles.budgetKpiLabel}>Capex pot {potEditYear}</span>
+                {/* Pot total = Capex − RTU Repl. Budget Allocations for this year (updates live). */}
+                <div className={styles.capexPotEdit}>
+                  <span className={styles.capexPotEditLab}>Pot total</span>
+                  <strong
+                    className={
+                      activeYearRemaining > 0
+                        ? styles.capexRemainingOk
+                        : activeYearRemaining < 0
+                          ? styles.capexRemainingOver
+                          : styles.capexRemainingNeutral
+                    }
+                    title={`${rcbMoney(activeYearPot)} Capex − ${rcbMoney(activeYearAllocated)} allocated = ${rcbMoney(activeYearRemaining)} left`}
+                  >
+                    {rcbMoney(activeYearRemaining)}
+                  </strong>
+                </div>
+                <label className={styles.capexPotEdit}>
+                  <span className={styles.capexPotEditLab}>Capex pot</span>
+                  <BudgetAmountInput
+                    value={activeYearPot > 0 ? activeYearPot : null}
+                    onCommit={handleBuildingYearPotCommit}
+                    title={`Set Capex pot for ${potEditYear}. RTU Repl. Budget Allocations deduct from Pot total.`}
+                    ariaLabel={`Capex pot ${potEditYear} for ${building.address}`}
+                    className={styles.buildingBudgetInput}
+                  />
+                </label>
+                {activeYearAllocated > 0 ? (
+                  <span
+                    className={styles.budgetVarianceNeutral}
+                    title={`Sum of RTU Repl. Budget Allocations for ${potEditYear}`}
+                  >
+                    −{rcbMoney(activeYearAllocated)} allocated
+                  </span>
+                ) : null}
+                {buildingPotTotal > 0 && !replacementYearFilter ? (
+                  <span
+                    className={
+                      allYearsRemaining > 0
+                        ? styles.budgetVarianceOver
+                        : allYearsRemaining < 0
+                          ? styles.budgetVarianceUnder
+                          : styles.budgetVarianceNeutral
+                    }
+                    title={`${rcbMoney(buildingPotTotal)} all Capex pots − ${rcbMoney(allYearsAllocated)} allocated`}
+                  >
+                    All years {rcbMoney(allYearsRemaining)} left
+                  </span>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -424,11 +535,13 @@ export function RcbBuildingDetail({
             <span>Source note</span>
           </div>
           <ul className={styles.capexSourceList}>
-            {buildingPotNotes.map((row) => (
+            {buildingPotNotes.map((row) => {
+              const isRelated = relatedPotYears.includes(row.year)
+              return (
               <li
                 key={row.year}
                 className={
-                  row.year === potEditYear
+                  isRelated
                     ? `${styles.capexSourceItem} ${styles.capexSourceItemActive}`
                     : styles.capexSourceItem
                 }
@@ -479,7 +592,8 @@ export function RcbBuildingDetail({
                       : '—')}
                 </span>
               </li>
-            ))}
+              )
+            })}
           </ul>
         </div>
       ) : null}
@@ -514,7 +628,7 @@ export function RcbBuildingDetail({
                 </th>
                 <th
                   className={`num ${styles.ageHeaderTh}`}
-                  title="Age on selected Repl. Year (install → Repl. Year)"
+                  title="Age on this RTU's Repl. Year (replacement year − install year)"
                 >
                   <button
                     type="button"

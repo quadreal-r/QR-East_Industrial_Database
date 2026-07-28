@@ -103,7 +103,7 @@ describe('rcbCompute', () => {
     expect(tiers.reduce((sum, tier) => sum + tier.qty, 0)).toBe(items.length)
   })
 
-  it('attaches replacement year as a label without changing cost or age', () => {
+  it('attaches replacement year and sets age to age on that Repl. Year', () => {
     const subset = buildings.filter((b) => b.address === '1850 Derry Road East')
     const result = rcbCompute(subset, {
       basis: 'hyb',
@@ -114,6 +114,7 @@ describe('rcbCompute', () => {
     const base = rcbLineItemsForBuilding(result, '1850 Derry Road East')
     const first = base[0]
     expect(first).toBeDefined()
+    expect(first!.year).not.toBeNull()
 
     const key = `${first!.address}::${first!.rtu}`
     const scheduled = rcbLineItemsWithReplacementYears(base, 'hyb', '2026', {
@@ -122,7 +123,9 @@ describe('rcbCompute', () => {
     const scheduledItem = scheduled.find((item) => item.rtu === first!.rtu)
     expect(scheduledItem?.replacementYear).toBe('2028')
     expect(scheduledItem?.cost).toBe(first!.cost)
-    expect(scheduledItem?.age).toBe(first!.age)
+    // Age on Repl. Year = replacement year − install (not age as of today / filter year).
+    expect(scheduledItem?.age).toBe(2028 - first!.year!)
+    expect(scheduledItem?.age).not.toBe(first!.age)
   })
 
   it('keeps all valid year assignments including the default year', () => {

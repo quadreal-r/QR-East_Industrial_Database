@@ -52,4 +52,4 @@ Agent skill: `.cursor/skills/push-cloudflare-build/SKILL.md`
 ## Related docs
 
 - Tours / insp360 bucket: [INSP360_R2.md](INSP360_R2.md)
-- Map app Access wall (quadreal): [CLOUDFLARE_ACCESS.md](CLOUDFLARE_ACCESS.md) (Cloudflare copy only)
+- Map app Access wall (quadreal): [CLOUDFLARE_ACCESS.md](CLOUDFLARE_ACCESS.md)
