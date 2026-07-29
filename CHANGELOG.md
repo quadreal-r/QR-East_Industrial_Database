@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.14.97] - 2026-07-29
+
+### Added
+
+- Viewers can edit and save Cost Center RTU $ Allocations and notes (Capex pot and Repl. Year stay admin-only)
+
+### Changed
+
+- Cost Center size control: yellow toggles half / minimize; green toggles full / minimize (red sphere removed)
+- Sync the embedded Map360 viewer to v1.2.86
+
 ## [1.14.95] - 2026-07-28
 
 ### Added

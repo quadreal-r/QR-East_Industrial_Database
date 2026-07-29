@@ -67,7 +67,7 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Use this for schedule, pri
 ## RLS
 
 - **Anonymous:** `SELECT` on all tables
-- **Viewer:** read-only
+- **Viewer:** read-only, plus UPDATE on `rtus.budget` and `rtus.replacement_note` (Cost Center RTU $ Allocation and notes)
 - **Admin:** read/write through `is_app_editor()`
 
 Cloudflare Access is the only cloud login. The app silently creates a Supabase session so RLS

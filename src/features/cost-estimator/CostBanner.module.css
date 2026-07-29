@@ -594,16 +594,12 @@
     inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
 
-.stageSphereMin {
+.stageSphereHalf {
   background: radial-gradient(circle at 35% 30%, #fde047, #eab308 55%, #a16207);
 }
 
-.stageSphereHalf {
-  background: radial-gradient(circle at 35% 30%, #86efac, #22c55e 55%, #15803d);
-}
-
 .stageSphereFull {
-  background: radial-gradient(circle at 35% 30%, #fca5a5, #ef4444 55%, #b91c1c);
+  background: radial-gradient(circle at 35% 30%, #86efac, #22c55e 55%, #15803d);
 }
 
 .rcbEmpty {

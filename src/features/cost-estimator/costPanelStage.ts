@@ -1,8 +1,11 @@
 export type CostPanelStage = 'minimized' | 'half' | 'full'
 
-const COST_PANEL_STAGE_ORDER: CostPanelStage[] = ['minimized', 'half', 'full']
+/** Yellow sphere: half screen ↔ minimized (from full, opens half). */
+export function toggleHalfOrMinimized(stage: CostPanelStage): CostPanelStage {
+  return stage === 'half' ? 'minimized' : 'half'
+}
 
-export function nextCostPanelStage(stage: CostPanelStage): CostPanelStage {
-  const i = COST_PANEL_STAGE_ORDER.indexOf(stage)
-  return COST_PANEL_STAGE_ORDER[(i + 1) % COST_PANEL_STAGE_ORDER.length]!
+/** Green sphere: full screen ↔ minimized (from half, opens full). */
+export function toggleFullOrMinimized(stage: CostPanelStage): CostPanelStage {
+  return stage === 'full' ? 'minimized' : 'full'
 }

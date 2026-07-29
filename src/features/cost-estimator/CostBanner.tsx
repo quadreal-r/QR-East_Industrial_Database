@@ -49,7 +49,11 @@ import { useRtuPricingStore } from '@/stores/rtuPricingStore'
 import { useRtuScheduleStore } from '@/stores/rtuScheduleStore'
 import type { Building, CostBasis } from '@/types/domain'
 import { RcbBuildingDetail } from './RcbBuildingDetail'
-import type { CostPanelStage } from './costPanelStage'
+import {
+  toggleFullOrMinimized,
+  toggleHalfOrMinimized,
+  type CostPanelStage,
+} from './costPanelStage'
 import styles from './CostBanner.module.css'
 
 export interface CostBannerProps {
@@ -1069,22 +1073,20 @@ export function CostBanner({ buildings }: CostBannerProps) {
           >
             <button
               type="button"
-              className={`${styles.stageSphere} ${styles.stageSphereMin}${
-                effectiveStage === 'minimized' ? ` ${styles.stageSphereActive}` : ''
-              }`}
-              onClick={() => setCostPanelStage('minimized')}
-              title="Minimize"
-              aria-label="Minimize cost center"
-              aria-pressed={effectiveStage === 'minimized'}
-            />
-            <button
-              type="button"
               className={`${styles.stageSphere} ${styles.stageSphereHalf}${
                 effectiveStage === 'half' ? ` ${styles.stageSphereActive}` : ''
               }`}
-              onClick={() => setCostPanelStage('half')}
-              title="Half screen"
-              aria-label="Half-screen cost center"
+              onClick={() => setCostPanelStage(toggleHalfOrMinimized(effectiveStage))}
+              title={
+                effectiveStage === 'half'
+                  ? 'Minimize'
+                  : 'Half screen (click again to minimize)'
+              }
+              aria-label={
+                effectiveStage === 'half'
+                  ? 'Minimize cost center'
+                  : 'Half-screen cost center'
+              }
               aria-pressed={effectiveStage === 'half'}
             />
             <button
@@ -1092,9 +1094,17 @@ export function CostBanner({ buildings }: CostBannerProps) {
               className={`${styles.stageSphere} ${styles.stageSphereFull}${
                 effectiveStage === 'full' ? ` ${styles.stageSphereActive}` : ''
               }`}
-              onClick={() => setCostPanelStage('full')}
-              title="Full screen"
-              aria-label="Full-screen cost center"
+              onClick={() => setCostPanelStage(toggleFullOrMinimized(effectiveStage))}
+              title={
+                effectiveStage === 'full'
+                  ? 'Minimize'
+                  : 'Full screen (click again to minimize)'
+              }
+              aria-label={
+                effectiveStage === 'full'
+                  ? 'Minimize cost center'
+                  : 'Full-screen cost center'
+              }
               aria-pressed={effectiveStage === 'full'}
             />
           </div>

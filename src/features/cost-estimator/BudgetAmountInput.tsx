@@ -8,6 +8,8 @@ export interface BudgetAmountInputProps {
   title?: string
   ariaLabel?: string
   className?: string
+  /** When true, shows the value but does not accept edits. */
+  readOnly?: boolean
 }
 
 /** Local draft currency input — commits on blur or Enter. */
@@ -17,6 +19,7 @@ export function BudgetAmountInput({
   title,
   ariaLabel,
   className,
+  readOnly = false,
 }: BudgetAmountInputProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -39,13 +42,22 @@ export function BudgetAmountInput({
       title={title}
       aria-label={ariaLabel}
       placeholder="—"
+      readOnly={readOnly}
       onFocus={() => {
+        if (readOnly) return
         setEditing(true)
         setDraft(formatBudgetInputValue(value))
       }}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
+      onChange={(e) => {
+        if (readOnly) return
+        setDraft(e.target.value)
+      }}
+      onBlur={() => {
+        if (readOnly) return
+        commit()
+      }}
       onKeyDown={(e) => {
+        if (readOnly) return
         if (e.key === 'Enter') {
           e.preventDefault()
           ;(e.target as HTMLInputElement).blur()

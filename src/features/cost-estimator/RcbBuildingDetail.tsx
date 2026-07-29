@@ -23,6 +23,7 @@ import { CAPEX_HVAC_YEAR_COLUMNS } from '@/lib/capexHvacBudgetImport'
 import { RCB_REPL_YEAR_NONE } from '@/lib/constants'
 import { currentYear } from '@/lib/rtu'
 import { sumBuildingBudget } from '@/lib/rtuBudget'
+import { useAuth } from '@/hooks/useAuth'
 import type { Building } from '@/types/domain'
 import { useBuildingYearBudgetStore } from '@/stores/buildingYearBudgetStore'
 import { useRtuBudgetStore } from '@/stores/rtuBudgetStore'
@@ -115,6 +116,7 @@ export function RcbBuildingDetail({
   onReplacementYearChange,
   onBack,
 }: RcbBuildingDetailProps) {
+  const { canEdit } = useAuth()
   const [notesTarget, setNotesTarget] = useState<{ address: string; rtu: string } | null>(null)
   const [sort, setSort] = useState<{ key: RtuSortKey; dir: -1 | 1 }>({
     key: 'rtu',
@@ -491,9 +493,14 @@ export function RcbBuildingDetail({
                   <BudgetAmountInput
                     value={activeYearPot > 0 ? activeYearPot : null}
                     onCommit={handleBuildingYearPotCommit}
-                    title={`Set Capex pot for ${potEditYear}. RTU Repl. Budget Allocations deduct from Pot total.`}
+                    title={
+                      canEdit
+                        ? `Set Capex pot for ${potEditYear}. RTU Repl. Budget Allocations deduct from Pot total.`
+                        : 'Admin access is required to change Capex pot.'
+                    }
                     ariaLabel={`Capex pot ${potEditYear} for ${building.address}`}
                     className={styles.buildingBudgetInput}
+                    readOnly={!canEdit}
                   />
                 </label>
                 {activeYearAllocated > 0 ? (
@@ -762,10 +769,13 @@ export function RcbBuildingDetail({
                               replacementYearByRtu[rcbReplacementYearKey(item.address, item.rtu)] ??
                               ''
                             }
+                            disabled={!canEdit}
                             title={
-                              assigned
-                                ? `Replacement year for ${item.rtu} — choose None to clear`
-                                : `No year assigned for ${item.rtu} — pick a year or leave None`
+                              !canEdit
+                                ? 'Admin access is required to change replacement year.'
+                                : assigned
+                                  ? `Replacement year for ${item.rtu} — choose None to clear`
+                                  : `No year assigned for ${item.rtu} — pick a year or leave None`
                             }
                             onChange={(e) =>
                               onReplacementYearChange(item.address, item.rtu, e.target.value)

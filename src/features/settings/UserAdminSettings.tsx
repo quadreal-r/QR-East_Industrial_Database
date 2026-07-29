@@ -248,7 +248,7 @@ export function UserAdminSettings({ open, onClose }: UserAdminSettingsProps) {
     <Modal open={open} onClose={onClose} title="Manage users" width={520} align="center">
       <div className={styles.body}>
         <p className={styles.hint}>
-          Assign Admin (can edit) or Viewer (view only). Anyone listed here can sign in on the live
+          Assign Admin (full edit) or Viewer (browse, export, Cost Center allocations & notes). Anyone listed here can sign in on the live
           site. Addresses ending in <code>@quadreal.com</code> can also sign in even if they are not
           listed yet.
         </p>

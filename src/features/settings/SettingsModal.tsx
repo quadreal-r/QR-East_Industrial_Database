@@ -354,7 +354,8 @@ function SettingsForm({
           <section>
             <SettingsSectionLabel>Viewer access</SettingsSectionLabel>
             <p className={styles.authLockedHint}>
-              Viewers can browse and export downloads. Admin access is required to edit or import.
+              Viewers can browse, export, and edit Cost Center RTU $ Allocations and notes. Admin
+              access is required for other edits or import.
             </p>
             <ImportExportButtons
               portfolio={portfolio}
