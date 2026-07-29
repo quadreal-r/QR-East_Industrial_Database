@@ -1,7 +1,7 @@
 {
   "name": "qr-east-industrial-database",
   "private": true,
-  "version": "1.14.97",
+  "version": "1.14.99",
   "type": "module",
   "scripts": {
     "dev": "vite",

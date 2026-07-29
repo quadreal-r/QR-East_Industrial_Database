@@ -4,7 +4,7 @@
   /* QuadReal Visual Brand V2.4 — Nov 2025 (default theme) */
   --bg:#132049;--surface:#173073;--surface2:#0f1a3a;--border:#2947A3;
   --accent:#4974FF;--text-primary:#ffffff;--text-secondary:#B7C9FF;
-  --text-muted:#83A6FF;--selected-bg:#2947A3;--selected-border:#4974FF;
+  --text-muted:#83A6FF;--selected-bg:#3d5fd4;--selected-border:#8eb0ff;
   --hover-bg:#1e3568;--sqft-color:#00B6D3;--group-color:#B7C9FF;
   --font-sans:Arial,Helvetica,sans-serif; /* GT Good Sans substitute */
   --font-display:"Playfair Display",Georgia,"Times New Roman",serif;
@@ -60,9 +60,13 @@ select option{background:#1f2436}
 .building-list::-webkit-scrollbar-track{background:transparent}
 .building-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .group-label{padding:9px 14px 3px;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);position:sticky;top:0;background:var(--surface);z-index:1;display:flex;align-items:center;gap:6px;border-top:1px solid var(--border)}
-.building-item{padding:9px 14px;cursor:pointer;border-left:2px solid transparent;transition:background .1s,border-color .1s}
+.building-item{padding:9px 14px;cursor:pointer;border-left:3px solid transparent;transition:background .1s,border-color .1s,box-shadow .1s}
 .building-item:hover{background:var(--hover-bg)}
-.building-item.active{background:var(--selected-bg);border-left-color:var(--selected-border)}
+.building-item.active{
+  background:var(--selected-bg);
+  border-left-color:var(--selected-border);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--selected-border) 35%, transparent);
+}
 .building-addr{font-size:11px;font-weight:500;font-family:Arial,Helvetica,sans-serif;color:var(--text-primary);line-height:1.4;margin-bottom:3px}
 .building-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .tag{font-size:10px;padding:2px 6px;border-radius:3px;font-family:'DM Mono',monospace;white-space:nowrap}

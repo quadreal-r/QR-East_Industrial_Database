@@ -47,7 +47,8 @@
   flex-direction: column;
   gap: 1px;
   min-width: 0;
-  flex: 0 1 140px;
+  /* Grow into spare bar space so portfolio / building names fit. */
+  flex: 1 1 auto;
 }
 
 .rcbTitleT1 {
@@ -62,7 +63,6 @@
   font-size: 11px;
   color: var(--text-secondary, #c8dff8);
   font-family: 'DM Mono', monospace;
-  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -72,10 +72,10 @@
   display: flex;
   gap: 0;
   align-items: stretch;
-  flex: 1 1 auto;
+  /* Pack KPIs next to the controls — do not stretch and leave a dead gap. */
+  flex: 0 0 auto;
   flex-wrap: nowrap;
   min-width: 0;
-  overflow: hidden;
 }
 
 .rcbKpi {
@@ -137,7 +137,6 @@
   align-items: center;
   flex-wrap: nowrap;
   flex: 0 0 auto;
-  margin-left: auto;
 }
 
 .rcbCtl {
