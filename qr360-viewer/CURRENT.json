@@ -1,16 +1,16 @@
 {
-  "version": "1.2.91",
-  "mapLabel": "Map360-v1.2.91",
-  "standaloneLabel": "QR360-v1.2.91",
+  "version": "1.2.92",
+  "mapLabel": "Map360-v1.2.92",
+  "standaloneLabel": "QR360-v1.2.92",
   "product": {
     "map": "Map360",
     "standalone": "QR360"
   },
-  "versionedFile": "QR-360-Inspections_v1.2.91.html",
+  "versionedFile": "QR-360-Inspections_v1.2.92.html",
   "liveFile": "public/insp360/viewer.html",
-  "sourceFile": "QR-360-Inspections_v1.2.91.html",
+  "sourceFile": "QR-360-Inspections_v1.2.92.html",
   "sourceDir": "C:\\Users\\Robert\\Projects\\QR-360-Inspections\\QR-360-Inspections",
-  "syncedAt": "2026-07-30T17:45:51.415Z",
-  "bytes": 2389572,
+  "syncedAt": "2026-07-30T17:52:33.155Z",
+  "bytes": 2390569,
   "mainAppUrl": "insp360/viewer.html"
 }

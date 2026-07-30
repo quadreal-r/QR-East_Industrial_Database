@@ -1080,7 +1080,8 @@
     border-color:var(--accent); color:#fff; background:rgba(73,116,255,.22);
     flex:0 0 auto;
   }
-  body.embed-dash #dashBack{display:inline-flex}
+  /* Only after a tour was soft-parked — never on empty home dashboard */
+  body.embed-dash.proj-open #dashBack{display:inline-flex}
   body.embed #projEmpty{display:none !important}
   #openLinkedProj{display:none !important}
   body.embed #empty.show-linked #openLinkedProj{display:inline-flex !important}
@@ -1805,7 +1806,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.91</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.92</span>
 </div>
 
 <div id="privacySettings">
@@ -3665,23 +3666,50 @@ let embedDashResumeIdx=-1;
 const _BTN_DASHBOARD_HTML='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard';
 const _BTN_BACK_HTML='<svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Back';
 
+function hasLoadedTourForDash(){
+  return !!(document.body.classList.contains('proj-open') || (typeof items!=='undefined' && items && items.length)
+    || (typeof isDoubleTour==='function' && isDoubleTour()));
+}
+
+/** Topbar Dashboard ↔ Back. Hidden when no tour is loaded (empty home). */
 function setEmbedDashButton(mode){
   const btn=document.getElementById('btnDashboard');
   if(!btn) return;
   if(mode==='hide'){ btn.style.display='none'; return; }
-  btn.style.display='';
   if(mode==='back'){
-    // Soft dashboard: topbar becomes Back (tour still loaded). #dashBack mirrors this in the panel.
+    // Soft dashboard: only show Back when a tour is parked underneath.
+    if(!hasLoadedTourForDash()){
+      btn.style.display='none';
+      return;
+    }
+    btn.style.display='';
     btn.innerHTML=_BTN_BACK_HTML;
     btn.title='Back to the tour you were viewing';
     btn.setAttribute('aria-label','Back to tour');
-    btn.onclick=backFromEmbedDashboard;
-  } else {
-    btn.innerHTML=_BTN_DASHBOARD_HTML;
-    btn.title='Return to dashboard — recent projects & cloud tours';
-    btn.setAttribute('aria-label','Dashboard');
-    btn.onclick=openEmbedCloudDashboard;
+    return;
   }
+  // Dashboard label — only while a tour is open (not on empty home).
+  if(!hasLoadedTourForDash()){
+    btn.style.display='none';
+    return;
+  }
+  btn.style.display='';
+  btn.innerHTML=_BTN_DASHBOARD_HTML;
+  btn.title='Return to dashboard — recent projects & cloud tours';
+  btn.setAttribute('aria-label','Dashboard');
+}
+
+/** Single click handler — always resumes when soft-parked; never no-ops as Dashboard on home. */
+function onBtnDashboardClick(){
+  if(document.body.classList.contains('embed-dash') || embedDashOpen){
+    backFromEmbedDashboard();
+    return;
+  }
+  if(!hasLoadedTourForDash()){
+    setEmbedDashButton('hide');
+    return;
+  }
+  openEmbedCloudDashboard();
 }
 
 function notifyEmbedDash(open){
@@ -3701,8 +3729,9 @@ async function openEmbedCloudDashboard(){
     exitDoubleTour();
     return; // exitDoubleTour already lands on the dashboard
   }
-  // No tour loaded — already on the home/dashboard screen
+  // No tour loaded — already on the home/dashboard screen (hide noop Dashboard button)
   if(!document.body.classList.contains('proj-open') && !(items&&items.length)){
+    try{ setEmbedDashButton('hide'); }catch(_){}
     try{
       if(lastTourDashTab==='cloud'||lastTourDashTab==='local') setDashViewTab(lastTourDashTab);
     }catch(_){}
@@ -3710,8 +3739,8 @@ async function openEmbedCloudDashboard(){
     return;
   }
   if(document.body.classList.contains('embed-dash')){
-    // Already on soft dashboard — keep Back semantics
-    setEmbedDashButton('back');
+    // Already soft-parked — treat as Back (resume tour), not a no-op
+    backFromEmbedDashboard();
     return;
   }
   embedDashOpen=true;
@@ -3963,8 +3992,9 @@ function goHome(opts){
 }
 document.getElementById('btnHome').onclick=goHome;
 // Dashboard soft-parks the loaded tour; Back / Esc / same-card click resume instantly.
-try{ setEmbedDashButton('dashboard'); }catch(_){}
-document.getElementById('btnDashboard').onclick=openEmbedCloudDashboard;
+// Hidden until a tour is loaded — empty home must not show a dead Dashboard button.
+try{ setEmbedDashButton('hide'); }catch(_){}
+document.getElementById('btnDashboard').onclick=onBtnDashboardClick;
 { const _dashBack=document.getElementById('dashBack'); if(_dashBack) _dashBack.onclick=backFromEmbedDashboard; }
 function toggleFull(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
 document.getElementById('btnResetView').onclick=()=>{
@@ -19746,15 +19776,14 @@ function exitDoubleTour(){
   if(document.body.classList.contains('embed')){
     document.body.classList.add('embed-dash');
     embedDashOpen=true;
-    try{ setEmbedDashButton('back'); }catch(_){}
+    try{ setEmbedDashButton(hasLoadedTourForDash()?'back':'hide'); }catch(_){}
     try{ document.getElementById('btnHome').style.display='none'; }catch(_){}
-    try{ document.getElementById('btnDashboard').style.display=''; }catch(_){}
     try{ notifyEmbedDash(true); }catch(_){}
     try{ setDashViewTab(dashViewTab==='cloud'?'cloud':'local'); }catch(_){}
   } else {
     document.body.classList.remove('proj-open','proj-nophotos');
     try{ document.getElementById('btnHome').style.display='none'; }catch(_){}
-    try{ document.getElementById('btnDashboard').style.display='none'; }catch(_){}
+    try{ setEmbedDashButton('hide'); }catch(_){}
   }
 
   // Hide main WebGL stage while dashboard is up (CSS should too; inline is a hard guarantee).
@@ -19970,7 +19999,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.2.91";
+  const VERSION_NUM="1.2.92";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
