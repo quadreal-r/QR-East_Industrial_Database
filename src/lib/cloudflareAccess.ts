@@ -1,17 +1,24 @@
 /** Cloudflare Zero Trust team host for this map app (quadreal Access). */
 export const CLOUDFLARE_ACCESS_TEAM_HOST = 'late-dream-df75.cloudflareaccess.com'
 
-/** Production Pages origin protected by Cloudflare Access. */
+/** Production Pages origin (default Cloudflare hostname). */
 export const CLOUDFLARE_ACCESS_APP_ORIGIN = 'https://qr-east-industrial-database.pages.dev'
+
+/** Friendly custom domain (insp360.ca → map app). */
+export const CUSTOM_APP_HOST = 'qr-database.insp360.ca'
+
+/** Friendly custom origin for the map app. */
+export const CUSTOM_APP_ORIGIN = `https://${CUSTOM_APP_HOST}`
 
 /** localStorage flag: block silent re-login until Access sign-in succeeds. */
 export const AUTH_LOGGED_OUT_KEY = 'bme-auth-logged-out'
 
-/** Hostnames protected by Cloudflare Access for this map app. */
+/** Hostnames that serve the live map app (login wall / silent session). */
 export function isCloudflareAccessHost(
   hostname = typeof window !== 'undefined' ? window.location.hostname : '',
 ): boolean {
   return (
+    hostname === CUSTOM_APP_HOST ||
     hostname === 'qr-east-industrial-database.pages.dev' ||
     hostname.endsWith('.qr-east-industrial-database.pages.dev')
   )

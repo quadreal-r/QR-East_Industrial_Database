@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>QuadReal — Industrial Portfolio Map</title>
     <style>
       /* Critical shell layout — applies before JS/CSS bundles (fixes squished sidebar in dev) */
@@ -18,6 +18,10 @@
         flex-direction: column;
       }
       .map-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      @media (max-width: 767px) {
+        .app { height: 100dvh; min-height: 100dvh; flex-direction: column; }
+        .sidebar { display: none; }
+      }
     </style>
   </head>
   <body>

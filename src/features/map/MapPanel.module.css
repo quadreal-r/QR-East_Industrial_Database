@@ -200,6 +200,32 @@
   min-width: 0;
 }
 
+.mapPanelMobile {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.topbarMobile {
+  padding: 8px 10px;
+  min-height: 52px;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.subtitleMobile {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.actionsMobile {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 58%;
+}
+
 .authChip {
   display: inline-flex;
   align-items: center;

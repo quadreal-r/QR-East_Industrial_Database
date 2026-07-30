@@ -6,6 +6,7 @@ import { EditModeBar, type SaveState } from '@/features/edit-mode/EditModeBar'
 import type { EditSummary } from '@/features/edit-mode/diffPortfolio'
 import { diffPortfolio } from '@/features/edit-mode/diffPortfolio'
 import { MapPanel } from '@/features/map/MapPanel'
+import { MobileSearchSheet } from '@/features/mobile/MobileSearchSheet'
 import { RtuPictureViewer } from '@/features/rtu-pictures/RtuPictureViewer'
 import { Inspection360Viewer } from '@/features/inspection360/Inspection360Viewer'
 import { SettingsModal } from '@/features/settings/SettingsModal'
@@ -13,6 +14,7 @@ import { Sidebar } from '@/features/sidebar/Sidebar'
 import { useActivityTelemetry } from '@/hooks/useActivityTelemetry'
 import { useAuth } from '@/hooks/useAuth'
 import { useFilteredBuildings } from '@/hooks/useFilteredBuildings'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { recordActivityEvent } from '@/data/activityApi'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useRtuPictureViewerHistory } from '@/hooks/useRtuPictureViewerHistory'
@@ -54,6 +56,8 @@ const SAVE_SUCCESS_DISPLAY_MS = 1000
 
 export function AppShell() {
   const queryClient = useQueryClient()
+  const isMobile = useIsMobile()
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [portfolioOverride, setPortfolioOverride] = useState<PortfolioData | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [displaySummary, setDisplaySummary] = useState<EditSummary | null>(null)
@@ -288,13 +292,15 @@ export function AppShell() {
   }
 
   return (
-    <div className="app">
-      <Sidebar
-        allBuildings={portfolio.buildings}
-        listBuildings={listBuildings}
-        filteredBuildings={filteredBuildings}
-        portfolio={portfolio}
-      />
+    <div className={`app${isMobile ? ` ${styles.appMobile}` : ''}`}>
+      {!isMobile ? (
+        <Sidebar
+          allBuildings={portfolio.buildings}
+          listBuildings={listBuildings}
+          filteredBuildings={filteredBuildings}
+          portfolio={portfolio}
+        />
+      ) : null}
       <div className={styles.mainColumn}>
         <MapPanel
           portfolio={portfolio}
@@ -307,9 +313,11 @@ export function AppShell() {
           onAddMarkerClose={handleAddMarkerClose}
           addInspection360Open={addInspection360Open}
           onAddInspection360Close={handleAddInspection360Close}
+          layout={isMobile ? 'mobile' : 'desktop'}
+          onOpenSearch={() => setMobileSearchOpen(true)}
         />
-        <CostBanner buildings={costScopeBuildings} />
-        {showEditBar && barSummary ? (
+        {!isMobile ? <CostBanner buildings={costScopeBuildings} /> : null}
+        {showEditBar && barSummary && !isMobile ? (
           <EditModeBar
             summary={barSummary}
             onSave={() => {
@@ -320,6 +328,15 @@ export function AppShell() {
           />
         ) : null}
       </div>
+      {isMobile ? (
+        <MobileSearchSheet
+          open={mobileSearchOpen}
+          onClose={() => setMobileSearchOpen(false)}
+          allBuildings={portfolio.buildings}
+          listBuildings={listBuildings}
+          portfolio={portfolio}
+        />
+      ) : null}
       <SettingsModal
         open={settingsOpen}
         onClose={closeSettings}

@@ -34,8 +34,12 @@ Never deploy the map app with a Wrangler session logged into **krutki11**, and n
 
 | Environment | Host | Cloud tour list | Open a listed tour |
 |-------------|------|-----------------|--------------------|
-| **Embedded in QR-DB** (localhost or quadreal Pages) | Map app iframe (`insp360/viewer.html?embed=1`) | Host asks Supabase `list-insp360-cloud` (signed-in); reply via `postMessage` | Public CDN (`VITE_INSP360_BASE_URL` + key) |
-| **Standalone Inspections** | krutki11 Worker (`insp360-viewer.krutki11.workers.dev`) | Same-origin Worker `/api/tours` | Worker download / R2 |
+| **Embedded in QR-DB** (localhost, `qr-database.insp360.ca`, or pages.dev) | Map app iframe (`insp360/viewer.html?embed=1`) | Host asks Supabase `list-insp360-cloud` (signed-in); reply via `postMessage` | Public CDN (`VITE_INSP360_BASE_URL` + key) |
+| **Standalone Inspections** | krutki11 Worker (`insp360.ca` / `insp360-viewer.krutki11.workers.dev`) | Same-origin Worker `/api/tours` | Worker download / R2 |
+
+## Friendly map-app URL (`qr-database.insp360.ca`)
+
+`insp360.ca` DNS lives on **krutki11**. The map app Pages project lives on **quadreal**. The hostname `qr-database.insp360.ca` is a small **krutki11** Worker (`qr-database`) that proxies to `qr-east-industrial-database.pages.dev`, so both addresses show the same live app.
 
 Same R2 bucket (`insp360` on **krutki11**). Gate **Double Tour** relies on **versioned** publish keys under one gate prefix (`building/tour__YYYYMMDD-HHMMSS.insp360`) so several dates can share one display name.
 

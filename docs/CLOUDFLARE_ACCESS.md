@@ -1,6 +1,7 @@
 # Cloudflare Access / QuadReal login wall (map app — quadreal)
 
-Live app: https://qr-east-industrial-database.pages.dev/
+Live app: https://qr-database.insp360.ca/  
+Also: https://qr-east-industrial-database.pages.dev/
 
 ## Login wall (current)
 

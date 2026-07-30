@@ -184,7 +184,7 @@ Ensure document metadata rows exist in Supabase (via the app while signed in).
 
 ### D. After any Cloudflare deploy
 
-1. Open https://qr-east-industrial-database.pages.dev/
+1. Open https://qr-database.insp360.ca/ (or https://qr-east-industrial-database.pages.dev/)
 2. Hard-refresh (Ctrl+Shift+R)
 3. Confirm the topbar version matches what you shipped
 

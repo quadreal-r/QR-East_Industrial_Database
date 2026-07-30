@@ -17,6 +17,7 @@ describe('app roles', () => {
   it('bootstraps silent sessions only on localhost and Access hosts', () => {
     expect(shouldBootstrapSilentSession('127.0.0.1')).toBe(true)
     expect(shouldBootstrapSilentSession('localhost')).toBe(true)
+    expect(shouldBootstrapSilentSession('qr-database.insp360.ca')).toBe(true)
     expect(shouldBootstrapSilentSession('qr-east-industrial-database.pages.dev')).toBe(true)
     expect(shouldBootstrapSilentSession('preview.qr-east-industrial-database.pages.dev')).toBe(true)
     expect(shouldBootstrapSilentSession('quadreal-r.github.io')).toBe(false)
@@ -27,6 +28,7 @@ describe('app roles', () => {
     // Localhost: no Access wall — latch blocks silent login until Sign in.
     expect(shouldBootstrapSilentSession('127.0.0.1')).toBe(false)
     // Access host: page load means the wall already succeeded — mint the app session.
+    expect(shouldBootstrapSilentSession('qr-database.insp360.ca')).toBe(true)
     expect(shouldBootstrapSilentSession('qr-east-industrial-database.pages.dev')).toBe(true)
     expect(shouldBootstrapSilentSession('preview.qr-east-industrial-database.pages.dev')).toBe(
       true,

@@ -161,6 +161,7 @@ site_url = "https://qr-east-industrial-database.pages.dev/"
 additional_redirect_urls = [
   "http://127.0.0.1:5173",
   "http://localhost:5173",
+  "https://qr-database.insp360.ca/",
   "https://qr-east-industrial-database.pages.dev/",
   "https://quadreal-r.github.io/QR-East_Industrial_Database/",
 ]

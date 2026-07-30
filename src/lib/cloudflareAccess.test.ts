@@ -22,10 +22,12 @@ describe('cloudflareAccess', () => {
   })
 
   it('detects the production and preview Access hosts', () => {
+    expect(isCloudflareAccessHost('qr-database.insp360.ca')).toBe(true)
     expect(isCloudflareAccessHost('qr-east-industrial-database.pages.dev')).toBe(true)
     expect(isCloudflareAccessHost('6d67dbce.qr-east-industrial-database.pages.dev')).toBe(true)
     expect(isCloudflareAccessHost('127.0.0.1')).toBe(false)
     expect(isCloudflareAccessHost('quadreal-r.github.io')).toBe(false)
+    expect(isCloudflareAccessHost('insp360.ca')).toBe(false)
   })
 
   it('builds app and team logout URLs that never nest another logout in returnTo', () => {

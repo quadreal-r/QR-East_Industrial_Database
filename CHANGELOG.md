@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.15.1] - 2026-07-30
+
+### Added
+
+- Friendly live URL https://qr-database.insp360.ca/ (same app as the pages.dev address)
+- Mobile search sheet for small screens
+
+### Fixed
+
+- Sign-in identity and Logout show correctly on https://qr-database.insp360.ca/
+
 ## [1.14.99] - 2026-07-29
 
 ### Changed

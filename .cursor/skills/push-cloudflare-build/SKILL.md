@@ -44,7 +44,7 @@ Full account split: `docs/CLOUDFLARE_ACCOUNTS.md`
 | Git + deploy folder | `C:\Users\Robert\Projects\QR-East_Industrial_Database` |
 | Optional mirror | `C:\Users\Robert\Projects\QR-East_Industrial_Database-Cloudflare` (keep aligned after ship; not the git source) |
 | Wrangler login | **quadreal** only |
-| Live URL | https://qr-east-industrial-database.pages.dev/ |
+| Live URL | https://qr-database.insp360.ca/ (also https://qr-east-industrial-database.pages.dev/) |
 
 Always sync the embedded QR-360° viewer before deploy (map topbar `v1.14.x` ≠ viewer `Map360-v1.2.x`).
 
@@ -146,7 +146,7 @@ Robocopy exit codes 0–7 are success; treat ≥8 as failure.
 
 **8. Report**
 
-- Live: https://qr-east-industrial-database.pages.dev/
+- Live: https://qr-database.insp360.ca/ (also https://qr-east-industrial-database.pages.dev/)
 - Topbar version (`BUILD_VERSION_LABEL`)
 - GitHub commit on `main`
 - Remind: hard-refresh (Ctrl+Shift+R); GitHub Pages is no longer the live site

@@ -59,6 +59,9 @@ export interface MapPanelProps {
   onAddMarkerClose?: () => void
   addInspection360Open?: boolean
   onAddInspection360Close?: () => void
+  /** Compact topbar for phones — search + All Buildings first. */
+  layout?: 'desktop' | 'mobile'
+  onOpenSearch?: () => void
 }
 
 export function MapPanel({
@@ -71,7 +74,10 @@ export function MapPanel({
   onAddMarkerClose,
   addInspection360Open = false,
   onAddInspection360Close,
+  layout = 'desktop',
+  onOpenSearch,
 }: MapPanelProps) {
+  const isMobileLayout = layout === 'mobile'
   const mapRef = useRef<HTMLDivElement>(null)
   const hardRefreshMapAppliedRef = useRef(false)
   const [map, setMap] = useState<google.maps.Map | null>(null)
@@ -553,6 +559,23 @@ export function MapPanel({
   }, [mapsConfigured, mapId])
 
   useEffect(() => {
+    if (!map || typeof google === 'undefined') return
+    map.setOptions({
+      mapTypeControlOptions: {
+        style: isMobileLayout
+          ? google.maps.MapTypeControlStyle.DROPDOWN_MENU
+          : google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+        position: isMobileLayout
+          ? google.maps.ControlPosition.LEFT_BOTTOM
+          : google.maps.ControlPosition.TOP_RIGHT,
+        mapTypeIds: ['hybrid', 'satellite', 'roadmap', 'terrain'],
+      },
+      fullscreenControl: !isMobileLayout,
+      rotateControl: !isMobileLayout,
+    })
+  }, [map, isMobileLayout])
+
+  useEffect(() => {
     if (!map) return
     const snapshotView = () => {
       const center = map.getCenter()
@@ -649,110 +672,171 @@ export function MapPanel({
     : `${portfolio.buildings.length} buildings · Click a marker or address to focus`
 
   return (
-    <div className="map-panel">
-      <div className="map-topbar">
-        <div className={styles.topbarLeft}>
-          <div className="map-address" id="map-address">
-            {mapTitle}
-          </div>
-          <div className="map-subtitle" id="map-subtitle">
-            {subtitle}
-          </div>
-        </div>
-        <div className="map-actions">
-          <button type="button" className="btn-action" style={{ background: '#16a34a', color: '#fff', borderColor: '#16a34a' }} onClick={handleShowAll}>
-            All Buildings
-          </button>
-          {isAuthenticated ? (
-            <div
-              className={styles.authChip}
-              title={`${signedInLabel} · ${roleLabel}`}
-            >
-              <span className={styles.authChipUser}>{signedInLabel}</span>
-              <span
-                className={`${styles.authChipRole}${
-                  role === 'admin' ? ` ${styles.authChipRoleAdmin}` : ''
-                }`}
-              >
-                {roleLabel}
-              </span>
+    <div className={`map-panel${isMobileLayout ? ` ${styles.mapPanelMobile}` : ''}`}>
+      <div className={`map-topbar${isMobileLayout ? ` ${styles.topbarMobile}` : ''}`}>
+        {isMobileLayout ? (
+          <>
+            <div className={styles.topbarLeft}>
+              <div className="map-address" id="map-address">
+                {mapTitle}
+              </div>
+              <div className={`map-subtitle ${styles.subtitleMobile}`} id="map-subtitle">
+                {currentBuilding
+                  ? [
+                      currentBuilding.cluster || currentBuilding.park,
+                      currentBuilding.sqft ? `${currentBuilding.sqft} sf` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : `${portfolio.buildings.length} buildings`}
+              </div>
+            </div>
+            <div className={`map-actions ${styles.actionsMobile}`}>
               <button
                 type="button"
-                className={styles.authChipLogout}
-                onClick={() => void signOut()}
-                title="Sign out and return to Cloudflare Access"
+                className="btn-action"
+                onClick={onOpenSearch}
+                title="Search buildings"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
               >
-                Logout
+                Search
               </button>
-            </div>
-          ) : authLoading ? (
-            <span>Connecting…</span>
-          ) : (
-            <>
-              {authError ? (
-                <span
-                  className={styles.authChipError}
-                  title={typeof authError === 'string' ? authError : 'Session error'}
-                >
-                  {(() => {
-                    const text =
-                      typeof authError === 'string'
-                        ? authError
-                        : 'Could not connect your session'
-                    return text.length > 42 ? `${text.slice(0, 40)}…` : text
-                  })()}
-                </span>
-              ) : null}
-              {isLocalDev ? (
-                <div className={styles.authChipSignInGroup}>
-                  <button
-                    type="button"
-                    className={styles.authChipSignIn}
-                    onClick={() => signInAsLocal('admin')}
-                    title="Local sign-in as an Admin from Manage users"
-                  >
-                    Sign in as Admin
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.authChipSignInViewer}
-                    onClick={() => signInAsLocal('viewer')}
-                    title="Local sign-in as a Viewer from Manage users"
-                  >
-                    Sign in as Viewer
-                  </button>
-                </div>
-              ) : (
+              <button
+                type="button"
+                className="btn-action"
+                style={{ background: '#16a34a', color: '#fff', borderColor: '#16a34a' }}
+                onClick={handleShowAll}
+              >
+                All
+              </button>
+              {!isAuthenticated && !authLoading ? (
                 <button
                   type="button"
                   className={styles.authChipSignIn}
-                  onClick={() => signInAtAccessWall()}
-                  title={
-                    typeof authError === 'string'
-                      ? authError
-                      : 'Sign in with Cloudflare Access'
-                  }
+                  onClick={() => (isLocalDev ? signInAsLocal('viewer') : signInAtAccessWall())}
+                  title="Sign in"
                 >
                   Sign in
                 </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn-action"
+                onClick={openSettings}
+                title="Settings"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+              >
+                ⋮
+              </button>
+              <VersionStamp />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.topbarLeft}>
+              <div className="map-address" id="map-address">
+                {mapTitle}
+              </div>
+              <div className="map-subtitle" id="map-subtitle">
+                {subtitle}
+              </div>
+            </div>
+            <div className="map-actions">
+              <button type="button" className="btn-action" style={{ background: '#16a34a', color: '#fff', borderColor: '#16a34a' }} onClick={handleShowAll}>
+                All Buildings
+              </button>
+              {isAuthenticated ? (
+                <div
+                  className={styles.authChip}
+                  title={`${signedInLabel} · ${roleLabel}`}
+                >
+                  <span className={styles.authChipUser}>{signedInLabel}</span>
+                  <span
+                    className={`${styles.authChipRole}${
+                      role === 'admin' ? ` ${styles.authChipRoleAdmin}` : ''
+                    }`}
+                  >
+                    {roleLabel}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.authChipLogout}
+                    onClick={() => void signOut()}
+                    title="Sign out and return to Cloudflare Access"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : authLoading ? (
+                <span>Connecting…</span>
+              ) : (
+                <>
+                  {authError ? (
+                    <span
+                      className={styles.authChipError}
+                      title={typeof authError === 'string' ? authError : 'Session error'}
+                    >
+                      {(() => {
+                        const text =
+                          typeof authError === 'string'
+                            ? authError
+                            : 'Could not connect your session'
+                        return text.length > 42 ? `${text.slice(0, 40)}…` : text
+                      })()}
+                    </span>
+                  ) : null}
+                  {isLocalDev ? (
+                    <div className={styles.authChipSignInGroup}>
+                      <button
+                        type="button"
+                        className={styles.authChipSignIn}
+                        onClick={() => signInAsLocal('admin')}
+                        title="Local sign-in as an Admin from Manage users"
+                      >
+                        Sign in as Admin
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.authChipSignInViewer}
+                        onClick={() => signInAsLocal('viewer')}
+                        title="Local sign-in as a Viewer from Manage users"
+                      >
+                        Sign in as Viewer
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.authChipSignIn}
+                      onClick={() => signInAtAccessWall()}
+                      title={
+                        typeof authError === 'string'
+                          ? authError
+                          : 'Sign in with Cloudflare Access'
+                      }
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </>
               )}
-            </>
-          )}
-          <button
-            type="button"
-            id="imagery-btn"
-            className="btn-action"
-            onClick={handleCycleImagery}
-            style={{ borderColor: imageryMode.borderColor, color: imageryMode.color }}
-            title="Switch satellite imagery: Google / Esri"
-          >
-            {imageryMode.label}
-          </button>
-          <button type="button" className="btn-action" onClick={openSettings} title="Settings — themes &amp; manager names" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
-            Settings
-          </button>
-          <VersionStamp />
-        </div>
+              <button
+                type="button"
+                id="imagery-btn"
+                className="btn-action"
+                onClick={handleCycleImagery}
+                style={{ borderColor: imageryMode.borderColor, color: imageryMode.color }}
+                title="Switch satellite imagery: Google / Esri"
+              >
+                {imageryMode.label}
+              </button>
+              <button type="button" className="btn-action" onClick={openSettings} title="Settings — themes &amp; manager names" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+                Settings
+              </button>
+              <VersionStamp />
+            </div>
+          </>
+        )}
       </div>
 
       <div className={styles.mapWrap}>

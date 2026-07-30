@@ -1,0 +1,10 @@
+# Friendly map-app URL on insp360.ca (krutki11 account).
+# Deploy: npx wrangler deploy  (must be logged in as krutki11)
+name = "qr-database"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[[routes]]
+pattern = "qr-database.insp360.ca"
+custom_domain = true
