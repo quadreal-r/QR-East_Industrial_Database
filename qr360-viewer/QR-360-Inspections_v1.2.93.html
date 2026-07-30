@@ -1049,7 +1049,7 @@
   /* Dashboard stays available in embed so users can reach Double Tour Inspection */
   body.embed.proj-open #btnDashboard,
   body.embed.double-tour #btnDashboard{display:inline-flex !important}
-  /* Soft dashboard: tour stays loaded; show Cloud browser; #dashBack returns to the sphere */
+  /* Soft dashboard: tour stays loaded; show Cloud browser; topbar Back returns to the sphere */
   body.embed-dash #stage,
   body.embed-dash #library,
   body.embed-dash #libShow,
@@ -1074,14 +1074,6 @@
   body.embed #empty.has-dash{padding-left:calc(var(--dash-w, 604px) + 56px)}
   body.embed-dash #empty.has-admin,
   body.embed #empty.has-admin{padding-right:calc(var(--admin-w, 735px) + 32px)}
-  #dashBack{
-    display:none; width:100%; margin:0 0 10px; justify-content:flex-start; gap:6px;
-    font-size:12px; padding:8px 10px; font-weight:600;
-    border-color:var(--accent); color:#fff; background:rgba(73,116,255,.22);
-    flex:0 0 auto;
-  }
-  /* Only after a tour was soft-parked — never on empty home dashboard */
-  body.embed-dash.proj-open #dashBack{display:inline-flex}
   body.embed #projEmpty{display:none !important}
   #openLinkedProj{display:none !important}
   body.embed #empty.show-linked #openLinkedProj{display:inline-flex !important}
@@ -1806,7 +1798,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.92</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.93</span>
 </div>
 
 <div id="privacySettings">
@@ -1839,7 +1831,6 @@
   <div class="hint">drop equirectangular photos anywhere &nbsp;·&nbsp; <span class="kbd">drag</span> look &nbsp; <span class="kbd">scroll</span> zoom</div>
   <div id="dash">
     <div class="pane-resize" id="dashResize" role="separator" aria-orientation="vertical" aria-label="Resize tour list" title="Drag to resize tour list"></div>
-    <button type="button" class="btn" id="dashBack" title="Back to the tour you were viewing"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Back to tour</button>
     <div class="dash-head">
       <div class="dash-title" id="dashTitle">Recent projects</div>
       <div class="dash-summary" id="dashSummary">0 projects</div>
@@ -3752,6 +3743,8 @@ async function openEmbedCloudDashboard(){
     }
   }catch(_){}
   document.body.classList.add('embed-dash');
+  // Keep proj-open so Back / Back-to-tour chrome stays available
+  if(items&&items.length) document.body.classList.add('proj-open');
   emptyEl.style.display='flex';
   emptyEl.classList.add('has-dash');
   // Normal dashboard (Local / Cloud). Double Tour only when the user clicks that button.
@@ -3995,7 +3988,6 @@ document.getElementById('btnHome').onclick=goHome;
 // Hidden until a tour is loaded — empty home must not show a dead Dashboard button.
 try{ setEmbedDashButton('hide'); }catch(_){}
 document.getElementById('btnDashboard').onclick=onBtnDashboardClick;
-{ const _dashBack=document.getElementById('dashBack'); if(_dashBack) _dashBack.onclick=backFromEmbedDashboard; }
 function toggleFull(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
 document.getElementById('btnResetView').onclick=()=>{
   const it=curItem(); if(!it){ toast('Load a photo first.'); return; }
@@ -19999,7 +19991,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.2.92";
+  const VERSION_NUM="1.2.93";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
