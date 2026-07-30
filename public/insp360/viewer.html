@@ -1156,6 +1156,8 @@
   .ds-thumb{flex:0 0 auto; width:112px; position:relative; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; background:var(--qr-blue1); cursor:pointer; padding:0; text-align:left; color:inherit; font:inherit}
   .ds-thumb:hover{border-color:var(--accent-dim)}
   .ds-thumb.on{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+  .ds-thumb.ds-pending{opacity:.72}
+  .ds-thumb.ds-pending img{background:repeating-linear-gradient(-45deg, #0a1228, #0a1228 6px, #132049 6px, #132049 12px)}
   .ds-thumb img{display:block; width:100%; height:56px; object-fit:cover; background:#0a1228}
   .ds-media{position:relative; display:block}
   .ds-thumb .ds-check{position:absolute; top:auto; bottom:5px; left:5px; width:18px; height:18px; border-radius:5px; background:rgba(19,32,73,.88); border:1.5px solid var(--border); display:grid; place-items:center; color:transparent}
@@ -1798,7 +1800,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.93</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.94</span>
 </div>
 
 <div id="privacySettings">
@@ -19354,13 +19356,27 @@ async function selectDoublePhoto(side, idx){
   if(badge) badge.textContent=it.name||('Photo '+(idx+1));
   if(dateEl) dateEl.textContent=fmtPhotoDate(it.dateTaken);
   try{
+    if(it._pending || !it.file){
+      const ok=await resolveDoubleItemPhoto(it);
+      if(!ok || !it.file){
+        toast('Still loading this photo\u2026');
+        return;
+      }
+      if(!it.thumbUrl){
+        try{ it.thumbUrl=await makeThumb(it.file); updateDoubleStripThumb(side, idx); }catch(_){}
+      }
+    }
     await ensureMeta(it);
     if(dateEl) dateEl.textContent=fmtPhotoDate(it.dateTaken);
     if(!it._mat){ try{ const buf=await it.file.arrayBuffer(); it.file=new Blob([buf],{type:it.file.type||'image/jpeg'}); it._mat=true; }catch(_){ } }
     const res=await loadFull(it.file, p.renderer);
     if(p.uniforms.uTex.value){ try{ p.uniforms.uTex.value.dispose(); }catch(_){ } }
     p.uniforms.uTex.value=res.tex;
-  }catch(e){ console.warn('double photo load failed', e); toast('Could not load photo on side '+side.toUpperCase()+'.', true); }
+  }catch(e){
+    if(isAbortErr(e)) return;
+    console.warn('double photo load failed', e);
+    toast('Could not load photo on side '+side.toUpperCase()+'.', true);
+  }
 }
 
 function syncDoubleStripNav(side){
@@ -19399,30 +19415,34 @@ function buildDoubleStrip(side){
   if(!strip) return;
   strip.innerHTML='';
   p.items.forEach((it, idx)=>{
+    const pending=!!(it._pending || !it.file);
     const btn=document.createElement('button');
-    btn.type='button'; btn.className='ds-thumb'+(idx===p.index?' on':'');
-    btn.title=(it.name||'')+' \u00B7 '+fmtPhotoDate(it.dateTaken);
+    btn.type='button'; btn.className='ds-thumb'+(idx===p.index?' on':'')+(pending?' ds-pending':'');
+    btn.title=(it.name||'')+(pending?' \u00B7 loading\u2026':(' \u00B7 '+fmtPhotoDate(it.dateTaken)));
     btn.innerHTML='<span class="ds-media"><span class="ds-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>'
       +'<img alt=""'+(it.thumbUrl?(' src="'+it.thumbUrl+'"'):'')+'></span>'
       +'<div class="ds-meta"><div class="ds-name"></div><div class="ds-date"></div></div>';
     btn.querySelector('.ds-name').textContent=it.name||('#'+(idx+1));
-    btn.querySelector('.ds-date').textContent=fmtPhotoDate(it.dateTaken);
+    btn.querySelector('.ds-date').textContent=pending?'…':fmtPhotoDate(it.dateTaken);
     btn.onclick=()=>selectDoublePhoto(side, idx);
     strip.appendChild(btn);
-    if(!it.thumbUrl){
+    if(!pending && !it.thumbUrl && it.file){
       makeThumb(it.file).then(url=>{
         if(!url) return; it.thumbUrl=url;
         const img=btn.querySelector('img'); if(img) img.src=url;
+        btn.classList.remove('ds-pending');
       }).catch(()=>{});
     }
-    ensureMeta(it).then(()=>{
-      btn.querySelector('.ds-date').textContent=fmtPhotoDate(it.dateTaken);
-      btn.title=(it.name||'')+' \u00B7 '+fmtPhotoDate(it.dateTaken);
-      if(p.index===idx){
-        const dateEl=document.getElementById(side==='a'?'doubleDateA':'doubleDateB');
-        if(dateEl) dateEl.textContent=fmtPhotoDate(it.dateTaken);
-      }
-    }).catch(()=>{});
+    if(!pending){
+      ensureMeta(it).then(()=>{
+        btn.querySelector('.ds-date').textContent=fmtPhotoDate(it.dateTaken);
+        btn.title=(it.name||'')+' \u00B7 '+fmtPhotoDate(it.dateTaken);
+        if(p.index===idx){
+          const dateEl=document.getElementById(side==='a'?'doubleDateA':'doubleDateB');
+          if(dateEl) dateEl.textContent=fmtPhotoDate(it.dateTaken);
+        }
+      }).catch(()=>{});
+    }
   });
   wireDoubleStripNav(side);
   requestAnimationFrame(()=>syncDoubleStripNav(side));
@@ -19653,10 +19673,84 @@ async function ensureLocalDoubleRec(rec, sideLabel){
   return picked;
 }
 
-async function loadDoubleTourSide(rec){
+/** Build double-tour library rows: #1 ready, rest pending until background warm. */
+function makeDoubleTourItems(photoMetas, firstBlob, opts){
+  opts=opts||{};
+  const zipFile=opts.zipFile||null;
+  const cloudTarget=opts.cloudTarget||null;
+  const signal=opts.signal||null;
+  return photoMetas.map((p,i)=>{
+    const ready=i===0 && firstBlob;
+    const entry={ name:p.name, method:p.method, comp:p.comp, lho:p.lho };
+    return {
+      file:ready?firstBlob:null,
+      name:p.name,
+      zipName:p.name,
+      thumbUrl:null,
+      dateTaken:null,
+      metaRead:false,
+      gps:null,
+      headingTag:null,
+      _pending:!ready,
+      _mat:false,
+      _zipFile:ready?null:zipFile,
+      _zipEntry:ready?null:(zipFile?entry:null),
+      _cloudFetch:(!ready && cloudTarget)?{ target:cloudTarget, entry, signal }:null
+    };
+  });
+}
+
+/** Progressive open from a local/cached .insp360 — first photo now, rest later. */
+async function loadDoubleTourSideFromFile(file, rec, opts){
+  opts=opts||{};
+  const onProgress=typeof opts.onProgress==='function'?opts.onProgress:null;
+  const signal=opts.signal||null;
+  if(signal&&signal.aborted) throw new DOMException('Aborted','AbortError');
+  if(onProgress) onProgress('Reading archive index\u2026');
+  const zip=await readZipCd(file);
+  if(signal&&signal.aborted) throw new DOMException('Aborted','AbortError');
+  let tourJsonText=null;
+  try{
+    const tourEn=(zip.entries||[]).find(e=>String(e.name||'').toLowerCase()==='tour.json' && (e.method===0||e.method===8));
+    if(tourEn){
+      if(onProgress) onProgress('Reading tour order\u2026');
+      const tb=await resolveLocalZipEntryBlob(file, tourEn);
+      tourJsonText=await tb.text();
+    }
+  }catch(_){}
+  let photoMetas=sortPhotosByTourOrder((zip.entries||[]).filter(isLibraryTourPhotoEntry), tourJsonText);
+  if(!photoMetas.length){
+    const loose=(zip.entries||[]).filter(looseArchiveImageEntry);
+    if(loose.length) photoMetas=sortPhotosByTourOrder(loose, tourJsonText);
+  }
+  if(!photoMetas.length) throw new Error('no photos');
+  if(onProgress) onProgress('Opening first photo\u2026');
+  const firstBlob=await resolveLocalZipEntryBlob(file, photoMetas[0]);
+  if(signal&&signal.aborted) throw new DOMException('Aborted','AbortError');
+  const cloudKey=opts.cloudKey||null;
+  const label=rec.label||cloudTourDisplayName(cloudKey||rec.name||'');
+  const items=makeDoubleTourItems(photoMetas, firstBlob, { zipFile:file, signal });
+  return {
+    items,
+    name:rec.name,
+    label,
+    handle:isCloudRec(rec)?null:(rec.handle||null),
+    cloudKey,
+    bg:{ kind:'local', file, photoEntries:photoMetas.map(p=>({ name:p.name, method:p.method, comp:p.comp, lho:p.lho })) }
+  };
+}
+
+/**
+ * Open one Double Tour side with first-photo priority (cloud Range / local ZIP index).
+ * Remaining panoramas stream in via warmDoubleTourSideBackground.
+ */
+async function loadDoubleTourSide(rec, opts){
+  opts=opts||{};
+  const onProgress=typeof opts.onProgress==='function'?opts.onProgress:null;
+  const signal=opts.signal||null;
   if(!rec) throw new Error('missing project');
-  let file=null;
   let cloudKey=null;
+
   if(isCloudRec(rec)){
     cloudKey=cloudKeyFromRec(rec);
     if(!cloudKey) throw new Error('missing cloud key');
@@ -19665,34 +19759,210 @@ async function loadDoubleTourSide(rec){
     if(!publicUrl && document.body.classList.contains('embed')){
       throw new Error('Missing CDN URL for cloud tour. Refresh the Cloud list and try again.');
     }
-    const buf=await fetchCloudTourBytes(cloudKey, publicUrl);
+    const label=rec.label||cloudTourDisplayName(cloudKey);
     const fname=cloudKey.split('/').pop()||'project.insp360';
-    file=new File([buf], fname, { type:'application/zip' });
-  } else if(rec._doubleFile && rec._doubleFile.size){
+
+    // 1) Session / disk cache → progressive extract (no full re-download).
+    try{
+      let cachedBlob=null;
+      const sess=getSessionCloudTour(cloudKey);
+      if(sess&&sess.blob&&sess.blob.size) cachedBlob=sess.blob;
+      if(!cachedBlob){
+        try{
+          const target=cloudTourFetchTarget(cloudKey, publicUrl);
+          const cacheUrl=(target&&target.cacheUrl)||'';
+          if(cacheUrl){
+            const cached=await getCachedCloudTour(cacheUrl);
+            if(cached&&cached.blob&&cached.blob.size && !isCloudTourCacheStale(cloudKey)){
+              cachedBlob=cached.blob;
+              try{ rememberSessionCloudTour(cloudKey, cached.blob, cached.etag, cacheUrl); }catch(_){}
+            }
+          }
+        }catch(_){}
+      }
+      if(cachedBlob&&cachedBlob.size){
+        if(onProgress) onProgress('Using cached tour\u2026');
+        const file=new File([cachedBlob], fname, { type:'application/zip' });
+        return loadDoubleTourSideFromFile(file, rec, { onProgress, signal, cloudKey });
+      }
+    }catch(e){ if(isAbortErr(e)) throw e; }
+
+    // 2) Range first-frame progressive (same path as single-tour open).
+    try{
+      if(onProgress) onProgress('Opening first photo\u2026');
+      const first=await fetchCloudTourFirstFrame(cloudKey, publicUrl, signal, onProgress);
+      const photoMetas=(first.photoEntries||[]).map(p=>({ name:p.name, method:p.method, comp:p.comp, lho:p.lho }));
+      if(!photoMetas.length) throw new Error('no photos');
+      const firstBlob=(first.entries&&first.entries[0]&&first.entries[0].blob)||null;
+      if(!firstBlob) throw new Error('no photos');
+      const items=makeDoubleTourItems(photoMetas, firstBlob, {
+        cloudTarget:first.target||null,
+        signal
+      });
+      return {
+        items,
+        name:rec.name,
+        label,
+        handle:null,
+        cloudKey,
+        bg:{
+          kind:'cloud',
+          key:cloudKey,
+          publicUrl,
+          photoEntries:first.photoEntries||photoMetas,
+          target:first.target||null,
+          etag:first.etag||null,
+          cacheUrl:(first.target&&first.target.cacheUrl)||'',
+          signal
+        }
+      };
+    }catch(e){
+      if(isAbortErr(e)) throw e;
+      if(e&&e.message==='RANGE_NOT_SUPPORTED'&&e.fullBuffer){
+        const file=new File([e.fullBuffer], fname, { type:'application/zip' });
+        try{ rememberSessionCloudTour(cloudKey, file, e.etag||null, ''); }catch(_){}
+        return loadDoubleTourSideFromFile(file, rec, { onProgress, signal, cloudKey });
+      }
+      console.warn('double-tour progressive open failed; full download fallback', e);
+    }
+
+    // 3) Fallback: full download then progressive extract.
+    if(onProgress) onProgress('Downloading tour\u2026');
+    const buf=await fetchCloudTourBytes(cloudKey, publicUrl, signal, null);
+    const file=new File([buf], fname, { type:'application/zip' });
+    try{ rememberSessionCloudTour(cloudKey, file, null, ''); }catch(_){}
+    return loadDoubleTourSideFromFile(file, rec, { onProgress, signal, cloudKey });
+  }
+
+  // Local .insp360
+  let file=null;
+  if(rec._doubleFile && rec._doubleFile.size){
     file=rec._doubleFile;
   } else {
     try{
       file=await fileFromLocalHandle(rec.handle, rec.name||rec.label);
     }catch(e){
-      // Last chance: same-named Cloud tour for this gate.
       if(document.body.classList.contains('embed')){
         await ensureEmbedCloudToursCached();
         const matched=findCloudTourForLocalName(rec.name) || findCloudTourForLocalName(rec.label);
         const cloudRef=cloudRefFromTour(matched, rec.label||null);
         if(cloudRef && (cloudRef.publicUrl || publicUrlForCloudKey(cloudRef.cloudKey,''))){
-          return loadDoubleTourSide(cloudRef);
+          return loadDoubleTourSide(cloudRef, opts);
         }
       }
       throw e;
     }
   }
-  const list=await readProject(file, showLoadProgress);
-  const photos=list.filter(e=>/\.jpe?g$/i.test(e.name) && e.method===0 && e.name.toLowerCase()!=='preview.jpg');
-  photos.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
-  if(!photos.length) throw new Error('no photos');
-  const items=photos.map(pe=>({file:pe.blob, name:pe.name, thumbUrl:null, dateTaken:null, metaRead:false, gps:null, headingTag:null}));
-  const label=rec.label||cloudTourDisplayName(cloudKey||rec.name||'');
-  return { items, name:rec.name, label, handle:isCloudRec(rec)?null:(rec.handle||null), cloudKey };
+  return loadDoubleTourSideFromFile(file, rec, { onProgress, signal, cloudKey:null });
+}
+
+/** Resolve a pending double-tour photo (local ZIP slice or cloud Range) on demand. */
+async function resolveDoubleItemPhoto(it){
+  if(!it) return false;
+  if(it.file && !it._pending) return true;
+  if(it._zipFile && it._zipEntry){
+    const blob=await resolveLocalZipEntryBlob(it._zipFile, it._zipEntry);
+    it.file=blob; it._pending=false; it._zipFile=null; it._zipEntry=null; it._cloudFetch=null;
+    return true;
+  }
+  if(it._cloudFetch && it._cloudFetch.target && it._cloudFetch.entry){
+    const cf=it._cloudFetch;
+    if(cf.signal&&cf.signal.aborted) throw new DOMException('Aborted','AbortError');
+    const readRange=async (offset, length)=>{
+      if(cf.signal&&cf.signal.aborted) throw new DOMException('Aborted','AbortError');
+      return cloudTourReadRange(cf.target, offset, length, cf.signal);
+    };
+    const blob=await rangeZipExtractEntry(readRange, cf.entry);
+    it.file=blob; it._pending=false; it._zipFile=null; it._zipEntry=null; it._cloudFetch=null;
+    return true;
+  }
+  return false;
+}
+
+function updateDoubleStripThumb(side, idx){
+  try{
+    if(!doubleState||!doubleState[side]) return;
+    const it=doubleState[side].items[idx];
+    if(!it||!it.thumbUrl) return;
+    const strip=document.getElementById(side==='a'?'doubleStripA':'doubleStripB');
+    const btn=strip&&strip.children[idx];
+    if(!btn) return;
+    const img=btn.querySelector('img');
+    if(img) img.src=it.thumbUrl;
+    btn.classList.remove('ds-pending');
+  }catch(_){}
+}
+
+/** After first frames are on screen: stream #2… for one side (tour order). */
+async function warmDoubleTourSideBackground(side, data, loadGen){
+  if(!data||!data.bg||!data.items||data.items.length<2) return;
+  const bg=data.bg;
+  const items=data.items;
+  const total=items.length;
+  try{
+    if(bg.kind==='local' && bg.file && Array.isArray(bg.photoEntries)){
+      for(let i=1;i<bg.photoEntries.length;i++){
+        if(loadGen!==_doubleLoadGen) return;
+        const en=bg.photoEntries[i];
+        const it=items[i] || items.find(x=>x&&(x.name===en.name||x.zipName===en.name));
+        if(!it || (it.file && !it._pending)) continue;
+        showBgLoad(i+1, total, 'Tour '+side.toUpperCase()+' \u2014 photo '+(i+1)+'/'+total, loadGen);
+        try{
+          const blob=await resolveLocalZipEntryBlob(bg.file, en);
+          if(loadGen!==_doubleLoadGen) return;
+          it.file=blob; it._pending=false; it._zipFile=null; it._zipEntry=null; it._cloudFetch=null;
+          try{ it.thumbUrl=await makeThumb(it.file); }catch(_){}
+          updateDoubleStripThumb(side, items.indexOf(it));
+        }catch(e){ console.warn('double local warm failed', en&&en.name, e); }
+        await yieldUi();
+      }
+    } else if(bg.kind==='cloud' && bg.target && Array.isArray(bg.photoEntries)){
+      const signal=bg.signal||null;
+      const readRange=async (offset, length)=>{
+        if(signal&&signal.aborted) throw new DOMException('Aborted','AbortError');
+        return cloudTourReadRange(bg.target, offset, length, signal);
+      };
+      for(let i=1;i<bg.photoEntries.length;i++){
+        if(loadGen!==_doubleLoadGen) return;
+        if(signal&&signal.aborted) return;
+        const en=bg.photoEntries[i];
+        const it=items[i] || items.find(x=>x&&(x.name===en.name||x.zipName===en.name));
+        if(!it || (it.file && !it._pending)) continue;
+        showBgLoad(i+1, total, 'Tour '+side.toUpperCase()+' \u2014 photo '+(i+1)+'/'+total, loadGen);
+        try{
+          const blob=await rangeZipExtractEntry(readRange, en);
+          if(loadGen!==_doubleLoadGen) return;
+          it.file=blob; it._pending=false; it._zipFile=null; it._zipEntry=null; it._cloudFetch=null;
+          try{ it.thumbUrl=await makeThumb(it.file); }catch(_){}
+          updateDoubleStripThumb(side, items.indexOf(it));
+        }catch(e){
+          if(isAbortErr(e)) return;
+          console.warn('double cloud warm failed', en&&en.name, e);
+        }
+        await yieldUi();
+      }
+      // Keep full archive in session/disk for next open (non-blocking).
+      try{
+        void cacheCloudTourArchiveInBackground({
+          key:bg.key, publicUrl:bg.publicUrl||'', cacheUrl:bg.cacheUrl||'',
+          signal, etag:bg.etag||null, stillForeground:()=>loadGen===_doubleLoadGen
+        });
+      }catch(_){}
+    }
+  }catch(e){
+    if(!isAbortErr(e)) console.warn('double-tour background warm failed', side, e);
+  }
+}
+
+async function warmDoubleTourBackground(dataA, dataB, loadGen){
+  try{
+    await Promise.all([
+      warmDoubleTourSideBackground('a', dataA, loadGen),
+      warmDoubleTourSideBackground('b', dataB, loadGen)
+    ]);
+  }finally{
+    if(loadGen===_doubleLoadGen) hideBgLoad(loadGen);
+  }
 }
 
 function disposeDoubleState(){
@@ -19735,8 +20005,13 @@ function disposeDoubleState(){
 
 /** Abort in-flight Double Tour loads and return straight to a solid dashboard. */
 let _doubleLoadGen=0;
+let _doubleAbort=null;
 function exitDoubleTour(){
+  const prevLoadGen=_doubleLoadGen;
   _doubleLoadGen++; // discard any preloaded / still-loading A+B tours
+  try{ if(_doubleAbort) _doubleAbort.abort(); }catch(_){}
+  _doubleAbort=null;
+  try{ hideBgLoad(prevLoadGen); }catch(_){}
   disposeDoubleState();
   doubleLockView=false;
   doubleLockOffset=null;
@@ -19796,15 +20071,25 @@ function exitDoubleTour(){
 
 async function startDoubleTour(recA, recB){
   const loadGen=++_doubleLoadGen;
+  try{ if(_doubleAbort) _doubleAbort.abort(); }catch(_){}
+  _doubleAbort=new AbortController();
+  const signal=_doubleAbort.signal;
   try{
     try{ abortCloudThumbLoads(); }catch(_){}
-    showLoadProgress(0, 2, 'Opening tour A\u2026');
+    showLoadProgress(0, 2, 'Opening first photos\u2026');
     toast('Loading Double Tour Inspection\u2026');
-    const dataA=await loadDoubleTourSide(recA);
-    if(loadGen!==_doubleLoadGen) return; // exited / superseded while loading
-    showLoadProgress(1, 2, 'Opening tour B\u2026');
-    const dataB=await loadDoubleTourSide(recB);
-    if(loadGen!==_doubleLoadGen) return;
+    // First photo from A and B in parallel — remaining panoramas warm in the background.
+    const [dataA, dataB]=await Promise.all([
+      loadDoubleTourSide(recA, {
+        signal,
+        onProgress:(m)=>{ if(loadGen===_doubleLoadGen) showLoadProgress(0, 2, 'A: '+(m||'Opening\u2026')); }
+      }),
+      loadDoubleTourSide(recB, {
+        signal,
+        onProgress:(m)=>{ if(loadGen===_doubleLoadGen) showLoadProgress(1, 2, 'B: '+(m||'Opening\u2026')); }
+      })
+    ]);
+    if(loadGen!==_doubleLoadGen || signal.aborted) return;
     showLoadProgress(2, 2, 'Building viewer\u2026');
     cancelDoublePick();
     document.body.classList.remove('embed-dash');
@@ -19850,9 +20135,15 @@ async function startDoubleTour(recA, recB){
     if(loadGen!==_doubleLoadGen){ disposeDoubleState(); return; }
     endLoadProgress();
     requestAnimationFrame(()=>{ resizeDoublePanes(); });
-    toast('Double Tour ready \u2014 pick a photo in each strip. Lock view to navigate both together.');
+    const pendingA=(dataA.items||[]).filter(it=>it&&(it._pending||!it.file)).length;
+    const pendingB=(dataB.items||[]).filter(it=>it&&(it._pending||!it.file)).length;
+    toast(pendingA||pendingB
+      ? 'Double Tour ready \u2014 first photos loaded; remaining photos loading in background.'
+      : 'Double Tour ready \u2014 pick a photo in each strip. Lock view to navigate both together.');
+    // Stream #2… for both sides without blocking the viewer.
+    void warmDoubleTourBackground(dataA, dataB, loadGen);
   }catch(e){
-    if(loadGen!==_doubleLoadGen) return;
+    if(loadGen!==_doubleLoadGen || isAbortErr(e)) return;
     console.warn(e);
     endLoadProgress();
     exitDoubleTour();
@@ -19991,7 +20282,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.2.93";
+  const VERSION_NUM="1.2.94";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
