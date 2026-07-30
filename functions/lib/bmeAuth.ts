@@ -3,6 +3,13 @@
  * Cookie-based OTP pending + HMAC session — no D1 required.
  */
 import { createClient } from '@supabase/supabase-js'
+import {
+  decideOfflineCodeRequest,
+  decideOfflineVerify,
+  getAccessOffline,
+  isAppAdmin,
+  setAccessOffline,
+} from './accessOffline'
 import { QR_MARK_DATA_URL } from './qrMarkDataUrl'
 
 export const SESSION_COOKIE = 'bme_session'
@@ -244,15 +251,38 @@ export async function requestLoginCode(
   env: AuthEnv,
   options?: { redirectOrigin?: string },
 ): Promise<
-  | { ok: true; email: string; mode: 'code' | 'link'; setCookie?: string }
+  | { ok: true; email: string; mode: 'code' | 'link' | 'offline'; setCookie?: string }
   | { ok: false; error: string }
 > {
   const email = normalizeEmail(emailRaw)
   if (!email.includes('@')) return { ok: false, error: 'Enter a valid email address.' }
+
+  const offline = await getAccessOffline(env)
+  const adminUser = offline ? await isAppAdmin(email, env) : false
+  const offlineDecision = decideOfflineCodeRequest({
+    email,
+    offline,
+    isAdmin: adminUser,
+  })
+  if (offlineDecision.action === 'pull_plug') {
+    try {
+      await setAccessOffline(env, true, { setBy: email })
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Could not update offline status.',
+      }
+    }
+    return { ok: true, email, mode: 'offline' }
+  }
+  if (offlineDecision.action === 'block_non_admin') {
+    return { ok: false, error: offlineDecision.error }
+  }
+
   if (!env.SESSION_SECRET) return { ok: false, error: 'Sign-in is not configured (SESSION_SECRET).' }
 
   const allowed = await isEmailAllowed(email, env)
-  // Anti-enumeration: always look successful to outsiders.
+  // Anti-enumeration: always look successful to outsiders (except while Offline — see above).
   if (!allowed) {
     return { ok: true, email, mode: 'code' }
   }
@@ -343,6 +373,23 @@ export async function verifyLoginCode(
   const submittedHash = await sha256Hex(`${email}:${code}`)
   if (submittedHash !== codeHash) return { ok: false, error: 'Invalid or expired code' }
 
+  const offline = await getAccessOffline(env)
+  if (offline) {
+    const adminUser = await isAppAdmin(email, env)
+    const decision = decideOfflineVerify({ offline: true, isAdmin: adminUser })
+    if (decision.action === 'refuse') return { ok: false, error: decision.error }
+    if (decision.action === 'clear_offline') {
+      try {
+        await setAccessOffline(env, false, { setBy: email })
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not restore online access.',
+        }
+      }
+    }
+  }
+
   const session = await createSessionToken(email, env)
   return {
     ok: true,
@@ -375,6 +422,23 @@ export async function completeMagicLinkSession(
   const allowed = await isEmailAllowed(email, env)
   if (!allowed) return { ok: false, error: 'This email is not allowed to access the app.' }
 
+  const offline = await getAccessOffline(env)
+  if (offline) {
+    const adminUser = await isAppAdmin(email, env)
+    const decision = decideOfflineVerify({ offline: true, isAdmin: adminUser })
+    if (decision.action === 'refuse') return { ok: false, error: decision.error }
+    if (decision.action === 'clear_offline') {
+      try {
+        await setAccessOffline(env, false, { setBy: email })
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not restore online access.',
+        }
+      }
+    }
+  }
+
   const session = await createSessionToken(email, env)
   return {
     ok: true,
@@ -391,15 +455,27 @@ export function wantsHtml(request: Request): boolean {
 }
 
 /** INSP-style QuadReal wall — logo on top, app name below (Playfair). */
-export function authWallResponse(detail = ''): Response {
+export function authWallResponse(
+  detail = '',
+  options?: { offline?: boolean },
+): Response {
   const safe = String(detail || '').replace(/</g, '&lt;')
+  const offline = Boolean(options?.offline)
   const mark = QR_MARK_DATA_URL
+  const title = offline ? 'Off Line' : APP_TITLE
+  const subtitle = offline
+    ? 'Access is paused. An Admin can sign in below to restore the app.'
+    : 'Sign in with your work email'
+  const hint = offline
+    ? 'Only an Admin listed in Manage users can reactivate. Data and accounts are unchanged.'
+    : 'Access is limited to people added by an admin in Manage users (or @quadreal.com).'
+  const pageTitle = offline ? `Off Line · ${APP_TITLE}` : `Sign in · ${APP_TITLE}`
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in · ${APP_TITLE}</title>
+<title>${pageTitle}</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -431,6 +507,7 @@ export function authWallResponse(detail = ''): Response {
     margin:0 0 6px;font-family:var(--display);font-size:28px;font-weight:600;
     letter-spacing:-.02em;text-align:center;line-height:1.2;word-break:break-word;
   }
+  h1.offline{font-size:36px;letter-spacing:.04em}
   .sub{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.45;text-align:center}
   .msg{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.5;text-align:center}
   .msg strong{color:var(--text);font-weight:700;word-break:break-all}
@@ -467,8 +544,8 @@ export function authWallResponse(detail = ''): Response {
 <body>
   <div class="card">
     <img class="qr-mark" src="${mark}" alt="QuadReal">
-    <h1>${APP_TITLE}</h1>
-    <p class="sub">Sign in with your work email</p>
+    <h1 id="appTitle" class="${offline ? 'offline' : ''}">${title}</h1>
+    <p class="sub" id="appSub">${subtitle}</p>
     <div class="err" id="err">${safe && safe !== 'Sign in required' ? safe : ''}</div>
 
     <div class="step active" id="stepEmail">
@@ -499,7 +576,7 @@ export function authWallResponse(detail = ''): Response {
         <button type="button" id="btnChangeLink">Change email</button>
       </div>
     </div>
-    <p class="hint">Access is limited to people added by an admin in Manage users (or @quadreal.com).</p>
+    <p class="hint" id="appHint">${hint}</p>
   </div>
 <script>
 (function(){
@@ -511,6 +588,9 @@ export function authWallResponse(detail = ''): Response {
   const linkEmail=document.getElementById('linkEmail');
   const emailInput=document.getElementById('email');
   const codeInput=document.getElementById('code');
+  const appTitle=document.getElementById('appTitle');
+  const appSub=document.getElementById('appSub');
+  const appHint=document.getElementById('appHint');
   let pendingEmail='';
 
   function showErr(msg){
@@ -524,6 +604,14 @@ export function authWallResponse(detail = ''): Response {
     stepCode.classList.remove('active');
     stepLink.classList.remove('active');
     step.classList.add('active');
+  }
+
+  function applyOfflineChrome(){
+    appTitle.textContent='Off Line';
+    appTitle.classList.add('offline');
+    appSub.textContent='Access is paused. An Admin can sign in below to restore the app.';
+    appHint.textContent='Only an Admin listed in Manage users can reactivate. Data and accounts are unchanged.';
+    document.title='Off Line · ${APP_TITLE}';
   }
 
   function showCodeStep(email){
@@ -555,10 +643,18 @@ export function authWallResponse(detail = ''): Response {
     });
     const j=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(j.error||'Could not send sign-in email');
-    return { email: j.email||email, mode: j.mode==='link' ? 'link' : 'code' };
+    const mode=j.mode==='link'?'link':(j.mode==='offline'?'offline':'code');
+    return { email: j.email||email, mode };
   }
 
   function showResult(result){
+    if(result.mode==='offline'){
+      applyOfflineChrome();
+      emailInput.value='';
+      showEmailStep();
+      showErr('');
+      return;
+    }
     if(result.mode==='link') showLinkStep(result.email);
     else showCodeStep(result.email);
   }

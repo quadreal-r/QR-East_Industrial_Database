@@ -4,6 +4,7 @@ import {
   wantsHtml,
   type AuthEnv,
 } from './lib/bmeAuth'
+import { getAccessOffline } from './lib/accessOffline'
 
 interface PagesContext {
   request: Request
@@ -13,6 +14,7 @@ interface PagesContext {
 
 /**
  * Serve the QuadReal OTP wall for document navigations without a bme_session.
+ * While Offline, always serve the Off Line wall (even with a valid session cookie).
  * Cloudflare Access must be disabled on this Pages hostname so this wall is visible.
  */
 export async function onRequest(context: PagesContext): Promise<Response> {
@@ -34,6 +36,11 @@ export async function onRequest(context: PagesContext): Promise<Response> {
   // Only gate HTML document requests (SPA entry).
   if (!wantsHtml(context.request) || context.request.method !== 'GET') {
     return context.next()
+  }
+
+  // Panic kill-switch: cut all HTML access while Offline (admins reactivate via wall OTP).
+  if (await getAccessOffline(context.env)) {
+    return authWallResponse('', { offline: true })
   }
 
   const session = await verifySession(context.request, context.env)

@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { verifySession } from '../lib/bmeAuth'
+import {
+  decideOfflineVerify,
+  getAccessOffline,
+  isAppAdmin,
+  setAccessOffline,
+} from '../lib/accessOffline'
 
 interface Env {
   SUPABASE_URL: string
@@ -182,6 +188,23 @@ async function handleGet(context: PagesContext): Promise<Response> {
 
   try {
     const email = await resolveIdentityEmail(context.request, context.env)
+    const offline = await getAccessOffline(context.env)
+    if (offline) {
+      const adminUser = await isAppAdmin(email, context.env)
+      const decision = decideOfflineVerify({ offline: true, isAdmin: adminUser })
+      if (decision.action === 'refuse') {
+        return json(
+          {
+            error: 'App is offline',
+            detail: decision.error,
+          },
+          403,
+        )
+      }
+      if (decision.action === 'clear_offline') {
+        await setAccessOffline(context.env, false, { setBy: email })
+      }
+    }
     return json(await mintSession(email, context.env))
   } catch (error) {
     const message = thrownMessage(error)
