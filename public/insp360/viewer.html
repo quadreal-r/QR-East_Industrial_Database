@@ -1837,7 +1837,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.3.3</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.3.4</span>
 </div>
 
 <div id="privacySettings">
@@ -17928,6 +17928,7 @@ async function refreshAdminPanel(){
     adminCache.users=Array.isArray(usersRes.users)?usersRes.users:[];
     adminCache.groups=Array.isArray(groupsRes.groups)?groupsRes.groups:[];
     adminCache.projects=Array.isArray(projectsRes.projects)?projectsRes.projects:[];
+    await upgradeGroupTourGrantsToEdit();
     renderAdminPeople();
     renderAdminGroups();
   }catch(e){
@@ -18030,12 +18031,30 @@ function groupTourGrants(groupId){
   return out;
 }
 
+/** Tours are assignment-only now; migrate any leftover group View grants to Edit. */
+async function upgradeGroupTourGrantsToEdit(){
+  const byGroup=new Map();
+  for(const p of adminCache.projects||[]){
+    for(const g of p.grants||[]){
+      if(g.principal_type!=='group' || !g.principal_id || !p.key) continue;
+      const id=String(g.principal_id);
+      if(!byGroup.has(id)) byGroup.set(id, []);
+      byGroup.get(id).push({ key:p.key, permission:g.permission==='edit'?'edit':'view' });
+    }
+  }
+  for(const [groupId, tours] of byGroup){
+    if(!tours.some(t=>t.permission!=='edit')) continue;
+    try{ await saveGroupTours(groupId, tours); }catch(_){}
+  }
+}
+
 async function saveGroupTours(groupId, tours){
   const seen=new Map();
   for(const t of tours||[]){
     const key=String(t&&t.key||'').trim();
     if(!key) continue;
-    seen.set(key, { key, permission:t.permission==='edit'?'edit':'view' });
+    // Tour grants are assignment-only; person View/Edit caps effective access.
+    seen.set(key, { key, permission:'edit' });
   }
   const unique=[...seen.values()];
   await adminFetch('/api/admin/groups/'+encodeURIComponent(groupId)+'/tours', {
@@ -18179,7 +18198,7 @@ function renderAdminGroups(){
         '<button type="button" class="btn" data-admin-del-group="'+esc(g.id)+'">Delete</button>'+
       '</span>'+
     '</div>'+
-    '<p class="admin-group-detail-hint">Assign members and cloud tours. View/Edit caps each person’s access on the tours listed here. Administrators already have full access to every tour and are not listed in groups.</p>'+
+    '<p class="admin-group-detail-hint">Assign members and cloud tours. Each person’s View/Edit caps access on the tours listed here. Administrators already have full access to every tour and are not listed in groups.</p>'+
     '<div class="admin-group-detail-cols">'+
       '<div class="admin-group-col">'+
         '<div class="admin-group-col-title">People</div>'+
@@ -18223,17 +18242,12 @@ function renderAdminGroups(){
     detailHtml+='<div class="admin-empty" style="padding:8px 0">No tours yet — assign a cloud tour below.</div>';
   } else {
     for(const t of tours){
-      const perm=t.permission==='edit'?'edit':'view';
       const name=cloudTourDisplayName(t.key);
       detailHtml+='<div class="admin-member-row">'+
         '<div class="admin-member-name" title="'+esc(t.key)+'">'+
           '<span>'+esc(name)+'</span>'+
         '</div>'+
         '<div class="admin-member-actions">'+
-          '<select class="admin-grant-perm '+esc(perm)+'" data-admin-tour-perm-change="'+esc(g.id)+'" data-tour-key="'+esc(t.key)+'" title="Tour access for this group">'+
-            '<option value="view"'+(perm==='view'?' selected':'')+'>View</option>'+
-            '<option value="edit"'+(perm==='edit'?' selected':'')+'>Edit</option>'+
-          '</select>'+
           '<button type="button" class="btn" data-admin-remove-tour="'+esc(g.id)+'" data-tour-key="'+esc(t.key)+'">Remove</button>'+
         '</div></div>';
     }
@@ -18245,10 +18259,6 @@ function renderAdminGroups(){
     detailHtml+='<option value="'+esc(p.key)+'">'+esc(cloudTourDisplayName(p.key))+'</option>';
   }
   detailHtml+='</select>'+
-    '<select class="view" data-admin-tour-perm="'+esc(g.id)+'" title="Access for new tour">'+
-      '<option value="view" selected>View</option>'+
-      '<option value="edit">Edit</option>'+
-    '</select>'+
     '<button type="button" class="btn" data-admin-add-tour="'+esc(g.id)+'"'+(availableTours.length?'':' disabled')+'>Add</button>'+
     '<button type="button" class="btn" data-admin-add-all-tours="'+esc(g.id)+'" title="Add every remaining cloud tour"'+(availableTours.length?'':' disabled')+'>Add all</button>'+
     '</div></div></div>';
@@ -18260,13 +18270,12 @@ function renderAdminGroups(){
     sel.classList.toggle('edit', edit);
     sel.classList.toggle('view', !edit);
   }
-  detailHost.querySelectorAll('[data-admin-add-perm], [data-admin-tour-perm]').forEach(sel=>{
+  detailHost.querySelectorAll('[data-admin-add-perm]').forEach(sel=>{
     syncPermSelectStyle(sel);
     sel.addEventListener('change', ()=>syncPermSelectStyle(sel));
   });
 
   detailHost.querySelectorAll('[data-admin-member-perm]').forEach(sel=>syncPermSelectStyle(sel));
-  detailHost.querySelectorAll('[data-admin-tour-perm-change]').forEach(sel=>syncPermSelectStyle(sel));
 
   function selectGroup(id){
     if(!id || String(id)===String(adminSelectedGroupId)) return;
@@ -18407,42 +18416,18 @@ function renderAdminGroups(){
     };
   });
 
-  detailHost.querySelectorAll('[data-admin-tour-perm-change]').forEach(sel=>{
-    sel.onchange=async()=>{
-      const id=sel.getAttribute('data-admin-tour-perm-change');
-      const key=sel.getAttribute('data-tour-key')||'';
-      const permission=sel.value==='edit'?'edit':'view';
-      if(!id || !key) return;
-      const cur=groupTourGrants(id).map(t=>t.key===key ? { key, permission } : t);
-      sel.classList.toggle('edit', permission==='edit');
-      sel.classList.toggle('view', permission==='view');
-      sel.disabled=true;
-      try{
-        adminSelectedGroupId=id;
-        await saveGroupTours(id, cur);
-        toast(cloudTourDisplayName(key)+' set to '+permission);
-      }catch(err){
-        toast(err.message||'Could not update tour access', true);
-        refreshAdminPanel();
-      }finally{
-        sel.disabled=false;
-      }
-    };
-  });
   detailHost.querySelectorAll('[data-admin-add-tour]').forEach(btn=>{
     btn.onclick=async()=>{
       const id=btn.getAttribute('data-admin-add-tour');
       const sel=detailHost.querySelector('[data-admin-pick-tour]');
-      const permEl=detailHost.querySelector('[data-admin-tour-perm]');
       const key=sel?sel.value:'';
-      const permission=permEl&&permEl.value==='edit'?'edit':'view';
       if(!key){ toast('Pick a tour first', true); return; }
       const cur=groupTourGrants(id);
       if(cur.some(t=>t.key===key)){ toast('Tour already assigned', true); return; }
       try{
         adminSelectedGroupId=id;
-        await saveGroupTours(id, cur.concat([{ key, permission }]));
-        toast('Tour assigned ('+permission+')');
+        await saveGroupTours(id, cur.concat([{ key }]));
+        toast('Tour assigned');
         refreshAdminPanel();
       }catch(err){ toast(err.message||'Assign failed', true); }
     };
@@ -18450,20 +18435,18 @@ function renderAdminGroups(){
   detailHost.querySelectorAll('[data-admin-add-all-tours]').forEach(btn=>{
     btn.onclick=async()=>{
       const id=btn.getAttribute('data-admin-add-all-tours');
-      const permEl=detailHost.querySelector('[data-admin-tour-perm]');
-      const permission=permEl&&permEl.value==='edit'?'edit':'view';
       const cur=groupTourGrants(id);
       const curKeys=new Set(cur.map(t=>t.key));
       const toAdd=(adminCache.projects||[])
         .filter(p=>p && p.key && !curKeys.has(p.key))
-        .map(p=>({ key:p.key, permission }));
+        .map(p=>({ key:p.key }));
       if(!toAdd.length){ toast('All cloud tours are already assigned'); return; }
       const n=toAdd.length;
-      if(!window.confirm('Add all '+n+' remaining tour'+(n===1?'':'s')+' as '+permission+'?')) return;
+      if(!window.confirm('Add all '+n+' remaining tour'+(n===1?'':'s')+'?')) return;
       try{
         adminSelectedGroupId=id;
         await saveGroupTours(id, cur.concat(toAdd));
-        toast('Added '+n+' tour'+(n===1?'':'s')+' ('+permission+')');
+        toast('Added '+n+' tour'+(n===1?'':'s'));
         refreshAdminPanel();
       }catch(err){ toast(err.message||'Add all tours failed', true); }
     };
@@ -19663,7 +19646,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.3.3";
+  const VERSION_NUM="1.3.4";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
