@@ -1848,7 +1848,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.3.5</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.3.6</span>
 </div>
 
 <div id="privacySettings">
@@ -18247,10 +18247,6 @@ function renderAdminGroups(){
     detailHtml+='<option value="'+esc(u.email)+'">'+esc(u.email)+'</option>';
   }
   detailHtml+='</select>'+
-    '<select class="view" data-admin-add-perm="'+esc(g.id)+'" title="Access for new person">'+
-      '<option value="view" selected>View</option>'+
-      '<option value="edit">Edit</option>'+
-    '</select>'+
     '<button type="button" class="btn" data-admin-add-picked="'+esc(g.id)+'"'+(available.length?'':' disabled')+'>Add</button>'+
     '<button type="button" class="btn" data-admin-add-all-people="'+esc(g.id)+'" title="Add remaining members as View"'+(available.length?'':' disabled')+'>Add all</button>'+
     '</div></div>'+
@@ -18289,11 +18285,6 @@ function renderAdminGroups(){
     sel.classList.toggle('edit', edit);
     sel.classList.toggle('view', !edit);
   }
-  detailHost.querySelectorAll('[data-admin-add-perm]').forEach(sel=>{
-    syncPermSelectStyle(sel);
-    sel.addEventListener('change', ()=>syncPermSelectStyle(sel));
-  });
-
   detailHost.querySelectorAll('[data-admin-member-perm]').forEach(sel=>syncPermSelectStyle(sel));
 
   function selectGroup(id){
@@ -18376,20 +18367,19 @@ function renderAdminGroups(){
     btn.onclick=async()=>{
       const id=btn.getAttribute('data-admin-add-picked');
       const sel=detailHost.querySelector('[data-admin-pick-user]');
-      const permEl=detailHost.querySelector('[data-admin-add-perm]');
       const email=sel?sel.value:'';
       if(!email){ toast('Pick a person first', true); return; }
       const e=String(email).trim().toLowerCase();
       if(!e.includes('@')){ toast('Enter a valid email', true); return; }
       if(isAdminDirectoryEmail(e)){ toast('Administrators already have full tour access — no need to add them to groups', true); return; }
-      const permission=permEl&&permEl.value==='edit'?'edit':'view';
+      const permission='view';
       const grp=adminCache.groups.find(x=>x.id===id);
       const cur=normalizeAdminGroupMembers(grp?.members).filter(m=>!isAdminDirectoryEmail(m.email));
       if(cur.some(m=>m.email===e)){ toast('Already in this group', true); return; }
       try{
         adminSelectedGroupId=id;
         await saveGroupMembers(id, cur.concat([{ email:e, permission }]));
-        toast('Added '+e+' ('+permission+')');
+        toast('Added '+e);
         refreshAdminPanel();
       }catch(err){ toast(err.message||'Add failed', true); }
     };
@@ -19665,7 +19655,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.3.5";
+  const VERSION_NUM="1.3.6";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
