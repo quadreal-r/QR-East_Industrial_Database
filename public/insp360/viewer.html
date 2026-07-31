@@ -1284,8 +1284,50 @@
     background-color:#4974FF; color:#fff; border:1px solid #385ED0;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23ffffff' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   }
-  #adminPane #adminGroups.admin-section.on > .admin-groups-split{
+  #adminPane #adminGroups.admin-section.on > .admin-groups-split,
+  #adminPane #adminEmail.admin-section.on > .admin-groups-split{
     flex:1 1 auto; min-height:0; display:flex; gap:12px; overflow:hidden;
+  }
+  #adminPane #adminEmail.admin-section.on{
+    display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden;
+  }
+  #adminPanel #adminEmailList{
+    flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+    margin:0; padding-right:2px; scrollbar-width:thin;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  #adminPanel #adminEmailList::-webkit-scrollbar{width:8px}
+  #adminPanel #adminEmailList::-webkit-scrollbar-thumb{background:#8e99ad; border-radius:4px}
+  #adminPanel #adminEmailList.admin-empty,
+  #adminPanel #adminEmailDetail.admin-empty{
+    display:block; padding:14px 12px;
+  }
+  #adminPanel #adminEmailDetail{
+    flex:1 1 auto; min-height:0; overflow:hidden;
+    display:flex; flex-direction:column; gap:10px;
+    padding:0; margin:0; border:1px solid #8e99ad; border-radius:10px;
+    background:#e8ecf2; box-sizing:border-box;
+  }
+  #adminPanel #adminEmailDetail:not(.admin-empty){padding:12px}
+  #adminPanel #adminEmail .admin-notify-note{
+    width:100%; box-sizing:border-box; min-height:64px; resize:vertical; margin:0;
+    font-family:var(--sans); font-size:13px; color:#151b26; background:#eef1f5;
+    border:1px solid #8e99ad; border-radius:8px; padding:10px 12px;
+  }
+  #adminPanel #adminEmail .admin-member-row.admin-notify-pick{
+    cursor:pointer; user-select:none;
+  }
+  #adminPanel #adminEmail .admin-member-row.admin-notify-pick .admin-member-name{
+    display:flex; align-items:center; gap:8px;
+  }
+  #adminPanel #adminEmail .admin-member-row.admin-notify-pick input{
+    width:15px; height:15px; flex:0 0 auto; accent-color:#2a3344; cursor:pointer;
+  }
+  #adminPanel #adminEmail #adminEmailSend{
+    background:#2a3344; border-color:#2a3344; color:#fff;
+  }
+  #adminPanel #adminEmail #adminEmailSend:hover{
+    background:#364357; border-color:#364357; color:#fff;
   }
   /* Projects: freeze search + capped tour list; scroll grants/detail below */
   #adminPane #adminProjects.admin-section.on{
@@ -1848,7 +1890,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.3.6</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.3.7</span>
 </div>
 
 <div id="privacySettings">
@@ -1926,6 +1968,7 @@
       <div class="admin-subtabs" id="adminSubtabs">
         <button type="button" class="on" data-admin="people">People</button>
         <button type="button" data-admin="groups">Groups</button>
+        <button type="button" data-admin="email" title="E-mail Notification">E-mail Notification</button>
       </div>
       <div class="admin-section on" id="adminPeople">
         <div class="admin-toolbar">
@@ -1964,6 +2007,17 @@
           </div>
           <div class="admin-groups-pane admin-groups-detail-pane">
             <div id="adminGroupDetail" class="admin-empty">Select a group</div>
+          </div>
+        </div>
+      </div>
+      <div class="admin-section" id="adminEmail">
+        <div class="admin-groups-split">
+          <div class="admin-groups-pane admin-groups-list-pane">
+            <input id="adminEmailSearch" class="admin-search" type="search" placeholder="Search groups, people, tours…" autocomplete="off">
+            <div id="adminEmailList" class="admin-empty">Loading…</div>
+          </div>
+          <div class="admin-groups-pane admin-groups-detail-pane">
+            <div id="adminEmailDetail" class="admin-empty">Select a group</div>
           </div>
         </div>
       </div>
@@ -17798,6 +17852,7 @@ async function uploadCurrentToCloud(){
 /* ================= ACL /api/me + Admin panel ================= */
 let adminCache={ users:[], groups:[], projects:[] };
 let adminSubTab='people';
+let adminSelectedEmailGroupId=null;
 let adminSelectedGroupId=null;
 
 function sessionLogoutUrl(){
@@ -17901,14 +17956,15 @@ function collapseAdminActivityLog(){
   }catch(_){}
 }
 function setAdminSubTab(tab){
-  adminSubTab=tab==='groups'?'groups':'people';
+  adminSubTab=tab==='groups'?'groups':(tab==='email'?'email':'people');
   document.querySelectorAll('#adminSubtabs button').forEach(b=>{
     b.classList.toggle('on', b.getAttribute('data-admin')===adminSubTab);
   });
   document.querySelectorAll('#adminPanel .admin-section').forEach(sec=>{
     const id=sec.id||'';
     const on=(adminSubTab==='people'&&id==='adminPeople')
-      ||(adminSubTab==='groups'&&id==='adminGroups');
+      ||(adminSubTab==='groups'&&id==='adminGroups')
+      ||(adminSubTab==='email'&&id==='adminEmail');
     sec.classList.toggle('on', on);
   });
   collapseAdminActivityLog();
@@ -17942,6 +17998,7 @@ async function refreshAdminPanel(){
     await upgradeGroupTourGrantsToEdit();
     renderAdminPeople();
     renderAdminGroups();
+    renderAdminEmailNotify();
   }catch(e){
     const pe=document.getElementById('adminPeopleList');
     if(pe) pe.innerHTML='<div class="admin-empty">'+(e.message||'Could not load admin data.')+'</div>';
@@ -18123,6 +18180,175 @@ function normalizeAdminGroupMembers(raw){
     out.push({ email, permission });
   }
   return out;
+}
+
+
+function renderAdminEmailNotify(){
+  const listHost=document.getElementById('adminEmailList');
+  const detailHost=document.getElementById('adminEmailDetail');
+  if(!listHost || !detailHost) return;
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+
+  if(!adminCache.groups.length){
+    adminSelectedEmailGroupId=null;
+    listHost.className='admin-empty';
+    listHost.innerHTML='No groups yet. Create a group first.';
+    detailHost.className='admin-empty';
+    detailHost.innerHTML='Create a group under Groups to send notifications.';
+    return;
+  }
+
+  const q=(document.getElementById('adminEmailSearch')?.value||'').trim().toLowerCase();
+  const filteredGroups=!q
+    ? adminCache.groups
+    : adminCache.groups.filter(g=>{
+        if(String(g.name||'').toLowerCase().includes(q)) return true;
+        const members=normalizeAdminGroupMembers(g.members).filter(m=>!isAdminDirectoryEmail(m.email));
+        if(members.some(m=>m.email.includes(q))) return true;
+        return groupTourGrants(g.id).some(t=>{
+          const name=cloudTourDisplayName(t.key).toLowerCase();
+          return name.includes(q) || String(t.key).toLowerCase().includes(q);
+        });
+      });
+
+  if(!filteredGroups.length){
+    listHost.className='admin-empty';
+    listHost.innerHTML='No groups match “'+esc(q)+'”.';
+    detailHost.className='admin-empty';
+    detailHost.innerHTML='No group selected.';
+    return;
+  }
+
+  if(!adminSelectedEmailGroupId || !filteredGroups.some(g=>String(g.id)===String(adminSelectedEmailGroupId))){
+    adminSelectedEmailGroupId=filteredGroups[0].id;
+  }
+
+  listHost.className='';
+  let listHtml='';
+  for(const g of filteredGroups){
+    const memberCount=normalizeAdminGroupMembers(g.members).filter(m=>!isAdminDirectoryEmail(m.email)).length;
+    const tours=groupTourGrants(g.id);
+    const selected=String(g.id)===String(adminSelectedEmailGroupId);
+    listHtml+='<div class="admin-group-row'+(selected?' is-selected':'')+'" data-admin-email-select-group="'+esc(g.id)+'" role="button" tabindex="0" aria-selected="'+(selected?'true':'false')+'">'+
+      '<span class="admin-group-row-name">'+esc(g.name)+'</span>'+
+      '<span class="admin-group-row-meta">'+memberCount+' · '+tours.length+'</span>'+
+      '</div>';
+  }
+  listHost.innerHTML=listHtml;
+
+  const g=filteredGroups.find(x=>String(x.id)===String(adminSelectedEmailGroupId))||filteredGroups[0];
+  const members=normalizeAdminGroupMembers(g.members).filter(m=>!isAdminDirectoryEmail(m.email));
+  const tours=groupTourGrants(g.id);
+
+  detailHost.className='';
+  let detailHtml=
+    '<div class="admin-group-detail-head">'+
+      '<b>'+esc(g.name)+'</b>'+
+      '<span class="admin-actions">'+
+        '<button type="button" class="btn" id="adminEmailSend" data-admin-email-send="'+esc(g.id)+'" title="Send email to chosen people below">Send email</button>'+
+      '</span>'+
+    '</div>'+
+    '<p class="admin-group-detail-hint">Choose people below, then use Send email. Message covers this group’s assigned tours.</p>'+
+    '<div class="admin-notify-actions">'+
+      '<button type="button" class="btn" data-admin-email-select-all>Select all</button>'+
+      '<button type="button" class="btn" data-admin-email-select-none>Clear</button>'+
+    '</div>'+
+    '<textarea class="admin-notify-note" id="adminEmailNote" placeholder="Optional note included in the email…"></textarea>'+
+    '<div class="admin-group-detail-cols">'+
+      '<div class="admin-group-col">'+
+        '<div class="admin-group-col-title">People</div>'+
+        '<div class="admin-member-list admin-people-list'+(members.length?'':' is-empty')+'">';
+  if(!members.length){
+    detailHtml+='<div class="admin-empty" style="padding:8px 0">No members in this group.</div>';
+  } else {
+    for(const m of members){
+      detailHtml+='<label class="admin-member-row admin-notify-pick">'+
+        '<div class="admin-member-name">'+
+          '<input type="checkbox" data-admin-email-to="'+esc(m.email)+'" checked>'+
+          '<span>'+esc(m.email)+'</span>'+
+        '</div>'+
+        '<div class="admin-member-actions">'+
+          '<span class="admin-perm-badge '+(m.permission==='edit'?'edit':'view')+'">'+(m.permission==='edit'?'edit':'view')+'</span>'+
+        '</div></label>';
+    }
+  }
+  detailHtml+='</div></div>'+
+    '<div class="admin-group-col">'+
+      '<div class="admin-group-col-title">Tours</div>'+
+      '<div class="admin-member-list'+(tours.length?'':' is-empty')+'">';
+  if(!tours.length){
+    detailHtml+='<div class="admin-empty" style="padding:8px 0">No tours assigned to this group.</div>';
+  } else {
+    for(const t of tours){
+      const name=cloudTourDisplayName(t.key);
+      detailHtml+='<div class="admin-member-row">'+
+        '<div class="admin-member-name" title="'+esc(t.key)+'"><span>'+esc(name)+'</span></div>'+
+        '</div>';
+    }
+  }
+  detailHtml+='</div></div></div>';
+  detailHost.innerHTML=detailHtml;
+
+  function selectGroup(id){
+    if(!id || String(id)===String(adminSelectedEmailGroupId)) return;
+    adminSelectedEmailGroupId=id;
+    renderAdminEmailNotify();
+  }
+  listHost.querySelectorAll('[data-admin-email-select-group]').forEach(row=>{
+    const id=row.getAttribute('data-admin-email-select-group');
+    row.onclick=()=>selectGroup(id);
+    row.onkeydown=e=>{
+      if(e.key!=='Enter' && e.key!==' ') return;
+      e.preventDefault();
+      selectGroup(id);
+    };
+  });
+
+  detailHost.querySelectorAll('[data-admin-email-select-all]').forEach(btn=>{
+    btn.onclick=()=>{
+      detailHost.querySelectorAll('[data-admin-email-to]').forEach(cb=>{ cb.checked=true; });
+    };
+  });
+  detailHost.querySelectorAll('[data-admin-email-select-none]').forEach(btn=>{
+    btn.onclick=()=>{
+      detailHost.querySelectorAll('[data-admin-email-to]').forEach(cb=>{ cb.checked=false; });
+    };
+  });
+
+  const sendBtn=detailHost.querySelector('[data-admin-email-send]');
+  if(sendBtn){
+    sendBtn.onclick=async()=>{
+      const id=sendBtn.getAttribute('data-admin-email-send');
+      const emails=[...detailHost.querySelectorAll('[data-admin-email-to]:checked')]
+        .map(cb=>String(cb.getAttribute('data-admin-email-to')||'').toLowerCase())
+        .filter(e=>e.includes('@'));
+      if(!emails.length){ toast('Choose at least one person below', true); return; }
+      const note=(document.getElementById('adminEmailNote')?.value||'').trim();
+      const cloudKeys=groupTourGrants(id).map(t=>t.key);
+      const n=emails.length;
+      if(!window.confirm('Send access email to '+n+' '+(n===1?'person':'people')+'?')) return;
+      sendBtn.disabled=true;
+      try{
+        const viewerUrl=(typeof cloudApiOrigin==='function' && cloudApiOrigin()) || location.origin;
+        const res=await adminFetch('/api/admin/notify', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body:JSON.stringify({
+            emails,
+            note,
+            groupId:id,
+            cloudKeys,
+            viewerUrl:String(viewerUrl||location.origin).replace(/\/$/,'')
+          })
+        });
+        const sent=(res.sent||[]).length;
+        const failed=(res.failed||[]).length;
+        if(failed) toast('Sent '+sent+', failed '+failed, true);
+        else toast(res.local ? ('Queued locally for '+sent+' (no Resend on localhost)') : ('Email sent to '+sent));
+      }catch(err){ toast(err.message||'Send failed', true); }
+      finally{ sendBtn.disabled=false; }
+    };
+  }
 }
 
 function renderAdminGroups(){
@@ -18484,6 +18710,8 @@ function renderAdminGroups(){
   if(peopleSearch) peopleSearch.oninput=()=>renderAdminPeople();
   const groupsSearch=document.getElementById('adminGroupsSearch');
   if(groupsSearch) groupsSearch.oninput=()=>renderAdminGroups();
+  const emailSearch=document.getElementById('adminEmailSearch');
+  if(emailSearch) emailSearch.oninput=()=>renderAdminEmailNotify();
   const addUser=document.getElementById('adminUserAdd');
   if(addUser) addUser.onclick=async()=>{
     const email=(document.getElementById('adminUserEmail')?.value||'').trim().toLowerCase();
@@ -19655,7 +19883,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.3.6";
+  const VERSION_NUM="1.3.7";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
