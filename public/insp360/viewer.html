@@ -1558,13 +1558,20 @@
     background:transparent; border:none; padding:0; max-height:none; overflow:visible;
   }
   #adminPanel .admin-member-row{
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
     flex:0 0 auto;
     padding:8px 10px; border:1px solid #8e99ad; border-radius:8px; background:#eef1f5;
   }
-  #adminPanel .admin-member-row span{font-size:13px; word-break:break-all; min-width:0}
+  #adminPanel .admin-member-row .admin-member-name{
+    flex:1 1 auto; min-width:0; font-size:13px; word-break:break-all;
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  }
+  #adminPanel .admin-member-row .admin-member-actions{
+    display:flex; align-items:center; gap:6px; flex:0 0 auto; margin-left:auto;
+  }
   #adminPanel .admin-member-row .admin-member-meta{display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; flex:1}
   #adminPanel .admin-member-row button{flex:0 0 auto; font-size:12px; padding:6px 10px}
+  #adminPanel .admin-member-row .admin-member-actions .admin-grant-perm{flex:0 0 auto}
   #adminPanel .admin-add-member{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
   #adminPanel .admin-add-member select,
   #adminPanel .admin-add-member input{flex:1 1 160px}
@@ -1652,8 +1659,11 @@
   #adminPanel .admin-groups-split .admin-member-row{
     padding:6px 8px;
   }
-  #adminPanel .admin-groups-split .admin-member-row span{font-size:12px}
+  #adminPanel .admin-groups-split .admin-member-row .admin-member-name{font-size:12px}
   #adminPanel .admin-groups-split .admin-member-row button{font-size:11px; padding:4px 8px}
+  #adminPanel .admin-groups-split .admin-member-row .admin-member-actions .admin-grant-perm{
+    font-size:11px; padding:4px 6px; min-width:64px;
+  }
   #adminPanel .admin-groups-split .admin-add-member{
     flex:0 0 auto; flex-wrap:nowrap; gap:6px;
   }
@@ -1802,7 +1812,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.97</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.98</span>
 </div>
 
 <div id="privacySettings">
@@ -18092,14 +18102,17 @@ function renderAdminGroups(){
       const isAdmin=isAdminDirectoryEmail(m.email);
       const perm=isAdmin || m.permission==='edit'?'edit':'view';
       detailHtml+='<div class="admin-member-row">'+
-        '<div class="admin-member-meta">'+
-          '<span>'+esc(m.email)+(isAdmin?' <span class="admin-perm-badge admin">admin</span>':'')+'</span>'+
+        '<div class="admin-member-name">'+
+          '<span>'+esc(m.email)+'</span>'+
+          (isAdmin?'<span class="admin-perm-badge admin">admin</span>':'')+
+        '</div>'+
+        '<div class="admin-member-actions">'+
           '<select class="admin-grant-perm '+esc(perm)+'" data-admin-member-perm="'+esc(g.id)+'" data-email="'+esc(m.email)+'" title="'+(isAdmin?'Administrators always have Edit':'Access')+'"'+(isAdmin?' disabled':'')+'>'+
             '<option value="view"'+(perm==='view'?' selected':'')+'>View</option>'+
             '<option value="edit"'+(perm==='edit'?' selected':'')+'>Edit</option>'+
           '</select>'+
-        '</div>'+
-        '<button type="button" class="btn" data-admin-remove-member="'+esc(g.id)+'" data-email="'+esc(m.email)+'">Remove</button></div>';
+          '<button type="button" class="btn" data-admin-remove-member="'+esc(g.id)+'" data-email="'+esc(m.email)+'">Remove</button>'+
+        '</div></div>';
     }
   }
   detailHtml+='</div><div class="admin-add-member">'+
@@ -19453,7 +19466,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.2.97";
+  const VERSION_NUM="1.2.98";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
