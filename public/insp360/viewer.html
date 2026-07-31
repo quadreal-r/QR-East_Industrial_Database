@@ -1802,7 +1802,7 @@
   <button class="btn icon topbtn" id="btnBlurFaces" title="Privacy blur — faces or licence plates (auto or manual)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/><path d="M8.6 8.2l-.8.8M15.4 8.2l.8.8M11 12.4h2"/></svg></button>
   <button class="btn icon topbtn" id="btnPrivacySettings" title="Privacy settings — automatic face &amp; licence-plate blur"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button type="button" class="btn" id="btnAdmin" title="Admin — people, groups, and tour access">Admin</button>
-  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.96</span>
+  <span id="appVer" title="Map-embedded 360 viewer (Map360)">Map360-v1.2.97</span>
 </div>
 
 <div id="privacySettings">
@@ -17978,6 +17978,13 @@ function renderAdminPeople(){
   });
 }
 
+function isAdminDirectoryEmail(email){
+  const e=String(email||'').trim().toLowerCase();
+  if(!e.includes('@')) return false;
+  const u=(adminCache.users||[]).find(x=>String(x&&x.email||'').toLowerCase()===e);
+  return !!(u && u.role==='admin');
+}
+
 function normalizeAdminGroupMembers(raw){
   const out=[];
   const seen=new Set();
@@ -17992,6 +17999,8 @@ function normalizeAdminGroupMembers(raw){
     }
     if(!email.includes('@') || seen.has(email)) continue;
     seen.add(email);
+    // Administrators always have Edit in groups.
+    if(isAdminDirectoryEmail(email)) permission='edit';
     out.push({ email, permission });
   }
   return out;
@@ -18071,7 +18080,7 @@ function renderAdminGroups(){
         '<button type="button" class="btn" data-admin-del-group="'+esc(g.id)+'">Delete</button>'+
       '</span>'+
     '</div>'+
-    '<p class="admin-group-detail-hint">Set each person’s View or Edit access. Edit can save tours; View is read-only.</p>'+
+    '<p class="admin-group-detail-hint">Set each person’s View or Edit access. Administrators are always Edit.</p>'+
     '<div class="admin-group-detail-cols">'+
       '<div class="admin-group-col">'+
         '<div class="admin-group-col-title">People</div>'+
@@ -18080,11 +18089,12 @@ function renderAdminGroups(){
     detailHtml+='<div class="admin-empty" style="padding:8px 0">No people yet — pick from the directory below.</div>';
   } else {
     for(const m of members){
-      const perm=m.permission==='edit'?'edit':'view';
+      const isAdmin=isAdminDirectoryEmail(m.email);
+      const perm=isAdmin || m.permission==='edit'?'edit':'view';
       detailHtml+='<div class="admin-member-row">'+
         '<div class="admin-member-meta">'+
-          '<span>'+esc(m.email)+'</span>'+
-          '<select class="admin-grant-perm '+esc(perm)+'" data-admin-member-perm="'+esc(g.id)+'" data-email="'+esc(m.email)+'" title="Access">'+
+          '<span>'+esc(m.email)+(isAdmin?' <span class="admin-perm-badge admin">admin</span>':'')+'</span>'+
+          '<select class="admin-grant-perm '+esc(perm)+'" data-admin-member-perm="'+esc(g.id)+'" data-email="'+esc(m.email)+'" title="'+(isAdmin?'Administrators always have Edit':'Access')+'"'+(isAdmin?' disabled':'')+'>'+
             '<option value="view"'+(perm==='view'?' selected':'')+'>View</option>'+
             '<option value="edit"'+(perm==='edit'?' selected':'')+'>Edit</option>'+
           '</select>'+
@@ -18096,7 +18106,8 @@ function renderAdminGroups(){
     '<select data-admin-pick-user="'+esc(g.id)+'">'+
     '<option value="">Pick a person…</option>';
   for(const u of available){
-    detailHtml+='<option value="'+esc(u.email)+'">'+esc(u.email)+'</option>';
+    const roleTag=u.role==='admin'?' (admin)':'';
+    detailHtml+='<option value="'+esc(u.email)+'" data-role="'+esc(u.role==='admin'?'admin':'member')+'">'+esc(u.email)+roleTag+'</option>';
   }
   detailHtml+='</select>'+
     '<select data-admin-add-perm="'+esc(g.id)+'" title="Access for new person">'+
@@ -18104,9 +18115,27 @@ function renderAdminGroups(){
       '<option value="edit">Edit</option>'+
     '</select>'+
     '<button type="button" class="btn" data-admin-add-picked="'+esc(g.id)+'"'+(available.length?'':' disabled')+'>Add</button>'+
-    '<button type="button" class="btn" data-admin-add-all-people="'+esc(g.id)+'" title="Add everyone not already in this group as View"'+(available.length?'':' disabled')+'>Add all</button>'+
+    '<button type="button" class="btn" data-admin-add-all-people="'+esc(g.id)+'" title="Add remaining people (admins as Edit, others as View)"'+(available.length?'':' disabled')+'>Add all</button>'+
     '</div></div></div>';
   detailHost.innerHTML=detailHtml;
+
+  const pickUser=detailHost.querySelector('[data-admin-pick-user]');
+  const addPerm=detailHost.querySelector('[data-admin-add-perm]');
+  if(pickUser && addPerm){
+    const syncAddPermForPick=()=>{
+      const email=String(pickUser.value||'').toLowerCase();
+      if(email && isAdminDirectoryEmail(email)){
+        addPerm.value='edit';
+        addPerm.disabled=true;
+        addPerm.classList.add('edit');
+        addPerm.classList.remove('view');
+      } else {
+        addPerm.disabled=false;
+      }
+    };
+    pickUser.onchange=syncAddPermForPick;
+    syncAddPermForPick();
+  }
 
   function selectGroup(id){
     if(!id || String(id)===String(adminSelectedGroupId)) return;
@@ -18159,6 +18188,11 @@ function renderAdminGroups(){
     sel.onchange=async()=>{
       const id=sel.getAttribute('data-admin-member-perm');
       const email=String(sel.getAttribute('data-email')||'').toLowerCase();
+      if(isAdminDirectoryEmail(email)){
+        sel.value='edit';
+        toast('Administrators always have Edit', true);
+        return;
+      }
       const permission=sel.value==='edit'?'edit':'view';
       const grp=adminCache.groups.find(x=>x.id===id);
       const cur=normalizeAdminGroupMembers(grp?.members);
@@ -18185,10 +18219,10 @@ function renderAdminGroups(){
       const sel=detailHost.querySelector('[data-admin-pick-user]');
       const permEl=detailHost.querySelector('[data-admin-add-perm]');
       const email=sel?sel.value:'';
-      const permission=permEl&&permEl.value==='edit'?'edit':'view';
       if(!email){ toast('Pick a person first', true); return; }
       const e=String(email).trim().toLowerCase();
       if(!e.includes('@')){ toast('Enter a valid email', true); return; }
+      const permission=isAdminDirectoryEmail(e)?'edit':(permEl&&permEl.value==='edit'?'edit':'view');
       const grp=adminCache.groups.find(x=>x.id===id);
       const cur=normalizeAdminGroupMembers(grp?.members);
       if(cur.some(m=>m.email===e)){ toast('Already in this group', true); return; }
@@ -18207,16 +18241,19 @@ function renderAdminGroups(){
       const cur=normalizeAdminGroupMembers(grp?.members);
       const curSet=new Set(cur.map(m=>m.email));
       const toAdd=(adminCache.users||[])
-        .map(u=>String(u&&u.email||'').trim().toLowerCase())
-        .filter(e=>e.includes('@') && !curSet.has(e))
-        .map(email=>({ email, permission:'view' }));
+        .map(u=>{
+          const email=String(u&&u.email||'').trim().toLowerCase();
+          if(!email.includes('@') || curSet.has(email)) return null;
+          return { email, permission: u.role==='admin'?'edit':'view' };
+        })
+        .filter(Boolean);
       if(!toAdd.length){ toast('Everyone is already in this group'); return; }
       const n=toAdd.length;
-      if(!window.confirm('Add all '+n+' remaining '+(n===1?'person':'people')+' as View?')) return;
+      if(!window.confirm('Add all '+n+' remaining '+(n===1?'person':'people')+'? Admins get Edit; others get View.')) return;
       try{
         adminSelectedGroupId=id;
         await saveGroupMembers(id, cur.concat(toAdd));
-        toast('Added '+n+' '+(n===1?'person':'people')+' (View)');
+        toast('Added '+n+' '+(n===1?'person':'people'));
         refreshAdminPanel();
       }catch(err){ toast(err.message||'Add all failed', true); }
     };
@@ -19416,7 +19453,7 @@ window.addEventListener('resize', ()=>{ if(isDoubleTour()){ resizeDoublePanes();
 /* __BME_INSP360_INTEGRATION__ */
 (function(){
   /** Semver only (no product prefix). Patch rolls 0–99 then middle number +1. */
-  const VERSION_NUM="1.2.96";
+  const VERSION_NUM="1.2.97";
   /**
    * Product line for this HTML copy:
    * - QR360 = standalone Inspections viewer (file / :8788 / workers.dev)
