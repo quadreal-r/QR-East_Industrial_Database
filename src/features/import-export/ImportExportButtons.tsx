@@ -215,7 +215,7 @@ export function ImportExportButtons({
       {showExport ? (
         <SettingsToolButton
           variant="export"
-          tooltip="Export buildings, RTUs, tenant polygons, utilities, 360 gateways, building operators, and RTU picture references to Excel."
+          tooltip="Export buildings, RTUs, tenant polygons, utilities, 360 gateways, building operators, user emails with access levels, and RTU picture references to Excel."
           onClick={() => void handleExport()}
           disabled={busy}
         >

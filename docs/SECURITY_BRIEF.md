@@ -86,7 +86,7 @@ Clears gate cookies, clears browser Supabase tokens, and returns the user to the
 
 - Entering **`pulltheplug@quadreal.com`** on the login wall immediately flips the app to **Offline** (shared panic passphrase — anyone who can reach the wall can trigger it).
 - Offline **cuts application access** (HTML gate + non-admin session mint). It does **not** wipe Postgres, R2, or `app_roles` accounts.
-- Reactivation: an existing **Admin** completes normal OTP on the Off Line wall; successful Admin login clears the flag and restores access for everyone.
+- Reactivation: an existing **Admin** completes normal OTP on the Offline wall; successful Admin login clears the flag and restores access for everyone.
 - Flag: `app_settings` key `access_offline` (server-side service role only).
 
 ### Legacy note

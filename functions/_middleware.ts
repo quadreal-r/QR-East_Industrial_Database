@@ -14,7 +14,7 @@ interface PagesContext {
 
 /**
  * Serve the QuadReal OTP wall for document navigations without a bme_session.
- * While Offline, always serve the Off Line wall (even with a valid session cookie).
+ * While Offline, always serve the Offline wall (even with a valid session cookie).
  * Cloudflare Access must be disabled on this Pages hostname so this wall is visible.
  */
 export async function onRequest(context: PagesContext): Promise<Response> {

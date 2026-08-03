@@ -4,11 +4,21 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.15.5] - 2026-08-03
+
+### Added
+
+- Database Excel export includes a Users sheet (email and access level)
+
+### Changed
+
+- Offline auth wall title: "Offline" (was "Off Line")
+
 ## [1.15.3] - 2026-07-30
 
 ### Added
 
-- Offline kill-switch: sign in as pulltheplug@quadreal.com to pause the app for everyone; Admins can sign in on the Off Line wall to restore access (data and accounts unchanged)
+- Offline kill-switch: sign in as pulltheplug@quadreal.com to pause the app for everyone; Admins can sign in on the Offline wall to restore access (data and accounts unchanged)
 - Security brief docs for Access / offline procedures
 
 ## [1.15.1] - 2026-07-30

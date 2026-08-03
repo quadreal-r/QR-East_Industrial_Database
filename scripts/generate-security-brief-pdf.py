@@ -330,7 +330,7 @@ def main() -> None:
     )
     bullet(
         pdf,
-        "Reactivation: an existing Admin completes OTP on the Off Line wall; successful "
+        "Reactivation: an existing Admin completes OTP on the Offline wall; successful "
         "Admin login clears the flag for everyone.",
     )
     bullet(pdf, "Flag: app_settings key access_offline (server-side service role only).")

@@ -17,6 +17,25 @@ export function roleLabel(role: AppRole): string {
   return role === 'admin' ? 'Admin' : 'Viewer'
 }
 
+/** Sheet name for user emails / access levels in the main database Excel export. */
+export const USERS_SHEET = 'Users'
+
+export const USERS_EXPORT_HEADERS = ['Email', 'Access Level'] as const
+
+/** Rows for the Excel "Users" sheet (sorted by email; Admin / Viewer labels). */
+export function buildAppUserRoleExportRows(
+  rows: ReadonlyArray<Pick<AppRoleCsvRow, 'email' | 'role'>>,
+): unknown[][] {
+  return [...rows]
+    .map((row) => ({
+      email: row.email.trim().toLowerCase(),
+      role: normalizeAppRole(row.role),
+    }))
+    .filter((row) => row.email.length > 0)
+    .sort((a, b) => a.email.localeCompare(b.email))
+    .map((row) => [row.email, roleLabel(row.role)])
+}
+
 /** Stable CSV for backup / Excel — email,role (header required). */
 export function buildAppRolesCsv(rows: AppRoleCsvRow[]): string {
   const lines = ['email,role']

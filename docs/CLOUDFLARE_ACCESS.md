@@ -25,7 +25,7 @@ The map app uses a **custom QuadReal OTP wall** (same style as INSP 360 on krutk
 
 Entering **`pulltheplug@quadreal.com`** on the login wall immediately sets the app **Offline** for everyone (no OTP for that address). Data, R2 files, and Manage users accounts are **not** deleted.
 
-- While Offline, the wall shows **Off Line**; existing browser sessions are blocked from the app HTML
+- While Offline, the wall shows **Offline**; existing browser sessions are blocked from the app HTML
 - `/api/auth/*` stays reachable so an **Admin** (`app_roles` role `admin`) can request a code, verify OTP, and clear Offline
 - Non-admin `/api/session` calls return 403 while Offline
 

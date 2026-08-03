@@ -26,6 +26,13 @@ import {
   BUILDING_OPERATOR_SHEET,
   parseBuildingOperatorSheetRow,
 } from '@/lib/buildingOperators'
+import { listAppUserRoles } from '@/data/adminUsersApi'
+import type { AppRole } from '@/lib/appRoles'
+import {
+  buildAppUserRoleExportRows,
+  USERS_EXPORT_HEADERS,
+  USERS_SHEET,
+} from '@/lib/appUserRolesCsv'
 import { loadRtuPictureManifest, rtuPictureKey } from '@/lib/rtuPictures'
 import { buildRtuPictureExportBundle } from '@/lib/rtuPictureExport'
 import { injectFreezePanes } from '@/lib/xlsxFreeze'
@@ -119,6 +126,7 @@ const COL_WIDTHS = {
   utilities: [20.875, 38.875, 40.875, 14.875, 14.875],
   gateways: [12.875, 32.875, 28.875, 36.875, 14.875, 14.875, 48.875, 12.875, 12.875, 10.875],
   operators: [32.875, 12.875, 28.875, 22.875, 22.875, 18.875, 24.875, 18.875, 14.875],
+  users: [36.875, 14.875],
 } as const
 
 function str(value: unknown): string {
@@ -339,6 +347,20 @@ export function exportDatabaseExcelFilename(date = new Date()): string {
 
 export interface ExportPortfolioExcelOptions {
   managerRenames?: Record<string, string>
+  /** When omitted, loads Manage users from Supabase (admins only). Pass [] to force an empty Users sheet. */
+  userRoles?: ReadonlyArray<{ email: string; role: AppRole }>
+}
+
+async function resolveUserRolesForExport(
+  explicit: ExportPortfolioExcelOptions['userRoles'],
+): Promise<ReadonlyArray<{ email: string; role: AppRole }> | null> {
+  if (explicit !== undefined) return explicit
+  try {
+    return await listAppUserRoles()
+  } catch {
+    // Viewers cannot read app_roles — omit the Users sheet rather than fail the whole export.
+    return null
+  }
 }
 
 /** Export portfolio data to an Excel workbook (legacy-compatible sheets + RTU pictures). */
@@ -354,6 +376,8 @@ export async function exportPortfolioExcel(
   const pictureExport = buildRtuPictureExportBundle(data, manifest)
   const gatewayRows = build360GatewayExportRows(data)
   const operatorRows = buildBuildingOperatorExportRows(buildings, managerRenames)
+  const userRoles = await resolveUserRolesForExport(options.userRoles)
+  const userRows = userRoles ? buildAppUserRoleExportRows(userRoles) : null
 
   const buildingsRows: unknown[][] = []
   const rtusRows: unknown[][] = []
@@ -538,6 +562,15 @@ export async function exportPortfolioExcel(
     buildSheet([...BUILDING_OPERATOR_EXPORT_HEADERS], operatorRows, COL_WIDTHS.operators),
     BUILDING_OPERATOR_SHEET,
   )
+  if (userRows) {
+    XLSX.utils.book_append_sheet(
+      wb,
+      buildSheet([...USERS_EXPORT_HEADERS], userRows, COL_WIDTHS.users, {
+        autofilterCols: USERS_EXPORT_HEADERS.length,
+      }),
+      USERS_SHEET,
+    )
+  }
 
   // SheetJS can't emit frozen panes, so write to a buffer, inject them, then download.
   const raw = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
@@ -549,6 +582,7 @@ export async function exportPortfolioExcel(
     Utilities: 1,
     '360 Gateways': 1,
     [BUILDING_OPERATOR_SHEET]: 1,
+    ...(userRows ? { [USERS_SHEET]: 1 } : {}),
   })
   downloadXlsx(frozen, filename)
 }

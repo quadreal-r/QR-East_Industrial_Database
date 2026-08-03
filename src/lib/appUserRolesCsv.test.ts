@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   appRolesExportFilename,
   buildAppRolesCsv,
+  buildAppUserRoleExportRows,
   parseAppRolesCsv,
   planAppRoleImport,
   roleLabel,
+  USERS_EXPORT_HEADERS,
+  USERS_SHEET,
 } from '@/lib/appUserRolesCsv'
 
 describe('appUserRolesCsv', () => {
@@ -20,6 +23,21 @@ describe('appUserRolesCsv', () => {
         { email: 'ann@example.com', role: 'viewer' },
       ]),
     ).toBe('email,role\nann@example.com,viewer\nzed@example.com,admin\n')
+  })
+
+  it('builds sorted Users sheet rows with Admin/Viewer labels', () => {
+    expect(USERS_SHEET).toBe('Users')
+    expect(USERS_EXPORT_HEADERS).toEqual(['Email', 'Access Level'])
+    expect(
+      buildAppUserRoleExportRows([
+        { email: 'Zed@Example.com', role: 'admin' },
+        { email: '  ', role: 'viewer' },
+        { email: 'ann@example.com', role: 'viewer' },
+      ]),
+    ).toEqual([
+      ['ann@example.com', 'Viewer'],
+      ['zed@example.com', 'Admin'],
+    ])
   })
 
   it('names export files with a date stamp', () => {

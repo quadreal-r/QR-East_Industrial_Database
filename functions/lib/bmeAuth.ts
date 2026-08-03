@@ -462,14 +462,14 @@ export function authWallResponse(
   const safe = String(detail || '').replace(/</g, '&lt;')
   const offline = Boolean(options?.offline)
   const mark = QR_MARK_DATA_URL
-  const title = offline ? 'Off Line' : APP_TITLE
+  const title = offline ? 'Offline' : APP_TITLE
   const subtitle = offline
     ? 'Access is paused. An Admin can sign in below to restore the app.'
     : 'Sign in with your work email'
   const hint = offline
     ? 'Only an Admin listed in Manage users can reactivate. Data and accounts are unchanged.'
     : 'Access is limited to people added by an admin in Manage users (or @quadreal.com).'
-  const pageTitle = offline ? `Off Line · ${APP_TITLE}` : `Sign in · ${APP_TITLE}`
+  const pageTitle = offline ? `Offline · ${APP_TITLE}` : `Sign in · ${APP_TITLE}`
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -607,11 +607,11 @@ export function authWallResponse(
   }
 
   function applyOfflineChrome(){
-    appTitle.textContent='Off Line';
+    appTitle.textContent='Offline';
     appTitle.classList.add('offline');
     appSub.textContent='Access is paused. An Admin can sign in below to restore the app.';
     appHint.textContent='Only an Admin listed in Manage users can reactivate. Data and accounts are unchanged.';
-    document.title='Off Line · ${APP_TITLE}';
+    document.title='Offline · ${APP_TITLE}';
   }
 
   function showCodeStep(email){
